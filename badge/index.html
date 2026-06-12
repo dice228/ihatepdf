@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>iHateBadges — Конструктор значков</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&family=Montserrat:wght@400;600;700&family=Playfair+Display:wght@400;700&family=Lora:wght@400;700&family=Raleway:wght@400;600;700&family=PT+Serif:wght@400;700&family=Oswald:wght@400;600;700&family=Dancing+Script:wght@400;700&family=Pacifico&family=Caveat:wght@400;700&family=Great+Vibes&family=Comfortaa:wght@400;700&family=Lobster&family=Bitter:wght@400;700&family=Philosopher:wght@400;700&family=Jost:wght@400;600;700&family=Unbounded:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg1:#1a1a2e;--bg2:#16213e;--bg3:#0f3460;--bgC:#253256;--acc:#e94560;--accH:#ff6b81;--accS:rgba(233,69,96,0.15);--t1:#ffffff;--t2:#e8ecf8;--t3:#c0c8de;--brd:#2d3a5c;--ok:#2ed573;--warn:#ffa502;--r:10px;--rs:6px}
+html,body{height:100%;font-family:'Nunito',sans-serif;background:var(--bg1);color:var(--t1);overflow:hidden;user-select:none}
+
+/* ─── LAYOUT ─── */
+.app{display:grid;grid-template-rows:52px 1fr;grid-template-columns:300px 1fr 300px;height:100vh}
+.topbar{grid-column:1/-1;background:var(--bg2);border-bottom:1px solid var(--brd);display:flex;align-items:center;padding:0 12px;gap:8px;z-index:100}
+.back-btn{width:34px;height:34px;display:flex;align-items:center;justify-content:center;background:var(--bgC);border:1px solid var(--brd);border-radius:var(--rs);color:var(--t2);cursor:pointer;font-size:18px;transition:all .2s;text-decoration:none;flex-shrink:0}.back-btn:hover{color:var(--acc);border-color:var(--acc)}
+.topbar-logo{font-weight:800;font-size:15px;color:var(--acc);white-space:nowrap}.topbar-logo span{color:var(--t1)}
+.topbar-div{width:1px;height:28px;background:var(--brd)}
+.topbar-info{font-size:11px;color:var(--t2);font-family:'JetBrains Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1}
+.topbar-actions{margin-left:auto;display:flex;gap:6px;align-items:center;flex-shrink:0}
+.btn{padding:7px 14px;border:none;border-radius:var(--rs);font-family:'Nunito',sans-serif;font-weight:700;font-size:12px;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.btn-p{background:var(--acc);color:#fff}.btn-p:hover{background:var(--accH)}
+.btn-s{background:var(--bgC);color:var(--t1);border:1px solid var(--brd)}.btn-s:hover{background:var(--bg3)}
+.btn-g{background:transparent;color:var(--t2)}.btn-g:hover{color:var(--t1);background:var(--bgC)}
+
+/* ─── LEFT SIDEBAR ─── */
+.sidebar-l{background:var(--bg2);border-right:1px solid var(--brd);display:flex;flex-direction:column;overflow:hidden}
+.sidebar-r{background:var(--bg2);border-left:1px solid var(--brd);display:flex;flex-direction:column;overflow:hidden}
+.sidebar-tabs{display:flex;border-bottom:1px solid var(--brd);flex-shrink:0}
+.stab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:rgba(255,255,255,0.4);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;padding:8px 2px}
+.stab:hover{color:rgba(255,255,255,0.7);background:var(--bgC)}
+.stab.active{color:var(--acc);border-bottom-color:var(--acc);background:var(--accS)}
+.stab svg{width:18px;height:18px;flex-shrink:0}
+.spanel{display:none;flex-direction:column;height:100%;overflow-y:auto;padding:10px}.spanel.active{display:flex}
+.sg{margin-bottom:10px}
+.sg label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:rgba(255,255,255,.55);margin-bottom:4px}
+.sg select,.sg input[type="number"],.sg input[type="text"],.sg textarea{width:100%;padding:6px 8px;border-radius:var(--rs);border:1px solid var(--brd);background:var(--bgC);color:var(--t1);font-family:'Nunito',sans-serif;font-size:12px}
+.sg select{cursor:pointer}
+.sg textarea{resize:vertical;min-height:60px;font-size:12px}
+.divider{height:1px;background:var(--brd);margin:10px 0}
+.ss-t{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,0.5);margin-bottom:8px}
+
+/* Radio row */
+.radio-row{display:flex;gap:4px;flex-wrap:wrap}
+.radio-btn{padding:5px 10px;border:1px solid var(--brd);border-radius:var(--rs);font-size:11px;font-weight:600;cursor:pointer;background:var(--bgC);color:var(--t2);transition:all .15s}.radio-btn:hover{border-color:var(--t2);color:#fff}.radio-btn.active{border-color:var(--acc);background:var(--accS);color:var(--acc)}
+
+/* Shape selector cards */
+.shape-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px}
+.shape-card{padding:10px 6px;border:2px solid var(--brd);border-radius:var(--r);text-align:center;cursor:pointer;transition:all .2s;background:var(--bgC)}
+.shape-card:hover{border-color:var(--t3);background:var(--bg3)}
+.shape-card.active{border-color:var(--acc);background:var(--accS)}
+.shape-card svg{width:48px;height:48px;margin-bottom:4px}
+.shape-card .sc-name{font-size:10px;font-weight:700;color:var(--t2)}.shape-card.active .sc-name{color:var(--acc)}
+.shape-card .sc-size{font-size:9px;color:var(--t3);font-family:'JetBrains Mono',monospace}
+
+/* Info box */
+.info-box{padding:8px 10px;background:var(--bgC);border-radius:var(--rs);font-size:10px;color:var(--t2);line-height:1.5;font-family:'JetBrains Mono',monospace;border:1px solid var(--brd)}
+.info-box strong{color:#fff}
+.info-box .w{color:var(--warn)}
+
+/* Upload area */
+.upload-area{padding:16px 10px;border:2px dashed var(--brd);border-radius:var(--r);text-align:center;cursor:pointer;transition:all .3s;margin-bottom:10px}
+.upload-area:hover,.upload-area.dragover{border-color:var(--acc);background:var(--accS)}
+.upload-area-ico{font-size:28px;margin-bottom:4px}
+.upload-area-text{font-size:11px;color:var(--t2)}.upload-area-text strong{color:var(--t1)}
+
+/* Color input */
+.color-row{display:flex;align-items:center;gap:8px;margin-top:2px}
+.color-row input[type="color"]{width:32px;height:26px;border:1px solid var(--brd);border-radius:4px;background:transparent;cursor:pointer;padding:0}
+.color-row span{font-size:11px;color:var(--t2)}
+
+/* Range row */
+.range-row{display:flex;align-items:center;gap:8px}
+.range-row input[type="range"]{flex:1;accent-color:var(--acc)}
+.range-row span{font-size:11px;color:var(--t2);font-family:'JetBrains Mono',monospace;min-width:30px;text-align:right}
+
+/* Text items list */
+.text-item-card{background:var(--bgC);border:1px solid var(--brd);border-radius:var(--rs);padding:8px;margin-bottom:6px;cursor:pointer;transition:all .15s}
+.text-item-card:hover{border-color:var(--t3)}
+.text-item-card.active{border-color:var(--acc);background:var(--accS)}
+.text-item-card .tic-preview{font-size:13px;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:4px}
+.text-item-card .tic-meta{font-size:9px;color:var(--t3);font-family:'JetBrains Mono',monospace}
+.text-item-card .tic-del{float:right;background:none;border:none;color:var(--acc);cursor:pointer;font-size:14px;padding:0 2px;opacity:.6}.text-item-card .tic-del:hover{opacity:1}
+
+/* Font preview */
+.font-preview{padding:8px;background:var(--bgC);border-radius:var(--rs);border:1px solid var(--brd);font-size:18px;text-align:center;color:var(--t1);min-height:36px;display:flex;align-items:center;justify-content:center;margin-bottom:8px}
+
+/* Text style buttons */
+.text-style-row{display:flex;gap:4px}
+.text-style-btn{width:34px;height:34px;display:flex;align-items:center;justify-content:center;background:var(--bgC);border:1px solid var(--brd);border-radius:var(--rs);color:var(--t2);cursor:pointer;font-size:15px;transition:all .15s}.text-style-btn:hover{color:var(--t1)}.text-style-btn.active{color:var(--acc);border-color:var(--acc);background:var(--accS)}
+
+/* ─── CANVAS AREA ─── */
+.canvas-area{background:var(--bg1);overflow:auto;display:flex;align-items:center;justify-content:center;position:relative;background-image:radial-gradient(circle at 1px 1px, rgba(255,255,255,.03) 1px, transparent 0);background-size:32px 32px}
+.canvas-container{position:relative;flex-shrink:0}
+.badge-canvas{display:block;cursor:crosshair}
+.canvas-zoom{position:absolute;bottom:10px;right:10px;display:flex;align-items:center;gap:5px;background:var(--bg2);border:1px solid var(--brd);border-radius:var(--rs);padding:3px 6px;z-index:50}
+.canvas-zoom span{font-size:11px;font-family:'JetBrains Mono',monospace;color:#fff;min-width:36px;text-align:center}
+.btn-icon{width:26px;height:26px;padding:0;display:flex;align-items:center;justify-content:center;background:var(--bgC);border:1px solid var(--brd);border-radius:var(--rs);color:var(--t2);cursor:pointer;font-size:13px}.btn-icon:hover{color:var(--t1);background:var(--bg3)}
+
+/* Toast */
+.toast-c{position:fixed;bottom:20px;right:16px;z-index:10000;display:flex;flex-direction:column;gap:6px}
+.toast{padding:8px 14px;border-radius:var(--rs);font-size:12px;font-weight:600;box-shadow:0 4px 24px rgba(0,0,0,.4);animation:tIn .3s;max-width:300px}
+.toast.info{background:var(--bg3);color:var(--t1);border:1px solid var(--brd)}
+.toast.success{background:#1a4a2e;color:var(--ok);border:1px solid #2d6b42}
+.toast.error{background:#4a1a2e;color:var(--acc);border:1px solid #6b2d42}
+@keyframes tIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* Export progress */
+.exp-p{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:99999;display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px}.exp-p.visible{display:flex}
+.exp-bar{width:300px;height:6px;background:var(--bgC);border-radius:3px;overflow:hidden}.exp-fill{height:100%;background:var(--acc);width:0;transition:width .3s;border-radius:3px}
+.exp-txt{font-size:13px;color:var(--t1);font-weight:600}
+
+/* Modal */
+.modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99998;display:none;align-items:center;justify-content:center}.modal-ov.visible{display:flex}
+.modal{background:#1e2746;border:1px solid var(--brd);border-radius:var(--r);padding:24px;min-width:360px;max-width:460px;box-shadow:0 8px 40px rgba(0,0,0,.5)}
+.modal h3{margin-bottom:12px;font-size:16px}.modal p{font-size:13px;color:var(--t2);margin-bottom:16px;line-height:1.5}.modal-actions{display:flex;justify-content:flex-end;gap:8px}
+
+/* Badge color presets */
+.bg-color-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:3px;margin-bottom:8px}
+.bg-swatch{aspect-ratio:1;border-radius:4px;cursor:pointer;border:2px solid transparent;transition:all .15s}.bg-swatch:hover,.bg-swatch.active{border-color:var(--acc);transform:scale(1.15)}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--brd);border-radius:3px}
+
+/* Crop handle overlay on canvas */
+.crop-hint{position:absolute;bottom:60px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.75);color:var(--ok);font-size:11px;font-weight:700;padding:6px 14px;border-radius:20px;pointer-events:none;z-index:60;white-space:nowrap;display:none}
+.crop-hint.visible{display:block}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <a class="back-btn" id="backBtn" href="https://ihatepdf.ru" title="Назад на iHatePdf.ru">←</a>
+    <div class="topbar-logo">🏷️ <span>iHateBadges</span></div>
+    <div class="topbar-div"></div>
+    <button class="btn btn-s" onclick="undo()" title="Ctrl+Z" style="font-size:14px;padding:5px 10px">↩</button>
+    <button class="btn btn-s" onclick="redo()" title="Ctrl+Y" style="font-size:14px;padding:5px 10px">↪</button>
+    <div class="topbar-div"></div>
+    <div class="topbar-info" id="badgeInfo">Круглый Ø58 мм · 300 DPI</div>
+    <div class="topbar-actions">
+      <button class="btn btn-s" onclick="exportPNG()">⬇ PNG</button>
+      <button class="btn btn-p" onclick="exportJPEG()">⬇ JPEG</button>
+    </div>
+  </header>
+
+  <!-- LEFT SIDEBAR: Shape + Image -->
+  <aside class="sidebar-l">
+    <div class="sidebar-tabs">
+      <div class="stab active" data-tab="shape">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
+        <span>Форма</span>
+      </div>
+      <div class="stab" data-tab="image">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        <span>Фото</span>
+      </div>
+      <div class="stab" data-tab="bgcolor">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="13.5" cy="6.5" r="1"/><circle cx="17.5" cy="10.5" r="1"/><circle cx="8.5" cy="7.5" r="1"/><circle cx="6.5" cy="12.5" r="1"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
+        <span>Фон</span>
+      </div>
+    </div>
+
+    <!-- SHAPE PANEL -->
+    <div class="spanel active" id="panel-shape">
+      <div class="ss-t">Форма значка</div>
+      <div class="shape-grid" id="shapeGrid"></div>
+      <div class="divider"></div>
+      <div class="info-box" id="shapeInfo"></div>
+      <div class="divider"></div>
+      <div class="sg">
+        <label>Качество JPEG</label>
+        <input type="number" id="jpegQuality" value="95" min="50" max="100" step="5">
+      </div>
+    </div>
+
+    <!-- IMAGE PANEL -->
+    <div class="spanel" id="panel-image">
+      <div class="upload-area" id="uploadArea">
+        <div class="upload-area-ico">📷</div>
+        <div class="upload-area-text"><strong>Нажмите</strong> или перетащите изображение</div>
+      </div>
+      <input type="file" id="fileInput" accept="image/*" hidden>
+      <div id="imageControls" style="display:none">
+        <div class="ss-t">Позиция и масштаб</div>
+        <div class="sg">
+          <label>Масштаб</label>
+          <div class="range-row"><input type="range" id="imgScale" min="10" max="500" value="100" oninput="onImagePropChange()"><span id="imgScaleVal">100%</span></div>
+        </div>
+        <div class="sg">
+          <label>Смещение X</label>
+          <div class="range-row"><input type="range" id="imgOffX" min="-1000" max="1000" value="0" oninput="onImagePropChange()"><span id="imgOffXVal">0</span></div>
+        </div>
+        <div class="sg">
+          <label>Смещение Y</label>
+          <div class="range-row"><input type="range" id="imgOffY" min="-1000" max="1000" value="0" oninput="onImagePropChange()"><span id="imgOffYVal">0</span></div>
+        </div>
+        <div class="sg">
+          <label>Поворот</label>
+          <div class="range-row"><input type="range" id="imgRot" min="-180" max="180" value="0" oninput="onImagePropChange()"><span id="imgRotVal">0°</span></div>
+        </div>
+        <div class="divider"></div>
+        <button class="btn btn-s" style="width:100%;margin-bottom:6px" onclick="fitImageCover()">⊡ Заполнить значок</button>
+        <button class="btn btn-s" style="width:100%;margin-bottom:6px" onclick="fitImageContain()">⊞ Вписать в значок</button>
+        <button class="btn btn-s" style="width:100%;color:var(--acc)" onclick="removeImage()">✕ Убрать изображение</button>
+      </div>
+      <div class="divider"></div>
+      <div class="info-box">💡 Перетаскивайте изображение прямо на значке мышкой. Колесо мыши — масштаб. Shift+колесо — поворот.</div>
+    </div>
+
+    <!-- BG COLOR PANEL -->
+    <div class="spanel" id="panel-bgcolor">
+      <div class="ss-t">Цвет фона</div>
+      <div class="bg-color-grid" id="bgColorGrid"></div>
+      <div class="color-row">
+        <input type="color" id="bgColorPicker" value="#ffffff" oninput="setBgColor(this.value)">
+        <span>Свой цвет</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- CANVAS -->
+  <main class="canvas-area" id="canvasArea">
+    <div class="canvas-container" id="canvasContainer">
+      <canvas class="badge-canvas" id="badgeCanvas"></canvas>
+    </div>
+    <div class="crop-hint" id="cropHint">Перетаскивайте фото · Колесо = масштаб · Shift+колесо = поворот</div>
+    <div class="canvas-zoom">
+      <button class="btn-icon" onclick="zoomOut()">−</button>
+      <span id="zoomLevel">100%</span>
+      <button class="btn-icon" onclick="zoomIn()">+</button>
+      <button class="btn-icon" onclick="zoomFit()">⊡</button>
+    </div>
+  </main>
+
+  <!-- RIGHT SIDEBAR: Text -->
+  <aside class="sidebar-r">
+    <div style="padding:8px 10px;border-bottom:1px solid var(--brd);display:flex;align-items:center;justify-content:space-between">
+      <span class="ss-t" style="margin:0">Текстовые слои</span>
+      <button class="btn btn-s" style="font-size:11px;padding:4px 10px" onclick="addTextLayer()">＋ Текст</button>
+    </div>
+    <div id="textListArea" style="padding:8px 10px;overflow-y:auto;flex:1">
+      <div id="textList"></div>
+    </div>
+    <div id="textEditArea" style="display:none;padding:10px;border-top:1px solid var(--brd);overflow-y:auto;max-height:55%">
+      <div class="ss-t">Редактирование</div>
+      <div class="sg"><label>Текст</label><textarea id="teContent" rows="2" oninput="onTextPropChange()"></textarea></div>
+      <div class="sg"><label>Шрифт</label><select id="teFont" onchange="onTextPropChange()">
+        <option value="Nunito">Nunito</option><option value="Montserrat" selected>Montserrat</option><option value="Playfair Display">Playfair Display</option><option value="Lora">Lora</option><option value="Raleway">Raleway</option><option value="PT Serif">PT Serif</option><option value="Oswald">Oswald</option><option value="Dancing Script">Dancing Script</option><option value="Pacifico">Pacifico</option><option value="Caveat">Caveat</option><option value="Great Vibes">Great Vibes</option><option value="Comfortaa">Comfortaa</option><option value="Lobster">Lobster</option><option value="Bitter">Bitter</option><option value="Philosopher">Philosopher</option><option value="Jost">Jost</option><option value="Unbounded">Unbounded</option>
+      </select></div>
+      <div class="font-preview" id="teFontPreview">Пример</div>
+      <div class="sg"><label>Размер (px)</label><div class="range-row"><input type="range" id="teSize" min="8" max="300" value="40" oninput="onTextPropChange()"><span id="teSizeVal">40</span></div></div>
+      <div class="sg"><label>Цвет</label><div class="color-row"><input type="color" id="teColor" value="#000000" oninput="onTextPropChange()"><span id="teColorHex">#000000</span></div></div>
+      <div class="sg"><label>Стиль</label>
+        <div class="text-style-row">
+          <button class="text-style-btn" id="teBold" onclick="toggleTextStyle('bold')"><b>B</b></button>
+          <button class="text-style-btn" id="teItalic" onclick="toggleTextStyle('italic')"><i>I</i></button>
+        </div>
+      </div>
+      <div class="sg"><label>Позиция X</label><div class="range-row"><input type="range" id="tePosX" min="-500" max="500" value="0" oninput="onTextPropChange()"><span id="tePosXVal">0</span></div></div>
+      <div class="sg"><label>Позиция Y</label><div class="range-row"><input type="range" id="tePosY" min="-500" max="500" value="0" oninput="onTextPropChange()"><span id="tePosYVal">0</span></div></div>
+      <div class="sg"><label>Кривизна (дуга)</label><div class="range-row"><input type="range" id="teCurve" min="-100" max="100" value="0" oninput="onTextPropChange()"><span id="teCurveVal">0</span></div></div>
+    </div>
+  </aside>
+</div>
+
+<div class="toast-c" id="toastC"></div>
+<div class="exp-p" id="expP"><div class="exp-txt" id="expTxt">Экспорт...</div><div class="exp-bar"><div class="exp-fill" id="expFill"></div></div></div>
+<div class="modal-ov" id="exitModal"><div class="modal"><h3>Покинуть конструктор?</h3><p>Несохранённые изменения будут потеряны.</p><div class="modal-actions"><button class="btn btn-s" onclick="document.getElementById('exitModal').classList.remove('visible')">Отмена</button><button class="btn btn-p" onclick="location.href='https://ihatepdf.ru'">Выйти</button></div></div></div>
+
+<script>
+// ═══════════════════════════════════════════════════
+//  BADGE SHAPES DATABASE (from kopirka.ru)
+//  All dimensions at 300 DPI. 1mm ≈ 11.811px
+// ═══════════════════════════════════════════════════
+const PX_PER_MM = 11.811;
+const BLEED_MM = 2;
+const BLEED_PX = Math.round(BLEED_MM * PX_PER_MM);
+
+const SHAPES = [
+  {
+    id: 'circle32',
+    name: 'Круглый',
+    size: 'Ø32 мм',
+    diamMm: 32,
+    type: 'circle',
+    // canvas size = diameter + 2*bleed
+    w: Math.round(32 * PX_PER_MM) + BLEED_PX * 2,
+    h: Math.round(32 * PX_PER_MM) + BLEED_PX * 2,
+    clipPath(ctx, w, h) {
+      ctx.beginPath();
+      ctx.arc(w / 2, h / 2, w / 2, 0, Math.PI * 2);
+      ctx.closePath();
+    },
+    safeClip(ctx, w, h) {
+      const r = (w / 2) - BLEED_PX;
+      ctx.beginPath();
+      ctx.arc(w / 2, h / 2, r, 0, Math.PI * 2);
+      ctx.closePath();
+    }
+  },
+  {
+    id: 'circle58',
+    name: 'Круглый',
+    size: 'Ø58 мм',
+    diamMm: 58,
+    type: 'circle',
+    w: Math.round(58 * PX_PER_MM) + BLEED_PX * 2,
+    h: Math.round(58 * PX_PER_MM) + BLEED_PX * 2,
+    clipPath(ctx, w, h) {
+      ctx.beginPath();
+      ctx.arc(w / 2, h / 2, w / 2, 0, Math.PI * 2);
+      ctx.closePath();
+    },
+    safeClip(ctx, w, h) {
+      const r = (w / 2) - BLEED_PX;
+      ctx.beginPath();
+      ctx.arc(w / 2, h / 2, r, 0, Math.PI * 2);
+      ctx.closePath();
+    }
+  },
+  {
+    id: 'rect70x25',
+    name: 'Прямоугольный',
+    size: '70×25 мм',
+    type: 'rect',
+    w: Math.round(70 * PX_PER_MM) + BLEED_PX * 2,
+    h: Math.round(25 * PX_PER_MM) + BLEED_PX * 2,
+    cornerR: Math.round(3 * PX_PER_MM),
+    clipPath(ctx, w, h) {
+      const r = this.cornerR + BLEED_PX;
+      roundRect(ctx, 0, 0, w, h, r);
+    },
+    safeClip(ctx, w, h) {
+      roundRect(ctx, BLEED_PX, BLEED_PX, w - BLEED_PX * 2, h - BLEED_PX * 2, this.cornerR);
+    }
+  },
+  {
+    id: 'heart53x57',
+    name: 'Сердце',
+    size: '53×57 мм',
+    type: 'heart',
+    w: Math.round(53 * PX_PER_MM) + BLEED_PX * 2,
+    h: Math.round(57 * PX_PER_MM) + BLEED_PX * 2,
+    clipPath(ctx, w, h) {
+      drawHeart(ctx, 0, 0, w, h);
+    },
+    safeClip(ctx, w, h) {
+      drawHeart(ctx, BLEED_PX, BLEED_PX, w - BLEED_PX * 2, h - BLEED_PX * 2);
+    }
+  }
+];
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+function drawHeart(ctx, x, y, w, h) {
+  const cx = x + w / 2, topY = y + h * 0.3;
+  ctx.beginPath();
+  ctx.moveTo(cx, y + h * 0.95);
+  ctx.bezierCurveTo(x - w * 0.05, y + h * 0.55, x - w * 0.02, y + h * 0.05, cx, topY);
+  ctx.bezierCurveTo(x + w * 1.02, y + h * 0.05, x + w * 1.05, y + h * 0.55, cx, y + h * 0.95);
+  ctx.closePath();
+}
+
+// ═══════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════
+let curShapeIdx = 1; // circle58
+let bgColor = '#ffffff';
+let userImage = null; // { img: HTMLImageElement, naturalW, naturalH }
+let imgState = { scale: 100, offX: 0, offY: 0, rot: 0 };
+let textLayers = [];
+let selectedTextId = null;
+let nextId = 1;
+let zoom = 1;
+let undoStack = [], redoStack = [];
+const MAX_UNDO = 40;
+
+// Image drag state
+let imgDrag = null;
+
+function S() { return SHAPES[curShapeIdx]; }
+
+// ═══════════════════════════════════════════════════
+//  UNDO / REDO
+// ═══════════════════════════════════════════════════
+function saveState() {
+  return JSON.stringify({ shapeIdx: curShapeIdx, bgColor, imgState: { ...imgState }, textLayers: textLayers.map(t => ({ ...t })), selectedTextId });
+}
+function pushUndo() {
+  undoStack.push(saveState());
+  if (undoStack.length > MAX_UNDO) undoStack.shift();
+  redoStack = [];
+}
+function restoreState(s) {
+  const d = JSON.parse(s);
+  curShapeIdx = d.shapeIdx;
+  bgColor = d.bgColor;
+  imgState = d.imgState;
+  textLayers = d.textLayers;
+  selectedTextId = d.selectedTextId;
+  syncShapeUI();
+  syncBgUI();
+  syncImageUI();
+  renderTextList();
+  renderBadge();
+}
+function undo() {
+  if (!undoStack.length) { toast('Нечего отменять', 'info'); return; }
+  redoStack.push(saveState());
+  restoreState(undoStack.pop());
+  toast('Отмена', 'info');
+}
+function redo() {
+  if (!redoStack.length) { toast('Нечего повторять', 'info'); return; }
+  undoStack.push(saveState());
+  restoreState(redoStack.pop());
+  toast('Повтор', 'info');
+}
+
+// ═══════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════
+function init() {
+  buildShapeGrid();
+  buildBgColors();
+  setupTabs();
+  setupUpload();
+  setupCanvasEvents();
+  setupKeyboard();
+  syncShapeUI();
+  renderBadge();
+  zoomFit();
+}
+
+function setupTabs() {
+  document.querySelectorAll('.sidebar-l .stab').forEach(t => t.addEventListener('click', () => {
+    document.querySelectorAll('.sidebar-l .stab').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.sidebar-l .spanel').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('panel-' + t.dataset.tab).classList.add('active');
+  }));
+}
+
+// ═══════════════════════════════════════════════════
+//  SHAPE SELECTOR
+// ═══════════════════════════════════════════════════
+function buildShapeGrid() {
+  const g = document.getElementById('shapeGrid');
+  const svgs = [
+    `<svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="14" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="24" y="27" text-anchor="middle" font-size="7" fill="currentColor">32</text></svg>`,
+    `<svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="18" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="24" y="27" text-anchor="middle" font-size="7" fill="currentColor">58</text></svg>`,
+    `<svg viewBox="0 0 48 48"><rect x="5" y="16" width="38" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="24" y="27" text-anchor="middle" font-size="6" fill="currentColor">70×25</text></svg>`,
+    `<svg viewBox="0 0 48 48"><path d="M24 40C10 30 4 22 4 16c0-6 4.5-10 10-10 3.5 0 7 2 10 6 3-4 6.5-6 10-6 5.5 0 10 4 10 10 0 6-6 14-20 24z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>`
+  ];
+  SHAPES.forEach((sh, i) => {
+    const el = document.createElement('div');
+    el.className = 'shape-card' + (i === curShapeIdx ? ' active' : '');
+    el.innerHTML = svgs[i] + `<div class="sc-name">${sh.name}</div><div class="sc-size">${sh.size}</div>`;
+    el.addEventListener('click', () => { pushUndo(); curShapeIdx = i; syncShapeUI(); renderBadge(); zoomFit(); });
+    g.appendChild(el);
+  });
+}
+
+function syncShapeUI() {
+  document.querySelectorAll('.shape-card').forEach((el, i) => el.classList.toggle('active', i === curShapeIdx));
+  const sh = S();
+  document.getElementById('shapeInfo').innerHTML = `<strong>${sh.name} ${sh.size}</strong><br>Холст: ${sh.w}×${sh.h} px (300 DPI)<br>Вылет: ${BLEED_PX}px (${BLEED_MM}мм)`;
+  document.getElementById('badgeInfo').textContent = `${sh.name} ${sh.size} · ${sh.w}×${sh.h} · 300 DPI`;
+}
+
+// ═══════════════════════════════════════════════════
+//  BACKGROUND COLORS
+// ═══════════════════════════════════════════════════
+const BG_COLORS = ['#ffffff','#f5f5f5','#000000','#1a1a2e','#e94560','#ff6b81','#ffa502','#ffd32a','#2ed573','#1abc9c','#3498db','#0f3460','#9b59b6','#e84393','#fab1a0','#dfe6e9'];
+function buildBgColors() {
+  const g = document.getElementById('bgColorGrid');
+  BG_COLORS.forEach(c => {
+    const s = document.createElement('div');
+    s.className = 'bg-swatch';
+    s.style.background = c;
+    if (c === '#ffffff') s.style.border = '2px solid var(--brd)';
+    s.addEventListener('click', () => { pushUndo(); setBgColor(c); });
+    g.appendChild(s);
+  });
+}
+function setBgColor(c) {
+  bgColor = c;
+  syncBgUI();
+  renderBadge();
+}
+function syncBgUI() {
+  document.getElementById('bgColorPicker').value = bgColor;
+  document.querySelectorAll('.bg-swatch').forEach((s, i) => s.classList.toggle('active', BG_COLORS[i] === bgColor));
+}
+
+// ═══════════════════════════════════════════════════
+//  IMAGE UPLOAD
+// ═══════════════════════════════════════════════════
+function setupUpload() {
+  const a = document.getElementById('uploadArea'), inp = document.getElementById('fileInput');
+  a.addEventListener('click', () => inp.click());
+  a.addEventListener('dragover', e => { e.preventDefault(); a.classList.add('dragover'); });
+  a.addEventListener('dragleave', () => a.classList.remove('dragover'));
+  a.addEventListener('drop', e => { e.preventDefault(); a.classList.remove('dragover'); loadImageFile(e.dataTransfer.files[0]); });
+  inp.addEventListener('change', () => { loadImageFile(inp.files[0]); inp.value = ''; });
+}
+
+function loadImageFile(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  const r = new FileReader();
+  r.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      pushUndo();
+      userImage = { img, naturalW: img.naturalWidth, naturalH: img.naturalHeight, dataUrl: e.target.result };
+      fitImageCover();
+      document.getElementById('imageControls').style.display = '';
+      document.getElementById('cropHint').classList.add('visible');
+      setTimeout(() => document.getElementById('cropHint').classList.remove('visible'), 4000);
+      renderBadge();
+      toast('Изображение загружено', 'success');
+    };
+    img.src = e.target.result;
+  };
+  r.readAsDataURL(file);
+}
+
+function fitImageCover() {
+  if (!userImage) return;
+  pushUndo();
+  const sh = S();
+  const asp = userImage.naturalW / userImage.naturalH;
+  const shAsp = sh.w / sh.h;
+  let scale;
+  if (asp > shAsp) {
+    scale = (sh.h / userImage.naturalH) * 100;
+  } else {
+    scale = (sh.w / userImage.naturalW) * 100;
+  }
+  imgState = { scale: Math.round(scale), offX: 0, offY: 0, rot: 0 };
+  syncImageUI();
+  renderBadge();
+}
+
+function fitImageContain() {
+  if (!userImage) return;
+  pushUndo();
+  const sh = S();
+  const asp = userImage.naturalW / userImage.naturalH;
+  const shAsp = sh.w / sh.h;
+  let scale;
+  if (asp > shAsp) {
+    scale = (sh.w / userImage.naturalW) * 100;
+  } else {
+    scale = (sh.h / userImage.naturalH) * 100;
+  }
+  imgState = { scale: Math.round(scale * 0.85), offX: 0, offY: 0, rot: 0 };
+  syncImageUI();
+  renderBadge();
+}
+
+function removeImage() {
+  pushUndo();
+  userImage = null;
+  imgState = { scale: 100, offX: 0, offY: 0, rot: 0 };
+  document.getElementById('imageControls').style.display = 'none';
+  renderBadge();
+}
+
+function onImagePropChange() {
+  imgState.scale = +document.getElementById('imgScale').value;
+  imgState.offX = +document.getElementById('imgOffX').value;
+  imgState.offY = +document.getElementById('imgOffY').value;
+  imgState.rot = +document.getElementById('imgRot').value;
+  document.getElementById('imgScaleVal').textContent = imgState.scale + '%';
+  document.getElementById('imgOffXVal').textContent = imgState.offX;
+  document.getElementById('imgOffYVal').textContent = imgState.offY;
+  document.getElementById('imgRotVal').textContent = imgState.rot + '°';
+  renderBadge();
+}
+
+function syncImageUI() {
+  document.getElementById('imgScale').value = imgState.scale;
+  document.getElementById('imgOffX').value = imgState.offX;
+  document.getElementById('imgOffY').value = imgState.offY;
+  document.getElementById('imgRot').value = imgState.rot;
+  document.getElementById('imgScaleVal').textContent = imgState.scale + '%';
+  document.getElementById('imgOffXVal').textContent = imgState.offX;
+  document.getElementById('imgOffYVal').textContent = imgState.offY;
+  document.getElementById('imgRotVal').textContent = imgState.rot + '°';
+  if (userImage) document.getElementById('imageControls').style.display = '';
+}
+
+// ═══════════════════════════════════════════════════
+//  TEXT LAYERS
+// ═══════════════════════════════════════════════════
+function addTextLayer() {
+  pushUndo();
+  const t = {
+    id: nextId++,
+    text: 'Текст',
+    fontFamily: 'Montserrat',
+    fontSize: 40,
+    color: '#000000',
+    bold: false,
+    italic: false,
+    x: 0, y: 0,
+    curve: 0
+  };
+  textLayers.push(t);
+  selectedTextId = t.id;
+  renderTextList();
+  showTextEditor(t);
+  renderBadge();
+}
+
+function renderTextList() {
+  const c = document.getElementById('textList');
+  c.innerHTML = '';
+  textLayers.forEach(t => {
+    const el = document.createElement('div');
+    el.className = 'text-item-card' + (t.id === selectedTextId ? ' active' : '');
+    el.innerHTML = `<button class="tic-del" data-id="${t.id}">✕</button><div class="tic-preview" style="font-family:'${t.fontFamily}',sans-serif;${t.bold ? 'font-weight:700;' : ''}${t.italic ? 'font-style:italic;' : ''}color:${t.color}">${t.text || '(пусто)'}</div><div class="tic-meta">${t.fontFamily} · ${t.fontSize}px</div>`;
+    el.addEventListener('click', e => {
+      if (e.target.closest('.tic-del')) { pushUndo(); textLayers = textLayers.filter(x => x.id !== t.id); if (selectedTextId === t.id) { selectedTextId = null; document.getElementById('textEditArea').style.display = 'none'; } renderTextList(); renderBadge(); return; }
+      selectedTextId = t.id;
+      renderTextList();
+      showTextEditor(t);
+    });
+    c.appendChild(el);
+  });
+}
+
+function showTextEditor(t) {
+  document.getElementById('textEditArea').style.display = '';
+  document.getElementById('teContent').value = t.text;
+  document.getElementById('teFont').value = t.fontFamily;
+  document.getElementById('teSize').value = t.fontSize;
+  document.getElementById('teSizeVal').textContent = t.fontSize;
+  document.getElementById('teColor').value = t.color;
+  document.getElementById('teColorHex').textContent = t.color;
+  document.getElementById('teBold').classList.toggle('active', t.bold);
+  document.getElementById('teItalic').classList.toggle('active', t.italic);
+  document.getElementById('tePosX').value = t.x;
+  document.getElementById('tePosXVal').textContent = t.x;
+  document.getElementById('tePosY').value = t.y;
+  document.getElementById('tePosYVal').textContent = t.y;
+  document.getElementById('teCurve').value = t.curve;
+  document.getElementById('teCurveVal').textContent = t.curve;
+  document.getElementById('teFontPreview').style.fontFamily = "'" + t.fontFamily + "',sans-serif";
+  document.getElementById('teFontPreview').textContent = (t.text || 'Пример').substring(0, 20);
+}
+
+function getSelText() { return textLayers.find(t => t.id === selectedTextId) || null; }
+
+function onTextPropChange() {
+  const t = getSelText(); if (!t) return;
+  t.text = document.getElementById('teContent').value;
+  t.fontFamily = document.getElementById('teFont').value;
+  t.fontSize = +document.getElementById('teSize').value;
+  t.color = document.getElementById('teColor').value;
+  t.x = +document.getElementById('tePosX').value;
+  t.y = +document.getElementById('tePosY').value;
+  t.curve = +document.getElementById('teCurve').value;
+  document.getElementById('teSizeVal').textContent = t.fontSize;
+  document.getElementById('teColorHex').textContent = t.color;
+  document.getElementById('tePosXVal').textContent = t.x;
+  document.getElementById('tePosYVal').textContent = t.y;
+  document.getElementById('teCurveVal').textContent = t.curve;
+  document.getElementById('teFontPreview').style.fontFamily = "'" + t.fontFamily + "',sans-serif";
+  document.getElementById('teFontPreview').textContent = (t.text || 'Пример').substring(0, 20);
+  renderTextList();
+  renderBadge();
+}
+
+function toggleTextStyle(s) {
+  const t = getSelText(); if (!t) return;
+  pushUndo();
+  t[s] = !t[s];
+  showTextEditor(t);
+  renderTextList();
+  renderBadge();
+}
+
+// ═══════════════════════════════════════════════════
+//  RENDER BADGE
+// ═══════════════════════════════════════════════════
+function renderBadge() {
+  const sh = S();
+  const cv = document.getElementById('badgeCanvas');
+  cv.width = sh.w;
+  cv.height = sh.h;
+  cv.style.width = (sh.w * zoom) + 'px';
+  cv.style.height = (sh.h * zoom) + 'px';
+  const ctx = cv.getContext('2d');
+  ctx.clearRect(0, 0, sh.w, sh.h);
+
+  // 1. Draw background with clip
+  ctx.save();
+  sh.clipPath(ctx, sh.w, sh.h);
+  ctx.clip();
+  ctx.fillStyle = bgColor;
+  ctx.fillRect(0, 0, sh.w, sh.h);
+
+  // 2. Draw user image
+  if (userImage) {
+    ctx.save();
+    const cx = sh.w / 2 + imgState.offX;
+    const cy = sh.h / 2 + imgState.offY;
+    ctx.translate(cx, cy);
+    ctx.rotate(imgState.rot * Math.PI / 180);
+    const sc = imgState.scale / 100;
+    const dw = userImage.naturalW * sc;
+    const dh = userImage.naturalH * sc;
+    ctx.drawImage(userImage.img, -dw / 2, -dh / 2, dw, dh);
+    ctx.restore();
+  }
+
+  // 3. Draw text layers
+  textLayers.forEach(t => {
+    ctx.save();
+    ctx.fillStyle = t.color;
+    const fontStr = (t.bold ? 'bold ' : '') + (t.italic ? 'italic ' : '') + t.fontSize + "px '" + t.fontFamily + "', sans-serif";
+    ctx.font = fontStr;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const tx = sh.w / 2 + t.x;
+    const ty = sh.h / 2 + t.y;
+    if (t.curve !== 0) {
+      drawCurvedText(ctx, t.text, tx, ty, t.curve, t.fontSize);
+    } else {
+      // Multi-line support
+      const lines = t.text.split('\n');
+      const lh = t.fontSize * 1.2;
+      const startY = ty - (lines.length - 1) * lh / 2;
+      lines.forEach((line, li) => {
+        ctx.fillText(line, tx, startY + li * lh);
+      });
+    }
+    ctx.restore();
+  });
+
+  ctx.restore(); // end clip
+
+  // 4. Draw bleed/safe zone guides (translucent overlay outside safe)
+  ctx.save();
+  // Full canvas fill with translucent
+  ctx.fillStyle = 'rgba(255,60,60,0.08)';
+  ctx.fillRect(0, 0, sh.w, sh.h);
+  // Cut out safe zone
+  ctx.globalCompositeOperation = 'destination-out';
+  sh.safeClip(ctx, sh.w, sh.h);
+  ctx.fill();
+  ctx.restore();
+
+  // 5. Draw dashed safe-zone line
+  ctx.save();
+  ctx.setLineDash([6, 4]);
+  ctx.strokeStyle = 'rgba(255,80,80,0.35)';
+  ctx.lineWidth = 1;
+  sh.safeClip(ctx, sh.w, sh.h);
+  ctx.stroke();
+  ctx.restore();
+
+  // 6. Draw shape outline
+  ctx.save();
+  ctx.setLineDash([]);
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.lineWidth = 1;
+  sh.clipPath(ctx, sh.w, sh.h);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawCurvedText(ctx, text, cx, cy, curve, fontSize) {
+  if (!text) return;
+  const radius = (1000 / Math.abs(curve)) * (fontSize / 40);
+  const dir = curve > 0 ? 1 : -1;
+  const centerAngle = -Math.PI / 2 * dir;
+  // Measure total width
+  let totalW = 0;
+  const charWidths = [];
+  for (const ch of text) {
+    const w = ctx.measureText(ch).width;
+    charWidths.push(w);
+    totalW += w;
+  }
+  const totalAngle = totalW / radius;
+  let angle = centerAngle - (totalAngle / 2) * dir;
+  const ry = cy + (dir > 0 ? radius : -radius);
+  for (let i = 0; i < text.length; i++) {
+    const halfChar = charWidths[i] / 2 / radius;
+    angle += halfChar * dir;
+    ctx.save();
+    ctx.translate(cx + Math.cos(angle) * radius * -dir, ry - Math.cos(angle + Math.PI / 2 * dir) * radius * dir);
+    ctx.rotate(angle + (dir > 0 ? Math.PI / 2 : -Math.PI / 2));
+    ctx.fillText(text[i], 0, 0);
+    ctx.restore();
+    angle += halfChar * dir;
+  }
+}
+
+// ═══════════════════════════════════════════════════
+//  CANVAS INTERACTION (drag image, scroll zoom)
+// ═══════════════════════════════════════════════════
+function setupCanvasEvents() {
+  const cv = document.getElementById('badgeCanvas');
+  const ca = document.getElementById('canvasArea');
+
+  cv.addEventListener('mousedown', e => {
+    if (!userImage) return;
+    e.preventDefault();
+    imgDrag = { sx: e.clientX, sy: e.clientY, oox: imgState.offX, ooy: imgState.offY };
+  });
+
+  window.addEventListener('mousemove', e => {
+    if (!imgDrag) return;
+    const dx = (e.clientX - imgDrag.sx) / zoom;
+    const dy = (e.clientY - imgDrag.sy) / zoom;
+    imgState.offX = Math.round(imgDrag.oox + dx);
+    imgState.offY = Math.round(imgDrag.ooy + dy);
+    syncImageUI();
+    renderBadge();
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (imgDrag) { pushUndo(); imgDrag = null; }
+  });
+
+  cv.addEventListener('wheel', e => {
+    if (!userImage) {
+      // Zoom canvas
+      e.preventDefault();
+      const step = e.deltaY > 0 ? -0.05 : 0.05;
+      zoom = Math.min(3, Math.max(0.1, zoom + step));
+      renderBadge();
+      document.getElementById('zoomLevel').textContent = Math.round(zoom * 100) + '%';
+      return;
+    }
+    e.preventDefault();
+    if (e.shiftKey) {
+      // Rotate
+      const step = e.deltaY > 0 ? -2 : 2;
+      imgState.rot = Math.max(-180, Math.min(180, imgState.rot + step));
+    } else {
+      // Scale
+      const step = e.deltaY > 0 ? -3 : 3;
+      imgState.scale = Math.max(10, Math.min(500, imgState.scale + step));
+    }
+    syncImageUI();
+    renderBadge();
+  }, { passive: false });
+
+  // Canvas zoom when no image
+  ca.addEventListener('wheel', e => {
+    if (userImage) return;
+    e.preventDefault();
+    const step = e.deltaY > 0 ? -0.05 : 0.05;
+    zoom = Math.min(3, Math.max(0.1, zoom + step));
+    renderBadge();
+    document.getElementById('zoomLevel').textContent = Math.round(zoom * 100) + '%';
+  }, { passive: false });
+}
+
+// ═══════════════════════════════════════════════════
+//  ZOOM
+// ═══════════════════════════════════════════════════
+function zoomIn() { zoom = Math.min(3, zoom + 0.1); renderBadge(); document.getElementById('zoomLevel').textContent = Math.round(zoom * 100) + '%'; }
+function zoomOut() { zoom = Math.max(0.1, zoom - 0.1); renderBadge(); document.getElementById('zoomLevel').textContent = Math.round(zoom * 100) + '%'; }
+function zoomFit() {
+  const ca = document.getElementById('canvasArea');
+  const sh = S();
+  zoom = Math.min((ca.clientWidth - 60) / sh.w, (ca.clientHeight - 60) / sh.h, 2);
+  renderBadge();
+  document.getElementById('zoomLevel').textContent = Math.round(zoom * 100) + '%';
+}
+
+// ═══════════════════════════════════════════════════
+//  KEYBOARD
+// ═══════════════════════════════════════════════════
+function setupKeyboard() {
+  window.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+    if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'y' || (e.key.toLowerCase() === 'z' && e.shiftKey))) { e.preventDefault(); redo(); }
+    if (e.key === 'Delete' && selectedTextId && !['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) {
+      pushUndo();
+      textLayers = textLayers.filter(t => t.id !== selectedTextId);
+      selectedTextId = null;
+      document.getElementById('textEditArea').style.display = 'none';
+      renderTextList();
+      renderBadge();
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════
+//  EXPORT
+// ═══════════════════════════════════════════════════
+function renderCleanBadge() {
+  // Render badge without guides for export
+  const sh = S();
+  const cv = document.createElement('canvas');
+  cv.width = sh.w;
+  cv.height = sh.h;
+  const ctx = cv.getContext('2d');
+
+  ctx.save();
+  sh.clipPath(ctx, sh.w, sh.h);
+  ctx.clip();
+  ctx.fillStyle = bgColor;
+  ctx.fillRect(0, 0, sh.w, sh.h);
+
+  if (userImage) {
+    ctx.save();
+    const cx = sh.w / 2 + imgState.offX;
+    const cy = sh.h / 2 + imgState.offY;
+    ctx.translate(cx, cy);
+    ctx.rotate(imgState.rot * Math.PI / 180);
+    const sc = imgState.scale / 100;
+    const dw = userImage.naturalW * sc;
+    const dh = userImage.naturalH * sc;
+    ctx.drawImage(userImage.img, -dw / 2, -dh / 2, dw, dh);
+    ctx.restore();
+  }
+
+  textLayers.forEach(t => {
+    ctx.save();
+    ctx.fillStyle = t.color;
+    ctx.font = (t.bold ? 'bold ' : '') + (t.italic ? 'italic ' : '') + t.fontSize + "px '" + t.fontFamily + "', sans-serif";
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const tx = sh.w / 2 + t.x;
+    const ty = sh.h / 2 + t.y;
+    if (t.curve !== 0) {
+      drawCurvedText(ctx, t.text, tx, ty, t.curve, t.fontSize);
+    } else {
+      const lines = t.text.split('\n');
+      const lh = t.fontSize * 1.2;
+      const startY = ty - (lines.length - 1) * lh / 2;
+      lines.forEach((line, li) => ctx.fillText(line, tx, startY + li * lh));
+    }
+    ctx.restore();
+  });
+
+  ctx.restore();
+  return cv;
+}
+
+async function setJpegDpi(blob, dpi) {
+  const buf = await blob.arrayBuffer();
+  const a = new Uint8Array(buf);
+  if (a[0] !== 0xFF || a[1] !== 0xD8) return blob;
+  let i = 2;
+  while (i < a.length - 4) {
+    if (a[i] !== 0xFF) { i++; continue; }
+    if (a[i + 1] === 0xE0) {
+      if (a[i + 4] === 0x4A && a[i + 5] === 0x46) {
+        a[i + 11] = 1;
+        a[i + 12] = (dpi >> 8) & 0xFF; a[i + 13] = dpi & 0xFF;
+        a[i + 14] = (dpi >> 8) & 0xFF; a[i + 15] = dpi & 0xFF;
+      }
+      break;
+    }
+    const len = (a[i + 2] << 8) | a[i + 3]; i += 2 + len;
+  }
+  return new Blob([a], { type: 'image/jpeg' });
+}
+
+function dlBlob(b, n) {
+  const u = URL.createObjectURL(b), a = document.createElement('a');
+  a.href = u; a.download = n; a.click(); URL.revokeObjectURL(u);
+}
+
+async function exportPNG() {
+  toast('Экспорт PNG...', 'info');
+  const cv = renderCleanBadge();
+  cv.toBlob(blob => {
+    dlBlob(blob, 'iHateBadge_' + S().id + '.png');
+    toast('PNG экспортирован · 300 DPI', 'success');
+  }, 'image/png');
+}
+
+async function exportJPEG() {
+  toast('Экспорт JPEG...', 'info');
+  const cv = renderCleanBadge();
+  const q = (+document.getElementById('jpegQuality').value) / 100;
+  cv.toBlob(async blob => {
+    blob = await setJpegDpi(blob, 300);
+    dlBlob(blob, 'iHateBadge_' + S().id + '.jpg');
+    toast('JPEG экспортирован · 300 DPI', 'success');
+  }, 'image/jpeg', q);
+}
+
+// ═══════════════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════════════
+function toast(m, t = 'info') {
+  const el = document.createElement('div');
+  el.className = 'toast ' + t;
+  el.textContent = m;
+  document.getElementById('toastC').appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .3s'; setTimeout(() => el.remove(), 300); }, 3000);
+}
+
+// ═══════════════════════════════════════════════════
+//  BACK BUTTON
+// ═══════════════════════════════════════════════════
+document.getElementById('backBtn').addEventListener('click', e => {
+  e.preventDefault();
+  if (userImage || textLayers.length) {
+    document.getElementById('exitModal').classList.add('visible');
+  } else {
+    location.href = 'https://ihatepdf.ru';
+  }
+});
+
+window.addEventListener('resize', () => zoomFit());
+init();
+</script>
+</body>
+</html>

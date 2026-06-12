@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>iHateConvert — Конвертер файлов</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg1:#1a1a2e;--bg2:#16213e;--bg3:#0f3460;--bgC:#253256;
+  --acc:#e94560;--accH:#ff6b81;--accS:rgba(233,69,96,0.15);
+  --t1:#ffffff;--t2:#e8ecf8;--t3:#c0c8de;--brd:#2d3a5c;
+  --ok:#2ed573;--okS:rgba(46,213,115,0.12);
+  --warn:#ffa502;--warnS:rgba(255,165,2,0.12);
+  --r:10px;--rs:6px
+}
+html,body{height:100%;font-family:'Nunito',sans-serif;background:var(--bg1);color:var(--t1);overflow:hidden}
+.app{display:flex;flex-direction:column;height:100vh}
+
+/* ─── TOPBAR ─── */
+.topbar{
+  height:52px;background:var(--bg2);border-bottom:1px solid var(--brd);
+  display:flex;align-items:center;padding:0 16px;gap:10px;flex-shrink:0
+}
+.topbar-logo{font-weight:800;font-size:15px;color:var(--acc);white-space:nowrap}
+.topbar-logo span{color:var(--t1)}
+.topbar-div{width:1px;height:28px;background:var(--brd)}
+.topbar-hint{font-size:11px;color:var(--t3);font-family:'JetBrains Mono',monospace}
+.topbar-right{margin-left:auto;display:flex;gap:6px;align-items:center}
+
+/* ─── BUTTONS ─── */
+.btn{
+  padding:8px 16px;border:none;border-radius:var(--rs);font-family:'Nunito',sans-serif;
+  font-weight:700;font-size:13px;cursor:pointer;transition:all .2s;
+  display:inline-flex;align-items:center;gap:6px;white-space:nowrap
+}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.btn-p{background:var(--acc);color:#fff}.btn-p:hover:not(:disabled){background:var(--accH)}
+.btn-s{background:var(--bgC);color:var(--t1);border:1px solid var(--brd)}.btn-s:hover:not(:disabled){background:var(--bg3)}
+.btn-ok{background:var(--ok);color:#111}.btn-ok:hover:not(:disabled){background:#3ae07f}
+.btn-sm{padding:5px 10px;font-size:11px}
+
+/* ─── MAIN ─── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative}
+
+/* ─── DROP ZONE ─── */
+.drop-zone{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  margin:20px;border:2px dashed var(--brd);border-radius:16px;
+  cursor:pointer;transition:all .3s;position:relative;min-height:0
+}
+.drop-zone:hover,.drop-zone.dragover{border-color:var(--acc);background:var(--accS)}
+.drop-zone.has-files{flex:0 0 auto;min-height:0;padding:14px 20px;margin:12px 20px 0;flex-direction:row;gap:12px;justify-content:flex-start}
+.drop-zone.has-files .dz-icon{font-size:28px}
+.drop-zone.has-files .dz-text{display:none}
+.drop-zone.has-files .dz-hint{font-size:11px;color:var(--t3)}
+.dz-icon{font-size:56px;margin-bottom:10px;filter:grayscale(.3);transition:all .3s}
+.drop-zone:hover .dz-icon{filter:none;transform:scale(1.05)}
+.dz-title{font-size:18px;font-weight:800;margin-bottom:4px}
+.dz-text{font-size:13px;color:var(--t3);max-width:460px;text-align:center;line-height:1.6}
+.dz-hint{font-size:11px;color:var(--t3);font-family:'JetBrains Mono',monospace;margin-top:8px}
+.dz-badge{
+  display:inline-block;padding:2px 7px;border-radius:3px;font-size:10px;font-weight:700;
+  font-family:'JetBrains Mono',monospace;background:var(--bgC);color:var(--t2);border:1px solid var(--brd);
+  margin:1px
+}
+
+/* ─── FILE LIST ─── */
+.file-list-wrap{
+  flex:1;overflow-y:auto;padding:0 20px 12px;display:none;min-height:0
+}
+.file-list-wrap.visible{display:block}
+.file-list{display:flex;flex-direction:column;gap:4px}
+.fitem{
+  display:grid;grid-template-columns:32px 1fr auto;align-items:center;gap:10px;
+  padding:8px 12px;background:var(--bg2);border:1px solid var(--brd);border-radius:var(--rs);
+  font-size:12px;transition:all .2s
+}
+.fitem.done{border-color:rgba(46,213,115,.3)}
+.fitem.error{border-color:rgba(233,69,96,.3)}
+.fitem-icon{font-size:22px;text-align:center}
+.fitem-name{
+  font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--t2);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap
+}
+.fitem-sub{font-size:10px;color:var(--t3);margin-top:2px}
+.fitem-status{font-size:11px;font-weight:700;font-family:'JetBrains Mono',monospace;white-space:nowrap}
+.fitem-status.ok{color:var(--ok)}
+.fitem-status.err{color:var(--acc)}
+.fitem-status.proc{color:var(--warn)}
+
+/* ─── PROGRESS BAR ─── */
+.progress-wrap{
+  padding:0 20px;flex-shrink:0;display:none
+}
+.progress-wrap.visible{display:block}
+.pbar{height:4px;background:var(--bgC);border-radius:2px;overflow:hidden;margin-bottom:6px}
+.pbar-fill{height:100%;background:var(--acc);width:0;transition:width .3s;border-radius:2px}
+.pbar-text{font-size:10px;color:var(--t3);font-family:'JetBrains Mono',monospace;text-align:center;margin-bottom:10px}
+
+/* ─── BOTTOM BAR ─── */
+.bottombar{
+  flex-shrink:0;background:var(--bg2);border-top:1px solid var(--brd);
+  padding:12px 20px;display:none;align-items:center;gap:10px
+}
+.bottombar.visible{display:flex}
+.bbar-info{
+  font-size:11px;color:var(--t3);font-family:'JetBrains Mono',monospace;flex:1;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap
+}
+
+/* ─── TOAST ─── */
+.toast-c{position:fixed;bottom:20px;right:20px;z-index:10000;display:flex;flex-direction:column;gap:6px}
+.toast{
+  padding:10px 16px;border-radius:var(--rs);font-size:12px;font-weight:600;
+  box-shadow:0 4px 24px rgba(0,0,0,.4);animation:tIn .3s;max-width:320px
+}
+.toast.info{background:var(--bg3);color:var(--t1);border:1px solid var(--brd)}
+.toast.success{background:#1a4a2e;color:var(--ok);border:1px solid #2d6b42}
+.toast.error{background:#4a1a2e;color:var(--acc);border:1px solid #6b2d42}
+@keyframes tIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* ─── SCROLLBAR ─── */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--brd);border-radius:3px}
+
+/* ─── RESPONSIVE ─── */
+@media(max-width:600px){
+  .drop-zone{margin:10px}
+  .file-list-wrap{padding:0 10px 10px}
+  .bottombar{padding:10px;flex-wrap:wrap}
+  .bbar-info{width:100%;flex:none;order:-1;margin-bottom:4px}
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="topbar">
+    <div class="topbar-logo">🔄 <span>iHateConvert</span></div>
+    <div class="topbar-div"></div>
+    <div class="topbar-hint">drop → convert → download</div>
+    <div class="topbar-right">
+      <button class="btn btn-s btn-sm" onclick="resetAll()">Очистить</button>
+    </div>
+  </header>
+
+  <div class="main">
+    <div class="drop-zone" id="dropZone">
+      <div class="dz-icon">📂</div>
+      <div class="dz-title">Перетащите файлы сюда</div>
+      <div class="dz-text">
+        Конвертация начнётся автоматически<br>
+        <span class="dz-badge">HEIC</span>
+        <span class="dz-badge">WEBP</span>
+        <span class="dz-badge">AVIF</span>
+        <span class="dz-badge">BMP</span>
+        <span class="dz-badge">TIFF</span>
+        <span class="dz-badge">PNG</span>
+        <span class="dz-badge">GIF</span>
+        <span class="dz-badge">SVG</span>
+        → <span class="dz-badge">JPEG 95%</span><br>
+        <span class="dz-badge">PDF</span>
+        → <span class="dz-badge">JPEG ×2</span><br>
+        <span class="dz-badge">DOCX</span>
+        <span class="dz-badge">XLSX</span>
+        <span class="dz-badge">PPTX</span>
+        <span class="dz-badge">PAGES</span>
+        <span class="dz-badge">NUMBERS</span>
+        <span class="dz-badge">KEY</span>
+        → <span class="dz-badge">PDF</span>
+      </div>
+      <div class="dz-hint">или нажмите, чтобы выбрать</div>
+    </div>
+    <input type="file" id="fileInput" multiple hidden>
+
+    <div class="progress-wrap" id="progressWrap">
+      <div class="pbar"><div class="pbar-fill" id="pbarFill"></div></div>
+      <div class="pbar-text" id="pbarText">Конвертация...</div>
+    </div>
+
+    <div class="file-list-wrap" id="fileListWrap">
+      <div class="file-list" id="fileList"></div>
+    </div>
+  </div>
+
+  <div class="bottombar" id="bottomBar">
+    <div class="bbar-info" id="bbarInfo">—</div>
+    <button class="btn btn-s" id="btnDownloadEach" onclick="downloadEach()" disabled>⬇ По отдельности</button>
+    <button class="btn btn-ok" id="btnDownloadZip" onclick="downloadZip()" disabled>📦 Скачать ZIP</button>
+  </div>
+</div>
+
+<div class="toast-c" id="toastC"></div>
+
+<script>
+// ═══════════════ CONFIG ═══════════════
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+const IMAGE_EXTS = new Set(['heic','heif','webp','avif','bmp','tiff','tif','png','gif','svg','jfif','ico','raw']);
+const PDF_EXTS   = new Set(['pdf']);
+const OFFICE_EXTS = new Set(['doc','docx','xls','xlsx','ppt','pptx','odt','ods','odp','pages','numbers','key','rtf']);
+const JPEG_QUALITY = 0.95;
+const PDF_SCALE = 2;
+
+// ═══════════════ STATE ═══════════════
+let fileJobs = [];     // {id, file, name, ext, type, status, results: [{blob, name}], error}
+let jobIdCounter = 0;
+let isProcessing = false;
+
+// ═══════════════ UI REFS ═══════════════
+const dropZone     = document.getElementById('dropZone');
+const fileInput    = document.getElementById('fileInput');
+const fileListWrap = document.getElementById('fileListWrap');
+const fileListEl   = document.getElementById('fileList');
+const progressWrap = document.getElementById('progressWrap');
+const pbarFill     = document.getElementById('pbarFill');
+const pbarText     = document.getElementById('pbarText');
+const bottomBar    = document.getElementById('bottomBar');
+const bbarInfo     = document.getElementById('bbarInfo');
+const btnEach      = document.getElementById('btnDownloadEach');
+const btnZip       = document.getElementById('btnDownloadZip');
+
+// ═══════════════ SETUP ═══════════════
+dropZone.addEventListener('click', () => { if (!isProcessing) fileInput.click(); });
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dragover'); addFiles(e.dataTransfer.files); });
+fileInput.addEventListener('change', () => { addFiles(fileInput.files); fileInput.value = ''; });
+
+// ═══════════════ ADD FILES ═══════════════
+function addFiles(files) {
+  if (isProcessing) { toast('Подождите завершения', 'error'); return; }
+  const arr = Array.from(files);
+  if (!arr.length) return;
+
+  arr.forEach(file => {
+    const ext = file.name.split('.').pop().toLowerCase();
+    let type = 'unknown';
+    if (IMAGE_EXTS.has(ext)) type = 'image';
+    else if (PDF_EXTS.has(ext)) type = 'pdf';
+    else if (OFFICE_EXTS.has(ext)) type = 'office';
+    // JPEG/JPG files pass through
+    else if (['jpg','jpeg'].includes(ext)) type = 'jpeg-passthrough';
+
+    fileJobs.push({
+      id: jobIdCounter++,
+      file, name: file.name, ext, type,
+      status: 'pending', results: [], error: null
+    });
+  });
+
+  dropZone.classList.add('has-files');
+  renderList();
+  startProcessing();
+}
+
+// ═══════════════ RENDER ═══════════════
+function renderList() {
+  fileListWrap.classList.add('visible');
+  fileListEl.innerHTML = '';
+  fileJobs.forEach(job => {
+    const el = document.createElement('div');
+    el.className = 'fitem' + (job.status === 'done' ? ' done' : '') + (job.status === 'error' ? ' error' : '');
+    const icon = job.type === 'image' ? '🖼' : job.type === 'pdf' ? '📄' : job.type === 'office' ? '📎' : job.type === 'jpeg-passthrough' ? '✅' : '❓';
+    const arrow = job.type === 'image' ? '→ JPEG' : job.type === 'pdf' ? '→ JPEG ×2' : job.type === 'office' ? '→ PDF' : job.type === 'jpeg-passthrough' ? 'уже JPEG' : '?';
+    let statusClass = '', statusText = '';
+    if (job.status === 'pending') { statusClass = ''; statusText = '⏳'; }
+    else if (job.status === 'processing') { statusClass = 'proc'; statusText = '⚙ ...'; }
+    else if (job.status === 'done') { statusClass = 'ok'; statusText = '✓ ' + job.results.length + ' файл' + pluralRu(job.results.length); }
+    else if (job.status === 'error') { statusClass = 'err'; statusText = '✕ ' + (job.error || 'ошибка'); }
+
+    el.innerHTML = `<div class="fitem-icon">${icon}</div><div><div class="fitem-name">${escHtml(job.name)}</div><div class="fitem-sub">${arrow}</div></div><div class="fitem-status ${statusClass}">${statusText}</div>`;
+    fileListEl.appendChild(el);
+  });
+  updateBottom();
+}
+
+function updateBottom() {
+  const done = fileJobs.filter(j => j.status === 'done');
+  const total = done.reduce((s, j) => s + j.results.length, 0);
+  if (total > 0) {
+    bottomBar.classList.add('visible');
+    bbarInfo.textContent = `Готово: ${done.length}/${fileJobs.length} файлов · ${total} результат${pluralRu(total)}`;
+    btnEach.disabled = false;
+    btnZip.disabled = false;
+  }
+}
+
+// ═══════════════ PROCESS ═══════════════
+async function startProcessing() {
+  if (isProcessing) return;
+  isProcessing = true;
+  progressWrap.classList.add('visible');
+
+  const pending = fileJobs.filter(j => j.status === 'pending');
+  for (let i = 0; i < pending.length; i++) {
+    const job = pending[i];
+    job.status = 'processing';
+    pbarFill.style.width = Math.round((i / pending.length) * 100) + '%';
+    pbarText.textContent = `Конвертация ${i + 1}/${pending.length}: ${job.name}`;
+    renderList();
+
+    try {
+      if (job.type === 'image') await convertImage(job);
+      else if (job.type === 'pdf') await convertPdf(job);
+      else if (job.type === 'office') await convertOffice(job);
+      else if (job.type === 'jpeg-passthrough') await passthroughJpeg(job);
+      else { job.status = 'error'; job.error = 'неизвестный формат'; }
+    } catch (e) {
+      console.error(e);
+      job.status = 'error';
+      job.error = e.message || 'ошибка';
+    }
+    renderList();
+  }
+
+  pbarFill.style.width = '100%';
+  pbarText.textContent = 'Готово';
+  setTimeout(() => { progressWrap.classList.remove('visible'); pbarFill.style.width = '0'; }, 1200);
+  isProcessing = false;
+
+  const ok = fileJobs.filter(j => j.status === 'done').length;
+  const fail = fileJobs.filter(j => j.status === 'error').length;
+  if (ok > 0) toast(`Сконвертировано: ${ok}` + (fail ? `, ошибок: ${fail}` : ''), ok && !fail ? 'success' : 'info');
+  else if (fail) toast(`Ошибок: ${fail}`, 'error');
+}
+
+// ═══════════════ IMAGE → JPEG ═══════════════
+async function convertImage(job) {
+  let imgBlob;
+
+  // HEIC / HEIF need heic2any
+  if (['heic', 'heif'].includes(job.ext)) {
+    imgBlob = await heic2any({ blob: job.file, toType: 'image/jpeg', quality: JPEG_QUALITY });
+    if (Array.isArray(imgBlob)) imgBlob = imgBlob[0];
+    job.results.push({ blob: imgBlob, name: baseName(job.name) + '.jpg' });
+    job.status = 'done';
+    return;
+  }
+
+  // All others: load into Image → draw to canvas → export JPEG
+  const url = URL.createObjectURL(job.file);
+  try {
+    const img = await loadImage(url);
+    const blob = await imageToJpeg(img, img.naturalWidth, img.naturalHeight);
+    job.results.push({ blob, name: baseName(job.name) + '.jpg' });
+    job.status = 'done';
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+// ═══════════════ PDF → JPEG ×2 ═══════════════
+async function convertPdf(job) {
+  const arrayBuf = await job.file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuf }).promise;
+  const numPages = pdf.numPages;
+
+  for (let i = 1; i <= numPages; i++) {
+    const page = await pdf.getPage(i);
+    const vp = page.getViewport({ scale: PDF_SCALE });
+    const cv = document.createElement('canvas');
+    cv.width = vp.width;
+    cv.height = vp.height;
+    const ctx = cv.getContext('2d');
+    // White background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, cv.width, cv.height);
+    await page.render({ canvasContext: ctx, viewport: vp }).promise;
+    const blob = await canvasToJpeg(cv);
+    const pageSuffix = numPages > 1 ? `_стр${String(i).padStart(3, '0')}` : '';
+    job.results.push({ blob, name: baseName(job.name) + pageSuffix + '.jpg' });
+  }
+  job.status = 'done';
+}
+
+// ═══════════════ OFFICE → PDF ═══════════════
+async function convertOffice(job) {
+  // Client-side Office → PDF is extremely limited.
+  // For DOCX we attempt mammoth-like approach via basic parsing.
+  // For all office formats, we use CloudConvert-free fallback: render info page.
+  // Realistically this needs a server. We generate a placeholder PDF with file info.
+
+  // Try DOCX with basic extraction
+  if (['docx', 'doc'].includes(job.ext)) {
+    try {
+      const blob = await docxToPdf(job.file, job.name);
+      job.results.push({ blob, name: baseName(job.name) + '.pdf' });
+      job.status = 'done';
+      return;
+    } catch(e) { /* fall through */ }
+  }
+
+  // For other office formats: generate info PDF explaining limitation
+  const blob = await generateInfoPdf(job.name, job.ext);
+  job.results.push({ blob, name: baseName(job.name) + '.pdf' });
+  job.status = 'error';
+  job.error = 'нужен сервер';
+}
+
+// ═══════════════ JPEG PASSTHROUGH ═══════════════
+async function passthroughJpeg(job) {
+  job.results.push({ blob: job.file, name: job.name });
+  job.status = 'done';
+}
+
+// ═══════════════ DOCX → PDF (basic) ═══════════════
+async function docxToPdf(file, name) {
+  // Extract text from DOCX (it's a ZIP with XML inside)
+  const zip = await JSZip.loadAsync(file);
+  const docXml = await zip.file('word/document.xml')?.async('string');
+  if (!docXml) throw new Error('не найден document.xml');
+
+  // Parse text content from XML
+  const parser = new DOMParser();
+  const xmlDoc = parser.parseFromString(docXml, 'text/xml');
+  const paragraphs = xmlDoc.getElementsByTagName('w:p');
+  const lines = [];
+  for (let i = 0; i < paragraphs.length; i++) {
+    const runs = paragraphs[i].getElementsByTagName('w:t');
+    let line = '';
+    for (let j = 0; j < runs.length; j++) line += runs[j].textContent;
+    lines.push(line);
+  }
+
+  // Render text to canvas → JPEG (we make a simple PDF-like image)
+  // Actually let's render to a proper multi-page layout
+  return textToPdfBlob(lines, name);
+}
+
+function textToPdfBlob(lines, title) {
+  // Render text onto canvas pages, then combine into a "PDF"
+  // Since we can't make real PDFs client-side easily without jsPDF,
+  // we'll create a canvas-based JPEG per page
+  // But user wants PDF... let's use a minimal PDF generator
+
+  const PAGE_W = 595, PAGE_H = 842; // A4 in points
+  const MARGIN = 50, LINE_H = 16, FONT_SIZE = 11;
+  const usableH = PAGE_H - MARGIN * 2;
+  const linesPerPage = Math.floor(usableH / LINE_H);
+
+  // Split lines into pages
+  const pages = [];
+  let currentPage = [];
+  let lineCount = 0;
+  for (const line of lines) {
+    // Rough word-wrap at ~85 chars
+    const wrapped = wrapText(line, 90);
+    for (const wl of wrapped) {
+      currentPage.push(wl);
+      lineCount++;
+      if (lineCount >= linesPerPage) {
+        pages.push(currentPage);
+        currentPage = [];
+        lineCount = 0;
+      }
+    }
+  }
+  if (currentPage.length) pages.push(currentPage);
+  if (!pages.length) pages.push(['(пустой документ)']);
+
+  // Build minimal PDF
+  return buildPdf(pages, PAGE_W, PAGE_H, MARGIN, LINE_H, FONT_SIZE);
+}
+
+function wrapText(text, maxChars) {
+  if (!text) return [''];
+  const result = [];
+  while (text.length > maxChars) {
+    let breakAt = text.lastIndexOf(' ', maxChars);
+    if (breakAt <= 0) breakAt = maxChars;
+    result.push(text.substring(0, breakAt));
+    text = text.substring(breakAt).trimStart();
+  }
+  result.push(text);
+  return result;
+}
+
+function buildPdf(pages, pw, ph, margin, lineH, fontSize) {
+  // Minimal PDF 1.4 generator
+  let objects = [];
+  let objId = 0;
+
+  function addObj(content) {
+    objId++;
+    objects.push({ id: objId, content });
+    return objId;
+  }
+
+  // Catalog, Pages
+  const catalogId = addObj(null); // placeholder
+  const pagesId = addObj(null);   // placeholder
+
+  // Font
+  const fontId = addObj(`<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>`);
+
+  // Page objects
+  const pageIds = [];
+  const streamIds = [];
+  for (const pageLines of pages) {
+    // Build content stream
+    let stream = `BT\n/F1 ${fontSize} Tf\n`;
+    let y = ph - margin;
+    for (const line of pageLines) {
+      // Escape PDF special chars
+      const safe = line.replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+      stream += `1 0 0 1 ${margin} ${y} Tm\n(${safe}) Tj\n`;
+      y -= lineH;
+    }
+    stream += 'ET\n';
+
+    const streamId = addObj(`<< /Length ${stream.length} >>\nstream\n${stream}endstream`);
+    streamIds.push(streamId);
+
+    const pageId = addObj(null); // placeholder
+    pageIds.push(pageId);
+  }
+
+  // Now fill in placeholders
+  objects[catalogId - 1].content = `<< /Type /Catalog /Pages ${pagesId} 0 R >>`;
+
+  let kidsStr = pageIds.map(id => `${id} 0 R`).join(' ');
+  objects[pagesId - 1].content = `<< /Type /Pages /Kids [${kidsStr}] /Count ${pageIds.length} >>`;
+
+  pageIds.forEach((pid, i) => {
+    objects[pid - 1].content = `<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${pw} ${ph}] /Contents ${streamIds[i]} 0 R /Resources << /Font << /F1 ${fontId} 0 R >> >> >>`;
+  });
+
+  // Serialize
+  let pdf = '%PDF-1.4\n';
+  const offsets = [];
+  for (const obj of objects) {
+    offsets.push(pdf.length);
+    pdf += `${obj.id} 0 obj\n${obj.content}\n endobj\n`;
+  }
+  const xrefOffset = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  for (const off of offsets) {
+    pdf += String(off).padStart(10, '0') + ' 00000 n \n';
+  }
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root ${catalogId} 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+
+  return new Blob([pdf], { type: 'application/pdf' });
+}
+
+function generateInfoPdf(fileName, ext) {
+  const lines = [
+    `Файл: ${fileName}`,
+    `Формат: .${ext.toUpperCase()}`,
+    '',
+    'Конвертация офисных форматов (.${ext}) в PDF',
+    'требует серверной обработки.',
+    '',
+    'Рекомендуемые способы:',
+    '- Откройте файл в Microsoft Office или LibreOffice',
+    '  и используйте "Сохранить как PDF"',
+    '- Используйте CloudConvert.com или SmallPDF.com',
+    '',
+    'Сгенерировано iHateConvert'
+  ];
+  return buildPdf([lines], 595, 842, 50, 18, 12);
+}
+
+// ═══════════════ HELPERS ═══════════════
+function loadImage(src) {
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => res(img);
+    img.onerror = () => rej(new Error('не удалось загрузить изображение'));
+    img.src = src;
+  });
+}
+
+function imageToJpeg(img, w, h) {
+  const cv = document.createElement('canvas');
+  cv.width = w; cv.height = h;
+  const ctx = cv.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, w, h);
+  ctx.drawImage(img, 0, 0, w, h);
+  return canvasToJpeg(cv);
+}
+
+function canvasToJpeg(cv) {
+  return new Promise(res => cv.toBlob(res, 'image/jpeg', JPEG_QUALITY));
+}
+
+function baseName(n) {
+  const i = n.lastIndexOf('.');
+  return i > 0 ? n.substring(0, i) : n;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function pluralRu(n) {
+  const m = n % 10, d = n % 100;
+  if (d >= 11 && d <= 19) return 'ов';
+  if (m === 1) return '';
+  if (m >= 2 && m <= 4) return 'а';
+  return 'ов';
+}
+
+function toast(m, t = 'info') {
+  const el = document.createElement('div');
+  el.className = 'toast ' + t;
+  el.textContent = m;
+  document.getElementById('toastC').appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .3s'; setTimeout(() => el.remove(), 300); }, 3000);
+}
+
+// ═══════════════ DOWNLOAD ═══════════════
+function downloadEach() {
+  fileJobs.forEach(job => {
+    job.results.forEach(r => dlBlob(r.blob, r.name));
+  });
+  toast('Скачивание файлов по отдельности', 'info');
+}
+
+async function downloadZip() {
+  const zip = new JSZip();
+  const ts = Math.floor(Date.now() / 1000);
+  const folderName = `converted_${ts}`;
+  const folder = zip.folder(folderName);
+
+  fileJobs.forEach(job => {
+    job.results.forEach(r => folder.file(r.name, r.blob));
+  });
+
+  toast('Создание архива...', 'info');
+  const blob = await zip.generateAsync({ type: 'blob' });
+  dlBlob(blob, folderName + '.zip');
+  toast('ZIP готов', 'success');
+}
+
+function dlBlob(b, n) {
+  const u = URL.createObjectURL(b);
+  const a = document.createElement('a');
+  a.href = u; a.download = n; a.click();
+  URL.revokeObjectURL(u);
+}
+
+// ═══════════════ RESET ═══════════════
+function resetAll() {
+  if (isProcessing) { toast('Подождите завершения', 'error'); return; }
+  fileJobs = [];
+  fileListEl.innerHTML = '';
+  fileListWrap.classList.remove('visible');
+  bottomBar.classList.remove('visible');
+  dropZone.classList.remove('has-files');
+  btnEach.disabled = true;
+  btnZip.disabled = true;
+  toast('Очищено', 'info');
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>colorblind — Калибровка</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg1:#1a1a2e;--bg2:#16213e;--bg3:#0f3460;--bgC:#253256;--acc:#e94560;--accH:#ff6b81;--accS:rgba(233,69,96,.15);--t1:#fff;--t2:#c8d0e8;--t3:#8892b0;--brd:#2d3a5c;--ok:#2ed573;--warn:#ffa502;--r:10px;--rs:6px;--mono:'JetBrains Mono',monospace}
+html,body{height:100%;font-family:'Nunito',sans-serif;background:var(--bg1);color:var(--t1);overflow:hidden}
+.app{display:flex;flex-direction:column;height:100vh}
+.topbar{height:46px;background:var(--bg2);border-bottom:1px solid var(--brd);display:flex;align-items:center;padding:0 14px;gap:10px;flex-shrink:0}
+.topbar-logo{font-weight:800;font-size:14px;color:var(--acc);display:flex;align-items:center;gap:5px}.topbar-logo span{color:var(--t1)}
+.topbar-div{width:1px;height:22px;background:var(--brd)}
+.topbar-mode{display:flex;align-items:center;gap:6px;padding:3px 10px;border-radius:var(--rs);border:1px solid var(--brd);background:var(--bgC);cursor:pointer;font-size:11px;font-weight:700;transition:.2s}
+.topbar-mode:hover{border-color:var(--warn)}
+.topbar-mode.on{border-color:var(--warn);background:rgba(255,165,2,.12);color:var(--warn)}
+.topbar-mode input{accent-color:var(--warn);margin:0}
+.topbar-r{margin-left:auto;display:flex;gap:5px}
+.btn{padding:5px 11px;border:none;border-radius:var(--rs);font-family:'Nunito',sans-serif;font-weight:700;font-size:11px;cursor:pointer;transition:.2s;display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.btn-p{background:var(--acc);color:#fff}.btn-p:hover{background:var(--accH)}
+.btn-s{background:var(--bgC);color:var(--t2);border:1px solid var(--brd)}.btn-s:hover{background:var(--bg3)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.main{flex:1;display:flex;overflow:hidden}
+.panel{width:380px;background:var(--bg2);border-right:1px solid var(--brd);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
+.panel-scroll{flex:1;overflow-y:auto;padding:10px 12px 40px}
+.canvas-area{flex:1;overflow:auto;display:flex;align-items:center;justify-content:center;background:var(--bg1);position:relative}
+.cv-overlay{position:absolute;top:8px;left:8px;background:rgba(0,0,0,.75);padding:3px 8px;border-radius:var(--rs);font-size:9px;font-family:var(--mono);color:var(--t2);z-index:5;pointer-events:none}
+.corner-hint{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);background:rgba(233,69,96,.9);color:#fff;padding:8px 16px;border-radius:var(--r);font-size:12px;font-weight:700;z-index:10;pointer-events:none;animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.7}}
+.sec{margin-bottom:10px}
+.sec-h{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--t3);margin-bottom:5px}
+.drop-zone{padding:20px 10px;border:2px dashed var(--brd);border-radius:var(--r);text-align:center;cursor:pointer;transition:.3s;margin-bottom:6px}
+.drop-zone:hover,.drop-zone.dragover{border-color:var(--acc);background:var(--accS)}
+.drop-zone.has-file{border-color:var(--ok);background:rgba(46,213,115,.05)}
+.drop-zone .dz-label{font-size:12px;color:var(--t2);font-weight:600}.drop-zone .dz-label strong{color:var(--t1)}
+.drop-zone .dz-sub{font-size:9px;color:var(--t3);margin-top:3px}
+.drop-zone .dz-files{display:flex;gap:4px;justify-content:center;margin-top:6px;flex-wrap:wrap}
+.dz-tag{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;background:var(--bgC);border:1px solid var(--brd);border-radius:var(--rs);font-size:8px;font-family:var(--mono);color:var(--t2)}
+.dz-tag .rm{cursor:pointer;color:var(--acc);font-size:10px}.dz-tag .rm:hover{color:var(--accH)}
+.info-box{padding:6px 8px;background:var(--bgC);border-radius:var(--rs);font-size:9px;color:var(--t2);line-height:1.5;font-family:var(--mono);border:1px solid var(--brd);margin-bottom:6px}
+.divider{height:1px;background:var(--brd);margin:8px 0}
+.res-badge{display:flex;align-items:center;gap:10px;padding:10px;background:var(--bgC);border:1px solid var(--brd);border-radius:var(--r);margin-bottom:8px}
+.res-badge .rb-val{font-family:var(--mono);font-size:32px;font-weight:800;line-height:1}
+.res-badge .rb-right{flex:1}.res-badge .rb-grade{font-size:13px;font-weight:800}.res-badge .rb-sub{font-size:9px;color:var(--t3);margin-top:2px}
+.res-badge.grade-a .rb-val,.res-badge.grade-a .rb-grade{color:var(--ok)}
+.res-badge.grade-b .rb-val,.res-badge.grade-b .rb-grade{color:#66bb6a}
+.res-badge.grade-c .rb-val,.res-badge.grade-c .rb-grade{color:var(--warn)}
+.res-badge.grade-d .rb-val,.res-badge.grade-d .rb-grade{color:var(--acc)}
+.conv-box{padding:10px;border-radius:var(--rs);margin-bottom:8px;font-size:10px;font-family:var(--mono);line-height:1.6;display:none}
+.conv-box.probing{background:rgba(255,165,2,.08);border:1px solid rgba(255,165,2,.3);color:var(--warn)}
+.conv-box.improving{background:rgba(102,187,106,.08);border:1px solid rgba(102,187,106,.3);color:#66bb6a}
+.conv-box.plateau{background:rgba(46,213,115,.08);border:1px solid rgba(46,213,115,.3);color:var(--ok)}
+.conv-box.calibrated{background:rgba(46,213,115,.15);border:2px solid var(--ok);color:var(--ok)}
+.conv-box.ceiling{background:rgba(255,165,2,.1);border:1px solid rgba(255,165,2,.4);color:var(--warn)}
+.conv-box.degraded{background:rgba(233,69,96,.08);border:1px solid rgba(233,69,96,.3);color:var(--acc)}
+.diag{padding:8px;background:var(--bgC);border:1px solid var(--brd);border-radius:var(--rs);margin-bottom:6px;font-size:10px;line-height:1.7;font-family:var(--mono);color:var(--t2)}.diag strong{color:var(--t1)}
+.drv-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;margin-bottom:6px}
+.drv-cell{display:flex;flex-direction:column;align-items:center;gap:1px;padding:4px 2px;background:var(--bgC);border:1px solid var(--brd);border-radius:var(--rs)}
+.drv-cell .dl{font-size:7px;font-weight:700;text-transform:uppercase;color:var(--t3)}
+.drv-cell input{width:100%;padding:2px;border-radius:3px;border:1px solid var(--brd);background:var(--bg1);color:var(--t1);font-family:var(--mono);font-size:13px;font-weight:700;text-align:center;outline:none}
+.drv-cell input:focus{border-color:var(--acc)}.drv-cell input:disabled{opacity:.3}
+.rec{padding:8px;background:rgba(233,69,96,.06);border:1px solid rgba(233,69,96,.2);border-radius:var(--rs);margin-bottom:6px;font-family:var(--mono);font-size:10px;line-height:1.8}
+.rec .rec-row{display:flex;justify-content:space-between}.rec .rec-val{font-weight:800;color:var(--t1)}.rec .rec-head{font-size:8px;color:var(--warn);font-weight:800;margin-bottom:2px}
+.wiz-step{padding:8px;background:rgba(255,165,2,.07);border:1px solid rgba(255,165,2,.25);border-radius:var(--rs);margin-bottom:6px;font-size:10px;color:var(--t2);font-family:var(--mono);line-height:1.5}.wiz-step strong{color:var(--warn)}
+.hist-entry{padding:6px 8px;background:var(--bgC);border:1px solid var(--brd);border-radius:var(--rs);margin-bottom:4px;font-size:9px;font-family:var(--mono);color:var(--t2);cursor:pointer;transition:.15s;line-height:1.5}
+.hist-entry:hover{border-color:var(--acc)}.best-marker{color:var(--ok)}
+.hist-chart-wrap{background:var(--bgC);border:1px solid var(--brd);border-radius:var(--r);padding:6px;margin-bottom:6px}.hist-chart-wrap canvas{width:100%;height:100px;display:block}
+.patch-tbl{width:100%;border-collapse:collapse;font-size:8px;font-family:var(--mono)}
+.patch-tbl th{background:var(--bgC);padding:3px;text-align:left;font-weight:700;color:var(--t3);border:1px solid var(--brd);position:sticky;top:0;z-index:2}
+.patch-tbl td{padding:2px 3px;border:1px solid var(--brd)}
+.patch-swatch{width:14px;height:10px;border-radius:2px;border:1px solid rgba(255,255,255,.1);display:inline-block;vertical-align:middle}
+.de-cell{font-weight:700}.de-cell.good{color:var(--ok)}.de-cell.ok{color:#66bb6a}.de-cell.med{color:var(--warn)}.de-cell.bad{color:var(--acc)}
+.toast-c{position:fixed;bottom:14px;right:14px;z-index:10000;display:flex;flex-direction:column;gap:4px}
+.toast{padding:6px 10px;border-radius:var(--rs);font-size:10px;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,.3);animation:tIn .3s;max-width:280px}
+.toast.info{background:var(--bg3);color:var(--t1);border:1px solid var(--brd)}.toast.success{background:#1a4a2e;color:var(--ok);border:1px solid #2d6b42}.toast.error{background:#4a1a2e;color:var(--acc);border:1px solid #6b2d42}
+@keyframes tIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.prog-ov{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:none;align-items:center;justify-content:center;flex-direction:column;gap:8px}.prog-ov.visible{display:flex}
+.prog-bar{width:200px;height:4px;background:var(--bgC);border-radius:3px;overflow:hidden}.prog-fill{height:100%;background:var(--acc);width:0;transition:width .3s;border-radius:3px}
+.prog-txt{font-size:11px;color:var(--t1);font-weight:600}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--brd);border-radius:3px}
+.expert-panel{position:fixed;top:46px;right:0;width:360px;height:calc(100vh - 46px);background:var(--bg2);border-left:1px solid var(--brd);transform:translateX(100%);transition:transform .3s ease;z-index:50;display:flex;flex-direction:column;overflow:hidden}
+.expert-panel.open{transform:translateX(0)}
+.expert-panel .ep-head{padding:10px 12px;border-bottom:1px solid var(--brd);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.expert-panel .ep-head h3{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--t3)}
+.expert-panel .ep-close{background:none;border:none;color:var(--t3);font-size:16px;cursor:pointer;padding:2px 6px}.expert-panel .ep-close:hover{color:var(--acc)}
+.expert-panel .ep-scroll{flex:1;overflow-y:auto;padding:10px 12px}
+.expert-backdrop{position:fixed;inset:0;top:46px;background:rgba(0,0,0,.3);z-index:49;display:none}.expert-backdrop.open{display:block}
+.expert-tab-bar{display:flex;border-bottom:1px solid var(--brd);flex-shrink:0}
+.expert-tab{flex:1;padding:6px;text-align:center;font-size:9px;font-weight:800;color:var(--t3);cursor:pointer;border-bottom:2px solid transparent}
+.expert-tab:hover{color:var(--t2)}.expert-tab.active{color:var(--acc);border-bottom-color:var(--acc)}
+.expert-section{display:none}.expert-section.active{display:block}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="topbar-logo">🔴🟢🔵 <span>colorblind</span></div>
+    <div class="topbar-div"></div>
+    <label class="topbar-mode" id="wizToggle">🧙 Wizard <input type="checkbox" id="wizardToggle" onchange="toggleWizard(this.checked)"></label>
+    <div class="topbar-r">
+      <button class="btn btn-s" onclick="resetAll()">🔄</button>
+      <button class="btn btn-s" onclick="saveColorblind()">💾</button>
+      <button class="btn btn-s" onclick="document.getElementById('cbLoadInput').click()">📂</button>
+      <input type="file" id="cbLoadInput" accept=".colorblind" hidden>
+      <button class="btn btn-p" id="btnRun" onclick="runAnalysis()" disabled>🔍 Анализ</button>
+    </div>
+  </header>
+  <div class="main">
+    <div class="panel"><div class="panel-scroll">
+      <div class="sec">
+        <div class="drop-zone" id="dropZone">
+          <div class="dz-label"><strong>Перетащите</strong> или нажмите</div>
+          <div class="dz-sub">1) Эталон · 2) Скан (300 dpi) · PNG/JPG/PDF</div>
+          <div class="dz-files" id="dzFiles"></div>
+        </div>
+        <input type="file" id="inFiles" multiple accept="image/*,.pdf" hidden>
+        <div id="detectInfo" class="info-box" style="display:none"></div>
+      </div>
+      <div id="resultsSection" style="display:none">
+        <div class="res-badge" id="resBadge"><div class="rb-val" id="resVal">—</div><div class="rb-right"><div class="rb-grade" id="resGrade"></div><div class="rb-sub" id="resSub">ΔE CIEDE2000</div></div></div>
+        <div class="conv-box" id="convBox"></div>
+        <button class="btn btn-p" style="width:100%;margin-bottom:6px;display:none" id="btnRollback" onclick="rollbackToBest()">↩️ Откат к лучшему</button>
+        <div class="diag" id="diagBox"></div>
+        <div id="wizStepBox" class="wiz-step" style="display:none"></div>
+        <div class="rec" id="recBox" style="display:none"></div>
+        <button class="btn btn-p" style="width:100%;margin-bottom:8px;display:none" id="btnApply" onclick="applyRecommended()">✅ Применить рекомендацию</button>
+      </div>
+      <div class="divider"></div>
+      <div class="sec"><div class="sec-h">⚙️ Драйвер Epson L805</div><div class="drv-grid" id="drvGrid"></div></div>
+      <div class="sec"><div class="sec-h">📈 История</div><div class="hist-chart-wrap" id="histChartWrap" style="display:none"><canvas id="histChart"></canvas></div><div id="histList"></div></div>
+      <div class="divider"></div>
+      <div class="sec"><button class="btn btn-s" style="width:100%;font-size:10px" onclick="openExpert()">🔧 Расширенный режим</button></div>
+    </div></div>
+    <main class="canvas-area" id="canvasArea">
+      <canvas id="mainCv"></canvas>
+      <div class="cv-overlay" id="cvLabel">Загрузите эталон и скан</div>
+      <div class="corner-hint" id="cornerHint" style="display:none">Кликните на метку <span id="cornerIdx">1</span>/4</div>
+    </main>
+  </div>
+</div>
+<div class="expert-backdrop" id="expertBackdrop" onclick="closeExpert()"></div>
+<div class="expert-panel" id="expertPanel">
+  <div class="ep-head"><h3>Расширенный режим</h3><button class="ep-close" onclick="closeExpert()">&times;</button></div>
+  <div class="expert-tab-bar">
+    <div class="expert-tab active" onclick="switchExpTab(this,'exp-norm')">Норм.</div>
+    <div class="expert-tab" onclick="switchExpTab(this,'exp-patches')">Патчи</div>
+    <div class="expert-tab" onclick="switchExpTab(this,'exp-algo')">Алгоритм</div>
+    <div class="expert-tab" onclick="switchExpTab(this,'exp-export')">Экспорт</div>
+  </div>
+  <div class="ep-scroll">
+    <div class="expert-section active" id="exp-norm"><div class="info-box" id="normInfo" style="display:none"></div><div class="info-box" id="it8Info">IT8 V2: Epson V19 · тональная (24 GS) + хрома KNN-6 (288)</div></div>
+    <div class="expert-section" id="exp-patches"><div style="max-height:calc(100vh - 200px);overflow-y:auto" id="tblWrap"></div></div>
+    <div class="expert-section" id="exp-algo"><div class="info-box" id="algoInfo">Запустите анализ</div></div>
+    <div class="expert-section" id="exp-export">
+      <div style="display:flex;gap:3px;flex-wrap:wrap;margin-bottom:6px">
+        <button class="btn btn-s" style="flex:1;font-size:9px" onclick="exportCSV()">CSV</button>
+        <button class="btn btn-s" style="flex:1;font-size:9px" onclick="exportTxt()">TXT</button>
+        <button class="btn btn-s" style="flex:1;font-size:9px" onclick="exportCubeLUT()">LUT</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="toast-c" id="toastC"></div>
+<div class="prog-ov" id="progOv"><div class="prog-txt" id="progTxt">Анализ...</div><div class="prog-bar"><div class="prog-fill" id="progFill"></div></div></div>
+
+<script>
+// ============ colorblind engine Beta 1.4 ============
+// Full correction algorithm with convergence detection
+
+// ============ PATCHES Beta 1.3 ============
+const PATCHES=[
+{id:'a1',cat:'saturated',label:'a1',x:11.2,y:20.2},{id:'b1',cat:'saturated',label:'b1',x:20.5,y:20.2},
+{id:'c1',cat:'saturated',label:'c1',x:29.7,y:20.2},{id:'d1',cat:'saturated',label:'d1',x:38.8,y:20.2},
+{id:'e1',cat:'saturated',label:'e1',x:47.6,y:20.2},{id:'f1',cat:'saturated',label:'f1',x:56.6,y:20.2},
+{id:'g1',cat:'saturated',label:'g1',x:65.4,y:20.2},{id:'H1',cat:'neutral',label:'H1 0%',x:75.1,y:20.2},
+{id:'a2',cat:'saturated',label:'a2',x:11.2,y:29.1},{id:'b2',cat:'saturated',label:'b2',x:20.5,y:29.1},
+{id:'c2',cat:'saturated',label:'c2',x:29.7,y:29.1},{id:'d2',cat:'saturated',label:'d2',x:38.8,y:29.1},
+{id:'e2',cat:'saturated',label:'e2',x:47.6,y:29.1},{id:'f2',cat:'saturated',label:'f2',x:56.6,y:29.1},
+{id:'g2',cat:'saturated',label:'g2',x:65.4,y:29.1},{id:'H2',cat:'neutral',label:'H2 8%',x:75.1,y:29.1},
+{id:'a3',cat:'saturated',label:'a3',x:11.2,y:38.2},{id:'b3',cat:'saturated',label:'b3',x:20.5,y:38.2},
+{id:'c3',cat:'saturated',label:'c3',x:29.7,y:38.2},{id:'d3',cat:'saturated',label:'d3',x:38.8,y:38.2},
+{id:'e3',cat:'saturated',label:'e3',x:47.6,y:38.2},{id:'f3',cat:'saturated',label:'f3',x:56.6,y:38.2},
+{id:'g3',cat:'saturated',label:'g3',x:65.4,y:38.2},{id:'H3',cat:'neutral',label:'H3 21%',x:75.1,y:38.2},
+{id:'a4',cat:'saturated',label:'a4',x:11.2,y:47.2},{id:'b4',cat:'saturated',label:'b4',x:20.5,y:47.2},
+{id:'c4',cat:'saturated',label:'c4',x:29.7,y:47.2},{id:'d4',cat:'saturated',label:'d4',x:38.8,y:47.2},
+{id:'e4',cat:'saturated',label:'e4',x:47.6,y:47.2},{id:'f4',cat:'saturated',label:'f4',x:56.6,y:47.2},
+{id:'g4',cat:'saturated',label:'g4',x:65.4,y:47.2},{id:'H4',cat:'neutral',label:'H4 31%',x:75.1,y:47.2},
+{id:'a5',cat:'saturated',label:'a5',x:11.2,y:56.2},{id:'b5',cat:'saturated',label:'b5',x:20.5,y:56.2},
+{id:'c5',cat:'saturated',label:'c5',x:29.7,y:56.2},{id:'d5',cat:'saturated',label:'d5',x:38.8,y:56.2},
+{id:'e5',cat:'saturated',label:'e5',x:47.6,y:56.2},{id:'f5',cat:'saturated',label:'f5',x:56.6,y:56.2},
+{id:'g5',cat:'saturated',label:'g5',x:65.4,y:56.2},{id:'H5',cat:'neutral',label:'H5 40%',x:75.1,y:56.2},
+{id:'a6',cat:'saturated',label:'a6',x:11.2,y:65.4},{id:'b6',cat:'saturated',label:'b6',x:20.5,y:65.4},
+{id:'c6',cat:'saturated',label:'c6',x:29.7,y:65.4},{id:'d6',cat:'saturated',label:'d6',x:38.8,y:65.4},
+{id:'e6',cat:'saturated',label:'e6',x:47.6,y:65.4},{id:'f6',cat:'saturated',label:'f6',x:56.6,y:65.4},
+{id:'g6',cat:'saturated',label:'g6',x:65.4,y:65.4},{id:'H6',cat:'neutral',label:'H6 50%',x:75.1,y:65.4},
+{id:'a7',cat:'saturated',label:'a7',x:11.2,y:74.3},{id:'b7',cat:'saturated',label:'b7',x:20.5,y:74.3},
+{id:'c7',cat:'saturated',label:'c7',x:29.7,y:74.3},{id:'d7',cat:'saturated',label:'d7',x:38.8,y:74.3},
+{id:'e7',cat:'saturated',label:'e7',x:47.6,y:74.3},{id:'f7',cat:'saturated',label:'f7',x:56.6,y:74.3},
+{id:'g7',cat:'saturated',label:'g7',x:65.4,y:74.3},{id:'H7',cat:'neutral',label:'H7 55%',x:75.1,y:74.3},
+{id:'a8',cat:'saturated',label:'a8',x:11.2,y:83.4},{id:'b8',cat:'saturated',label:'b8',x:20.5,y:83.4},
+{id:'c8',cat:'saturated',label:'c8',x:29.7,y:83.4},{id:'d8',cat:'saturated',label:'d8',x:38.8,y:83.4},
+{id:'e8',cat:'saturated',label:'e8',x:47.6,y:83.4},{id:'f8',cat:'saturated',label:'f8',x:56.6,y:83.4},
+{id:'g8',cat:'saturated',label:'g8',x:65.4,y:83.4},{id:'H8',cat:'neutral',label:'H8 63%',x:75.1,y:83.4},
+{id:'a9',cat:'saturated',label:'a9',x:11.2,y:92.4},{id:'b9',cat:'saturated',label:'b9',x:20.5,y:92.4},
+{id:'c9',cat:'saturated',label:'c9',x:29.7,y:92.4},{id:'d9',cat:'saturated',label:'d9',x:38.8,y:92.4},
+{id:'e9',cat:'saturated',label:'e9',x:47.6,y:92.4},{id:'f9',cat:'saturated',label:'f9',x:56.6,y:92.4},
+{id:'g9',cat:'saturated',label:'g9',x:65.4,y:92.4},{id:'H9',cat:'neutral',label:'H9 72%',x:75.1,y:92.4},
+{id:'a10',cat:'saturated',label:'a10',x:11.2,y:101.3},{id:'b10',cat:'saturated',label:'b10',x:20.5,y:101.3},
+{id:'c10',cat:'saturated',label:'c10',x:29.7,y:101.3},{id:'d10',cat:'saturated',label:'d10',x:38.8,y:101.3},
+{id:'e10',cat:'saturated',label:'e10',x:47.6,y:101.3},{id:'f10',cat:'saturated',label:'f10',x:56.6,y:101.3},
+{id:'g10',cat:'saturated',label:'g10',x:65.4,y:101.3},{id:'H10',cat:'neutral',label:'H10 83%',x:75.1,y:101.3},
+{id:'a11',cat:'pastel',label:'a11',x:11.2,y:109.9},{id:'b11',cat:'pastel',label:'b11',x:20.5,y:109.9},
+{id:'c11',cat:'pastel',label:'c11',x:29.7,y:109.9},{id:'d11',cat:'pastel',label:'d11',x:38.8,y:109.9},
+{id:'e11',cat:'pastel',label:'e11',x:47.6,y:109.9},{id:'f11',cat:'pastel',label:'f11',x:56.6,y:109.9},
+{id:'g11',cat:'pastel',label:'g11',x:65.4,y:109.9},{id:'H11',cat:'neutral',label:'H11 100%',x:75.1,y:109.9},
+{id:'a12',cat:'pastel',label:'a12',x:11.2,y:118.2},{id:'b12',cat:'pastel',label:'b12',x:20.5,y:118.2},
+{id:'c12',cat:'pastel',label:'c12',x:29.7,y:118.2},{id:'d12',cat:'pastel',label:'d12',x:38.8,y:118.2},
+{id:'e12',cat:'pastel',label:'e12',x:47.6,y:118.2},{id:'f12',cat:'pastel',label:'f12',x:56.6,y:118.2},
+{id:'g12',cat:'pastel',label:'g12',x:65.4,y:118.2},{id:'H12',cat:'pastel',label:'H12',x:75.1,y:118.2},
+{id:'a13',cat:'skin',label:'a13',x:11.2,y:127.6},{id:'b13',cat:'skin',label:'b13',x:20.5,y:127.6},
+{id:'c13',cat:'skin',label:'c13',x:29.7,y:127.6},{id:'d13',cat:'skin',label:'d13',x:38.8,y:127.6},
+{id:'e13',cat:'skin',label:'e13',x:47.6,y:127.6},{id:'f13',cat:'skin',label:'f13',x:56.6,y:127.6},
+{id:'g13',cat:'skin',label:'g13',x:65.4,y:127.6},{id:'H13',cat:'skin',label:'H13',x:75.1,y:127.6},
+];
+const MARKERS=[{id:'tl',x:4.1,y:4.1},{id:'tr',x:100.8,y:4.1},{id:'br',x:100.8,y:143.8},{id:'bl',x:4.1,y:143.8}];
+const PAGE_W_MM=105,PAGE_H_MM=148,PATCH_SIZE_MM=8,SAMPLE_RADIUS_MM=1.75;
+const PARAM_KEYS=['brightness','contrast','saturation','cyan','magenta','yellow'];
+const PARAM_LABELS={brightness:'Яркость',contrast:'Контраст',saturation:'Насыщ.',cyan:'Голубой',magenta:'Пурпурн.',yellow:'Жёлтый'};
+const GRAY_IDS=['H1','H2','H3','H4','H5','H6','H7','H8','H9','H10','H11'];
+const GRAY_50_ID='H6';
+
+// ============ IT8 SCANNER PROFILE V2 ============
+const IT8_TONAL=[[5.55,5.15],[5.72,8.68],[6.83,11.52],[8.39,13.64],[11.41,15.86],[14.8,20.74],[16.88,24.63],[17.81,28.26],[20.12,31.86],[23.01,35.83],[27.77,40.33],[31.74,44.09],[34.25,46.96],[38.52,50.83],[43.14,55.41],[47.89,59.76],[51.92,62.88],[56.93,66.92],[61.3,70.63],[65.96,74.5],[71.87,78.65],[76.33,81.83],[79.08,86.09],[83.04,97.27]];
+const IT8_CHROMA=[[10.9,8.5,-0.5,2.95,4.63],[17.3,22.6,1.6,1.46,4.16],[24.8,35.1,8.0,-0.15,3.78],[24.6,35.2,8.0,-0.19,3.73],[35.6,11.8,-0.6,3.07,4.91],[41.3,24.6,2.5,3.27,5.66],[42.9,36.1,9.0,7.22,2.74],[48.6,47.1,13.9,6.74,0.97],[63.7,3.1,-2.5,3.56,4.53],[66.2,9.5,-2.2,3.51,5.72],[69.3,14.5,-1.3,5.44,7.12],[73.6,20.3,1.2,8.49,7.12],[93.5,-2.6,-2.0,0.37,1.11],[93.5,0.3,-1.2,1.64,0.02],[95.2,-1.2,2.9,-0.15,2.21],[91.3,-0.4,-1.5,-0.24,1.82],[93.2,0.1,0.7,1.01,2.06],[92.2,-3.2,1.5,-0.1,1.88],[88.8,-0.1,-4.4,0.45,1.28],[29.3,8.2,-38.3,3.07,-6.63],[16.1,12.6,-41.2,1.94,-8.54],[8.2,-1.6,-27.7,1.08,-8.21],[11.0,7.1,3.9,2.45,4.26],[16.3,18.3,10.7,-0.01,4.95],[22.1,26.1,16.7,-0.96,5.86],[22.1,26.3,16.8,-0.97,5.97],[35.4,12.2,8.2,3.46,5.59],[40.7,24.8,18.2,2.89,5.96],[43.0,36.2,28.1,3.78,7.72],[47.3,47.3,37.5,5.06,7.46],[63.4,2.1,0.2,3.64,5.21],[66.7,8.1,1.1,3.41,9.13],[69.3,13.4,3.3,4.74,12.13],[71.7,16.3,6.3,6.8,14.82],[88.2,-5.1,-5.4,0.31,2.02],[90.3,3.1,-3.2,1.67,-0.42],[95.1,-2.8,9.3,0.12,3.01],[82.9,-0.8,-1.2,-0.26,1.85],[90.5,2.3,2.5,1.18,3.49],[88.3,-6.3,4.1,-0.86,2.09],[81.6,0.0,-8.5,0.53,-0.29],[20.1,19.1,-12.2,3.57,-8.77],[29.3,14.9,-28.6,4.29,-7.18],[48.2,-8.0,-28.1,2.82,-2.25],[17.2,2.1,5.7,2.65,5.31],[19.1,7.7,14.5,2.97,5.77],[21.9,10.2,21.4,2.66,5.64],[22.0,10.5,21.7,2.44,5.47],[46.5,5.3,13.5,3.26,6.61],[47.6,12.8,33.2,4.43,8.25],[52.8,17.0,53.2,8.54,7.65],[52.7,17.2,53.1,8.47,7.68],[68.7,1.6,4.2,2.44,4.67],[72.2,4.3,12.5,3.52,6.04],[74.3,7.3,20.9,4.71,7.08],[74.5,7.2,20.9,4.7,7.14],[88.4,-7.3,-8.3,0.0,2.35],[84.0,5.8,-5.7,2.11,-0.31],[94.1,-3.5,15.0,-0.16,3.88],[78.3,-0.8,-0.5,-0.12,1.53],[85.3,4.6,5.1,2.35,4.14],[85.3,-10.5,6.8,-0.65,2.8],[77.2,0.8,-12.9,1.37,-1.51],[71.3,-18.2,-1.0,1.77,6.43],[59.1,-31.1,-3.7,3.33,3.93],[53.6,-46.0,35.4,-5.7,10.94],[17.3,-8.5,4.7,3.14,4.89],[19.0,-13.3,9.3,0.51,7.82],[15.2,-14.1,15.3,2.39,6.65],[14.8,-14.1,15.3,2.37,6.47],[38.5,-10.3,8.8,2.89,6.05],[37.3,-18.7,17.2,3.16,10.66],[38.2,-25.0,27.1,1.48,17.35],[38.0,-25.7,27.3,0.53,20.04],[59.5,-5.4,3.7,1.44,4.13],[59.1,-10.9,8.2,2.3,7.76],[56.8,-15.1,13.2,2.2,10.62],[52.3,-19.1,18.2,3.23,12.56],[83.1,-12.3,-13.2,0.35,2.47],[76.9,13.6,-13.5,2.14,-1.01],[91.2,-5.4,28.1,-0.01,3.87],[70.3,-1.2,-0.5,-0.3,1.53],[79.7,8.8,11.8,6.44,7.0],[84.3,-19.1,12.1,-1.36,4.33],[71.7,2.3,-22.2,-0.16,1.35],[46.3,-32.5,25.5,-5.62,6.76],[34.1,-10.1,15.4,-2.62,6.66],[34.2,-41.1,6.5,-11.85,9.2],[6.4,-7.3,-0.2,-2.39,4.18],[4.9,-10.3,1.5,-2.47,3.66],[5.7,-10.2,1.2,-2.51,3.93],[5.8,-10.2,1.5,-2.45,3.44],[24.2,-10.3,0.4,-2.49,3.67],[19.5,-21.1,3.3,-4.85,6.22],[16.5,-34.1,5.2,-5.53,10.57],[16.5,-34.2,5.3,-5.35,10.69],[56.1,-3.0,-1.3,-2.25,3.18],[53.6,-7.7,0.1,-3.2,4.03],[48.7,-13.5,0.2,-3.19,5.2],[46.8,-20.1,1.7,-5.74,7.38],[80.2,-14.1,-15.8,0.17,3.02],[68.1,17.7,-14.5,3.03,-2.47],[89.5,-6.2,42.4,-0.7,4.82],[56.0,-1.2,0.5,-0.57,1.02],[74.1,16.0,20.5,12.3,8.6],[79.0,-26.1,18.0,-4.61,5.35],[61.9,4.0,-30.5,4.16,-3.34],[87.5,-14.6,70.1,-0.96,9.82],[78.3,16.8,56.1,1.83,9.72],[22.5,34.4,2.3,0.14,6.42],[7.9,-4.5,-3.8,-0.97,-2.5],[6.0,-8.3,-8.1,-1.78,-4.63],[1.3,-14.3,-12.2,-7.49,-8.7],[1.3,-14.2,-12.1,-7.48,-8.75],[31.3,-10.7,-7.9,3.35,-0.76],[24.1,-20.1,-12.3,5.56,-1.6],[19.8,-29.5,-19.3,6.32,-7.07],[19.9,-29.6,-19.3,6.17,-7.21],[57.1,-2.8,-5.1,-1.49,-0.04],[53.9,-5.4,-6.9,-2.58,-2.56],[49.2,-8.3,-11.2,-4.48,-4.22],[49.0,-8.4,-11.3,-4.49,-4.17],[77.1,-16.0,-18.3,-1.04,2.37],[63.1,22.3,-14.7,3.76,-4.79],[87.7,-6.3,47.8,-0.97,5.51],[44.1,-0.4,0.1,-1.12,0.18],[68.7,22.0,28.2,6.27,5.78],[73.2,-32.0,21.5,-3.79,6.38],[54.1,4.6,-37.9,2.89,-7.61],[86.2,5.2,74.5,-0.93,10.56],[71.3,25.5,56.9,-6.87,8.96],[33.1,47.9,17.3,5.73,11.42],[7.8,-0.2,-8.3,1.43,-2.84],[5.2,-0.2,-17.2,1.93,-5.87],[3.3,-1.3,-25.5,3.7,-8.86],[3.2,-0.6,-26.0,2.93,-8.44],[36.3,-1.2,-8.1,2.11,-0.97],[35.1,-0.2,-16.6,1.68,-1.16],[33.1,-0.2,-25.1,2.11,-3.35],[32.5,0.2,-32.1,2.88,-3.98],[59.8,-2.5,-5.9,2.87,0.97],[60.9,-2.2,-11.1,2.63,1.73],[60.6,-2.1,-15.7,3.1,1.44],[58.4,-2.1,-26.3,3.32,1.1],[74.9,-17.8,-20.5,-0.3,3.38],[56.1,28.5,-15.6,10.66,-5.61],[85.8,-6.9,54.6,-0.72,5.42],[31.4,0.2,-0.2,-0.02,0.3],[63.5,28.2,32.1,8.37,5.78],[67.8,-35.9,25.2,-4.27,6.66],[47.6,5.3,-43.2,8.65,-9.57],[75.3,27.2,48.5,8.0,7.79],[69.3,13.3,39.8,2.62,10.29],[41.9,15.5,19.6,1.33,8.0],[2.2,5.2,-8.7,2.86,-3.97],[0.5,11.8,-18.2,3.48,-7.36],[-1.1,14.7,-27.1,5.68,-11.06],[-0.9,16.8,-31.1,7.49,-14.55],[31.1,3.2,-8.3,2.28,-1.06],[28.7,7.5,-16.7,2.97,-2.12],[27.7,11.3,-24.3,4.58,-3.52],[24.4,22.2,-43.3,8.27,-9.27],[60.9,0.2,-6.6,2.76,1.91],[60.9,2.2,-10.9,3.24,1.98],[61.2,3.6,-15.9,4.73,2.21],[62.3,4.6,-22.4,6.77,1.68],[73.4,-18.7,-22.4,-0.37,4.25],[47.0,35.1,-14.7,12.84,-7.55],[83.9,-7.0,61.8,-0.85,4.23],[23.8,0.2,-0.2,0.77,0.66],[58.3,32.2,35.5,9.79,7.17],[64.3,-38.8,27.9,-4.85,8.01],[37.8,6.5,-49.7,13.11,-10.36],[79.3,22.2,41.3,6.21,14.95],[77.2,26.8,18.3,1.67,5.83],[41.7,11.9,9.5,4.94,8.03],[4.3,9.3,-5.9,3.42,-3.24],[6.0,21.0,-9.3,5.98,-9.41],[13.2,29.9,-14.2,9.53,-14.43],[13.3,29.5,-14.0,9.73,-14.56],[36.2,8.3,-3.9,3.25,-3.96],[37.8,16.2,-8.1,6.71,-7.75],[40.2,24.9,-12.3,11.37,-11.43],[43.5,28.8,-14.1,13.44,-13.94],[57.7,2.5,-6.2,3.67,1.72],[59.3,5.4,-9.9,7.94,-3.08],[60.2,7.3,-14.3,10.58,-2.08],[60.6,5.7,-14.1,12.15,1.72],[70.9,-19.5,-22.0,-0.1,4.66],[42.3,42.4,-12.5,14.54,-10.22],[82.7,-7.4,66.6,-0.44,3.11],[17.1,0.5,-0.2,0.7,0.47],[53.7,37.6,40.3,6.53,2.14],[61.4,-40.5,30.2,-5.5,9.15],[24.2,8.5,-55.3,12.06,-12.13],[74.3,18.3,27.5,2.8,9.67],[72.9,13.0,11.2,2.89,13.33],[35.7,12.3,18.3,5.1,8.62],[2.1,8.5,-0.5,4.15,-1.19],[0.5,18.4,-0.5,7.22,-3.6],[-0.3,27.1,-1.5,10.86,-5.2],[0.1,26.7,-1.3,11.33,-5.4],[26.9,11.3,0.2,4.47,-2.28],[20.6,22.0,1.8,9.17,-7.22],[20.7,33.2,4.8,4.82,-11.51],[20.7,33.3,4.8,13.95,-12.11],[54.5,4.2,-1.3,2.05,-1.17],[54.0,8.3,-3.4,6.28,-5.43],[54.9,11.9,-5.9,9.55,-6.42],[52.7,12.7,-5.4,14.07,-6.96],[69.2,-19.2,-23.3,-0.68,4.32],[35.2,48.8,-10.7,21.12,-12.33],[81.7,-7.0,69.6,-0.83,2.22],[4.0,0.0,-0.1,0.27,0.08],[48.7,41.5,42.8,5.88,-2.17],[58.1,-41.7,32.7,-5.47,8.88],[12.2,9.3,-59.4,16.74,-11.5],[71.2,15.5,22.3,5.62,4.88],[62.1,14.1,16.2,7.05,21.93],[64.7,17.3,14.5,7.12,12.16],[83.0,-0.1,-2.8,-0.47,4.45],[79.1,0.0,-2.5,-0.42,2.09],[76.3,0.1,-2.6,-0.21,2.23],[72.3,-0.3,-2.2,0.02,2.56],[66.0,-0.3,-2.3,0.5,2.63],[61.3,-0.3,-1.5,0.68,1.64],[56.9,-0.7,-1.3,0.67,1.57],[51.9,0.1,-1.1,-0.09,1.27],[47.9,-0.1,-0.8,0.29,0.97],[43.1,-0.4,-0.9,0.38,1.24],[38.5,-0.2,-1.6,0.56,1.73],[34.3,0.5,-1.8,-0.22,1.97],[31.7,1.5,-2.8,-0.94,3.04],[27.8,0.5,-1.2,0.13,1.62],[23.0,0.4,-1.8,-0.02,1.66],[20.1,-0.2,-2.3,0.96,3.12],[17.8,0.3,-1.2,-0.11,1.75],[16.9,-0.3,-0.4,0.64,0.92],[14.8,-0.1,-2.8,0.46,2.82],[11.4,-0.2,-1.2,0.59,1.24],[8.4,0.9,-1.7,0.11,1.46],[5.7,1.7,-1.7,-0.65,0.22],[5.5,0.1,-1.1,-0.07,1.78],[5.5,0.5,-1.3,-0.72,1.98]];
+
+function it8Tonal(sL){const c=IT8_TONAL,n=c.length;if(sL<=c[0][0]){const s=(c[1][1]-c[0][1])/(c[1][0]-c[0][0]||.001);return c[0][1]+s*(sL-c[0][0])}if(sL>=c[n-1][0]){const s=(c[n-1][1]-c[n-2][1])/(c[n-1][0]-c[n-2][0]||.001);return c[n-1][1]+s*(sL-c[n-1][0])}for(let i=0;i<n-1;i++){if(sL>=c[i][0]&&sL<=c[i+1][0]){const t=(sL-c[i][0])/(c[i+1][0]-c[i][0]||.001);return c[i][1]+t*(c[i+1][1]-c[i][1])}}return sL}
+function it8Chroma(sL,sA,sB){const K=6,t=IT8_CHROMA,dists=new Array(t.length);for(let i=0;i<t.length;i++){const dl=sL-t[i][0],da=sA-t[i][1],db=sB-t[i][2];dists[i]=[dl*dl+da*da+db*db,i]}for(let k=0;k<K;k++){let mi=k;for(let j=k+1;j<dists.length;j++)if(dists[j][0]<dists[mi][0])mi=j;if(mi!==k){const tmp=dists[k];dists[k]=dists[mi];dists[mi]=tmp}}if(dists[0][0]<0.25){const p=t[dists[0][1]];return[p[3],p[4]]}let sw=0,da=0,db=0;for(let k=0;k<K;k++){const d2=dists[k][0],idx=dists[k][1],w=1/d2;sw+=w;da+=w*t[idx][3];db+=w*t[idx][4]}return[da/sw,db/sw]}
+function lab2rgb_it8(L,a,b){const fy=(L+16)/116,fx=a/500+fy,fz=fy-b/200,e=216/24389,k=24389/27;function fi(t){return t*t*t>e?t*t*t:(116*t-16)/k}const x=.95047*fi(fx),y=fi(fy),z=1.08883*fi(fz),rl=3.2404542*x-1.5371385*y-.4985314*z,gl=-.969266*x+1.8760108*y+.041556*z,bl=.0556434*x-.2040259*y+1.0572252*z;function g(c){c=Math.max(0,Math.min(1,c));return Math.round((c<=.0031308?12.92*c:1.055*Math.pow(c,1/2.4)-.055)*255)}return[g(rl),g(gl),g(bl)]}
+function applyIT8(rgb){const sLab=rgb2lab(rgb[0],rgb[1],rgb[2]),cL=it8Tonal(sLab[0]),[da,db]=it8Chroma(sLab[0],sLab[1],sLab[2]);return lab2rgb_it8(cL,sLab[1]+da,sLab[2]+db)}
+
+// ============ STATE ============
+let refImg=null,scanImg=null,refResults=null,scanResults=null,analysisData=null;
+let driverSettings={brightness:0,contrast:0,saturation:0,cyan:0,magenta:0,yellow:0};
+let recommended=null,normalizationInfo=null;
+let manualCornerMode=false,manualCorners=[],pendingCornersResolve=null;
+let history=[];
+let wizardMode=false,wizardStep=1;
+const WIZARD_STEPS={1:{keys:['brightness','contrast'],label:'Шаг 1 · Яркость и Контраст',desc:'Анализ серой шкалы'},2:{keys:['cyan','magenta','yellow'],label:'Шаг 2 · Баланс CMY',desc:'Убираем тёплый/холодный сдвиг'},3:{keys:['saturation'],label:'Шаг 3 · Насыщенность',desc:'Подстройка цветности'}};
+
+// ============ CONVERGENCE ENGINE ============
+let convergenceState='idle',bestHistoryIdx=-1,sensitivityMatrix=null;
+const CONV={CALIBRATED_DE:2.0,GOOD_DE:4.0,PLATEAU_WINDOW:3,PLATEAU_SPREAD:0.3,DEGRADE_COUNT:2,PROBE_ITERATIONS:2,MAX_STEP:8,FINE_STEP:2,DEAD_ZONE:0.3,OSCILLATION_THRESHOLD:2,BASE_DAMP:0.6,DAMP_DECAY:0.85,MIN_DAMP:0.15};
+const DEFAULT_SENS={brightness:{dL:2.5,da:0,db:0},contrast:{dL:1.8,da:0,db:0},saturation:{dL:0,da:0,db:0,dC:1.5},cyan:{dL:-0.3,da:-1.8,db:-0.6},magenta:{dL:-0.2,da:1.8,db:-0.3},yellow:{dL:-0.1,da:-0.2,db:1.8}};
+
+function grade(de){if(de<2)return{cls:'grade-a',label:'Превосходно',emoji:'🟢'};if(de<4)return{cls:'grade-b',label:'Отлично',emoji:'🟢'};if(de<7)return{cls:'grade-c',label:'Удовлетворительно',emoji:'🟡'};return{cls:'grade-d',label:'Требуется калибровка',emoji:'🔴'}}
+function toggleWizard(on){wizardMode=on;wizardStep=1;document.getElementById('wizToggle').classList.toggle('on',on);updateWizardUI();if(analysisData)displayResults()}
+function updateWizardUI(){const ws=WIZARD_STEPS[wizardStep];PARAM_KEYS.forEach(k=>{const el=document.getElementById('drv_'+k);if(!el)return;const allowed=!wizardMode||ws.keys.includes(k);el.disabled=!allowed;el.parentElement.style.opacity=allowed?'1':'0.3'})}
+function openExpert(){document.getElementById('expertPanel').classList.add('open');document.getElementById('expertBackdrop').classList.add('open')}
+function closeExpert(){document.getElementById('expertPanel').classList.remove('open');document.getElementById('expertBackdrop').classList.remove('open')}
+function switchExpTab(el,id){el.parentElement.querySelectorAll('.expert-tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');document.querySelectorAll('.expert-section').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active')}
+
+// ============ COLOR MATH ============
+function srgb2lin(c){c/=255;return c<=.04045?c/12.92:Math.pow((c+.055)/1.055,2.4)}
+function lin2srgb(c){c=Math.max(0,Math.min(1,c));return Math.round((c<=.0031308?12.92*c:1.055*Math.pow(c,1/2.4)-.055)*255)}
+function rgb2xyz(r,g,b){const lr=srgb2lin(r),lg=srgb2lin(g),lb=srgb2lin(b);return[lr*.4124564+lg*.3575761+lb*.1804375,lr*.2126729+lg*.7151522+lb*.072175,lr*.0193339+lg*.119192+lb*.9503041]}
+function xyz2lab(x,y,z){const e=216/24389,k=24389/27;function f(t){return t>e?Math.cbrt(t):(k*t+16)/116}const fx=f(x/.95047),fy=f(y/1),fz=f(z/1.08883);return[116*fy-16,500*(fx-fy),200*(fy-fz)]}
+function rgb2lab(r,g,b){const[x,y,z]=rgb2xyz(r,g,b);return xyz2lab(x,y,z)}
+function deltaE00(lab1,lab2){const L1=lab1[0],a1=lab1[1],b1=lab1[2],L2=lab2[0],a2=lab2[1],b2=lab2[2],C1=Math.sqrt(a1*a1+b1*b1),C2=Math.sqrt(a2*a2+b2*b2),Cab=(C1+C2)/2,Cab7=Math.pow(Cab,7),G=.5*(1-Math.sqrt(Cab7/(Cab7+6103515625))),a1p=(1+G)*a1,a2p=(1+G)*a2,C1p=Math.sqrt(a1p*a1p+b1*b1),C2p=Math.sqrt(a2p*a2p+b2*b2);let h1p=Math.atan2(b1,a1p)*180/Math.PI;if(h1p<0)h1p+=360;let h2p=Math.atan2(b2,a2p)*180/Math.PI;if(h2p<0)h2p+=360;const dLp=L2-L1,dCp=C2p-C1p;let dhp;if(C1p*C2p===0)dhp=0;else{dhp=h2p-h1p;if(dhp>180)dhp-=360;else if(dhp<-180)dhp+=360}const dHp=2*Math.sqrt(C1p*C2p)*Math.sin(dhp*Math.PI/360),Lm=(L1+L2)/2,Cm=(C1p+C2p)/2;let hm;if(C1p*C2p===0)hm=h1p+h2p;else{hm=(h1p+h2p)/2;if(Math.abs(h1p-h2p)>180){if(h1p+h2p<360)hm+=180;else hm-=180}}const T=1-.17*Math.cos((hm-30)*Math.PI/180)+.24*Math.cos(2*hm*Math.PI/180)+.32*Math.cos((3*hm+6)*Math.PI/180)-.2*Math.cos((4*hm-63)*Math.PI/180),Lm50=(Lm-50)*(Lm-50),SL=1+.015*Lm50/Math.sqrt(20+Lm50),SC=1+.045*Cm,SH=1+.015*Cm*T,Cm7=Math.pow(Cm,7),RC=2*Math.sqrt(Cm7/(Cm7+6103515625)),dT=30*Math.exp(-(((hm-275)/25)*((hm-275)/25))),RT=-Math.sin(2*dT*Math.PI/180)*RC,t1=dLp/SL,t2=dCp/SC,t3=dHp/SH;return Math.sqrt(t1*t1+t2*t2+t3*t3+RT*t2*t3)}
+function deltaE(l1,l2){return deltaE00(l1,l2)}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+
+// ============ LUMA NORMALIZATION ============
+function lumaLin(r,g,b){return .2126*r+.7152*g+.0722*b}
+function buildNormalization(refP,scanP){const gp=[];GRAY_IDS.forEach(id=>{const ri=PATCHES.findIndex(p=>p.id===id);if(ri<0)return;gp.push({id,ref:refP[ri].rgb,scan:scanP[ri].rgb})});if(gp.length<2)return null;const lR=gp.map(g=>g.ref.map(srgb2lin)),lS=gp.map(g=>g.scan.map(srgb2lin));const lc=gp.map((g,i)=>({scanVal:lumaLin(lS[i][0],lS[i][1],lS[i][2]),refVal:lumaLin(lR[i][0],lR[i][1],lR[i][2])}));lc.sort((a,b)=>a.scanVal-b.scanVal);const u=[lc[0]];for(let i=1;i<lc.length;i++){if(Math.abs(lc[i].scanVal-u[u.length-1].scanVal)>.0005)u.push(lc[i])}const gi=gp.findIndex(g=>g.id===GRAY_50_ID);let gamma=1;if(gi>=0){const sw=lumaLin(lS[0][0],lS[0][1],lS[0][2]),sb=lumaLin(lS[lS.length-1][0],lS[lS.length-1][1],lS[lS.length-1][2]),rw=lumaLin(lR[0][0],lR[0][1],lR[0][2]),rb=lumaLin(lR[lR.length-1][0],lR[lR.length-1][1],lR[lR.length-1][2]),sr=sw-sb,rr=rw-rb;if(sr>.01&&rr>.01){const s50=lumaLin(lS[gi][0],lS[gi][1],lS[gi][2]),r50=lumaLin(lR[gi][0],lR[gi][1],lR[gi][2]),sn=(s50-sb)/sr,rn=(r50-rb)/rr;if(sn>.01&&sn<.99&&rn>.01){const g=Math.log(rn)/Math.log(sn);if(g>.3&&g<3)gamma=g}}}return{lumaCurve:u,gamma,refWhite:refP[PATCHES.findIndex(p=>p.id==='H1')].rgb,refBlack:refP[PATCHES.findIndex(p=>p.id==='H11')].rgb,scanWhite:scanP[PATCHES.findIndex(p=>p.id==='H1')].rgb,scanBlack:scanP[PATCHES.findIndex(p=>p.id==='H11')].rgb,grayPoints:gp.length}}
+function interpCurve(c,v){if(v<=c[0].scanVal){if(c.length<2)return c[0].refVal;const s=(c[1].refVal-c[0].refVal)/(c[1].scanVal-c[0].scanVal||.001);return c[0].refVal+s*(v-c[0].scanVal)}if(v>=c[c.length-1].scanVal){const n=c.length;if(n<2)return c[n-1].refVal;const s=(c[n-1].refVal-c[n-2].refVal)/(c[n-1].scanVal-c[n-2].scanVal||.001);return c[n-1].refVal+s*(v-c[n-1].scanVal)}for(let i=0;i<c.length-1;i++){if(v>=c[i].scanVal&&v<=c[i+1].scanVal){const t=(v-c[i].scanVal)/(c[i+1].scanVal-c[i].scanVal||.001);return c[i].refVal+t*(c[i+1].refVal-c[i].refVal)}}return v}
+function applyNormalization(norm,rgb){if(!norm)return rgb;const lr=srgb2lin(rgb[0]),lg=srgb2lin(rgb[1]),lb=srgb2lin(rgb[2]),sl=lumaLin(lr,lg,lb),tl=interpCurve(norm.lumaCurve,sl);if(sl<.0001)return[lin2srgb(tl),lin2srgb(tl),lin2srgb(tl)];const r=tl/sl;return[lin2srgb(Math.max(-.02,lr*r)),lin2srgb(Math.max(-.02,lg*r)),lin2srgb(Math.max(-.02,lb*r))]}
+
+// ============ SAMPLING ============
+function samplePatch(imgData,w,h,px,py,rPx){const r0=Math.max(0,Math.round(py-rPx)),r1=Math.min(h-1,Math.round(py+rPx)),c0=Math.max(0,Math.round(px-rPx)),c1=Math.min(w-1,Math.round(px+rPx)),sigma=rPx*.6,s2=2*sigma*sigma,samp=[[],[],[]];for(let y=r0;y<=r1;y++)for(let x=c0;x<=c1;x++){const dx=x-px,dy=y-py,wg=Math.exp(-(dx*dx+dy*dy)/s2),i=(y*w+x)*4;samp[0].push({v:imgData[i],w:wg});samp[1].push({v:imgData[i+1],w:wg});samp[2].push({v:imgData[i+2],w:wg})}if(!samp[0].length)return[128,128,128];const res=[];for(let ch=0;ch<3;ch++){const a=samp[ch];a.sort((a,b)=>a.v-b.v);const tw=a.reduce((s,a)=>s+a.w,0),hw=tw/2;let cw=0,med=a[Math.floor(a.length/2)].v;for(const it of a){cw+=it.w;if(cw>=hw){med=it.v;break}}res.push(med)}return res}
+function refMm2px(xmm,ymm,iw,ih){return[xmm/PAGE_W_MM*iw,ymm/PAGE_H_MM*ih]}
+function findMarkerInRegion(data,w,h,rx,ry,rw,rh){const thr=90;let sx=0,sy=0,cnt=0;for(let y=ry;y<ry+rh&&y<h;y++)for(let x=rx;x<rx+rw&&x<w;x++){const i=(y*w+x)*4;if(data[i]*.299+data[i+1]*.587+data[i+2]*.114<thr){sx+=x;sy+=y;cnt++}}if(cnt<50)return null;return{x:sx/cnt,y:sy/cnt,cnt}}
+function detectScanCorners(img){const mx=800,sc=Math.min(mx/img.width,mx/img.height,1),w=Math.round(img.width*sc),h=Math.round(img.height*sc),cv=document.createElement('canvas');cv.width=w;cv.height=h;cv.getContext('2d').drawImage(img,0,0,w,h);const d=cv.getContext('2d').getImageData(0,0,w,h).data,rw=Math.round(w*.2),rh=Math.round(h*.15);return[findMarkerInRegion(d,w,h,0,0,rw,rh),findMarkerInRegion(d,w,h,w-rw,0,rw,rh),findMarkerInRegion(d,w,h,w-rw,h-rh,rw,rh),findMarkerInRegion(d,w,h,0,h-rh,rw,rh)].map(c=>c?{x:c.x/sc,y:c.y/sc,cnt:c.cnt}:null)}
+function bilinearMm2px(xmm,ymm,cn){const u=(xmm-MARKERS[0].x)/(MARKERS[1].x-MARKERS[0].x),v=(ymm-MARKERS[0].y)/(MARKERS[3].y-MARKERS[0].y);return[(1-v)*((1-u)*cn[0].x+u*cn[1].x)+v*((1-u)*cn[3].x+u*cn[2].x),(1-v)*((1-u)*cn[0].y+u*cn[1].y)+v*((1-u)*cn[3].y+u*cn[2].y)]}
+function sampleAllPatches(img,mm2pxFn,rMm,applyCorr){const cv=document.createElement('canvas');cv.width=img.width;cv.height=img.height;const ctx=cv.getContext('2d');ctx.drawImage(img,0,0);const d=ctx.getImageData(0,0,img.width,img.height),ppm=img.width/PAGE_W_MM,rPx=rMm*ppm,res=[];for(const p of PATCHES){const[px,py]=mm2pxFn(p.x,p.y);const rgb=samplePatch(d.data,img.width,img.height,px,py,rPx);const corrRgb=applyCorr?applyIT8(rgb):rgb;res.push({...p,rgb:corrRgb,lab:rgb2lab(...corrRgb),rawRgb:rgb,px:Math.round(px),py:Math.round(py)})}return res}
+
+// ============ PDF ============
+async function pdfToImage(file){if(typeof pdfjsLib==='undefined'){toast('pdf.js не загружен','error');return null}pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';const buf=await file.arrayBuffer(),pdf=await pdfjsLib.getDocument({data:buf}).promise,pg=await pdf.getPage(1),vp=pg.getViewport({scale:2}),cv=document.createElement('canvas');cv.width=vp.width;cv.height=vp.height;await pg.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;return new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.src=cv.toDataURL('image/png')})}
+
+// ============ UPLOAD ============
+function setupDropZone(){const dz=document.getElementById('dropZone'),inp=document.getElementById('inFiles');if(!dz||!inp)return;dz.addEventListener('click',()=>inp.click());dz.addEventListener('dragover',e=>{e.preventDefault();e.stopPropagation();dz.classList.add('dragover')});dz.addEventListener('dragleave',()=>dz.classList.remove('dragover'));dz.addEventListener('drop',e=>{e.preventDefault();e.stopPropagation();dz.classList.remove('dragover');handleDroppedFiles(e.dataTransfer.files)});inp.addEventListener('change',()=>{handleDroppedFiles(inp.files);inp.value=''})}
+async function handleDroppedFiles(files){const imgExts=/\.(png|jpe?g|gif|bmp|webp|tiff?)$/i,pdfExt=/\.pdf$/i,arr=Array.from(files).filter(f=>f.type.startsWith('image/')||f.type==='application/pdf'||imgExts.test(f.name)||pdfExt.test(f.name));if(!arr.length){toast('Нужны изображения или PDF','error');return}for(const file of arr){try{let img;if(file.type==='application/pdf'||pdfExt.test(file.name)){toast('PDF...','info');img=await pdfToImage(file);if(!img)continue}else{img=await new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error('img'));i.src=e.target.result};r.onerror=()=>rej(new Error('read'));r.readAsDataURL(file)})}img._name=file.name;if(!refImg){refImg=img;refResults=null;analysisData=null;toast('Эталон: '+file.name,'success')}else if(!scanImg){scanImg=img;scanResults=null;analysisData=null;toast('Скан: '+file.name,'success')}else{toast('Оба файла загружены','info');return}updateDropZoneUI();checkReady();drawCanvas()}catch(err){toast('Ошибка: '+err.message,'error')}}}
+function updateDropZoneUI(){const dz=document.getElementById('dropZone'),f=document.getElementById('dzFiles');f.innerHTML='';dz.classList.toggle('has-file',!!refImg&&!!scanImg);if(refImg)f.innerHTML+='<span class="dz-tag">🖼️ '+refImg._name+'<span class="rm" onclick="event.stopPropagation();removeImg(\'ref\')">✕</span></span>';if(scanImg)f.innerHTML+='<span class="dz-tag">📄 '+scanImg._name+'<span class="rm" onclick="event.stopPropagation();removeImg(\'scan\')">✕</span></span>'}
+function removeImg(w){if(w==='ref'){refImg=null;refResults=null}else{scanImg=null;scanResults=null}analysisData=null;recommended=null;normalizationInfo=null;updateDropZoneUI();checkReady();drawCanvas();document.getElementById('resultsSection').style.display='none';document.getElementById('detectInfo').style.display='none'}
+function checkReady(){document.getElementById('btnRun').disabled=!(refImg&&scanImg)}
+function startManualCornerMode(){return new Promise(r=>{manualCornerMode=true;manualCorners=[];pendingCornersResolve=r;document.getElementById('cornerHint').style.display='block';document.getElementById('cornerIdx').textContent='1';drawCanvas();toast('Кликните 4 метки','info')})}
+function onCanvasClick(e){if(!manualCornerMode||!scanImg)return;const cv=document.getElementById('mainCv'),rect=cv.getBoundingClientRect(),area=document.getElementById('canvasArea'),sc=Math.min((area.clientWidth-20)/scanImg.width,(area.clientHeight-20)/scanImg.height,1);manualCorners.push({x:(e.clientX-rect.left)/sc,y:(e.clientY-rect.top)/sc});drawCanvas();if(manualCorners.length>=4){manualCornerMode=false;document.getElementById('cornerHint').style.display='none';if(pendingCornersResolve){pendingCornersResolve(manualCorners);pendingCornersResolve=null}}else document.getElementById('cornerIdx').textContent=(manualCorners.length+1)}
+
+// ================================================================
+// ============ CONVERGENCE ENGINE ================================
+// ================================================================
+function zoneAnalysis(pd){const z={highlights:[],mids:[],shadows:[]};const gp=pd.filter(p=>GRAY_IDS.includes(p.id)&&!p.outlier);for(const p of gp){const e={dL:p.scanLab[0]-p.lab[0],da:p.scanLab[1]-p.lab[1],db:p.scanLab[2]-p.lab[2]};if(p.lab[0]>65)z.highlights.push(e);else if(p.lab[0]>30)z.mids.push(e);else z.shadows.push(e)}function avg(a,k){return a.length?a.reduce((s,e)=>s+e[k],0)/a.length:0}return{highlights:{dL:avg(z.highlights,'dL'),da:avg(z.highlights,'da'),db:avg(z.highlights,'db'),n:z.highlights.length},mids:{dL:avg(z.mids,'dL'),da:avg(z.mids,'da'),db:avg(z.mids,'db'),n:z.mids.length},shadows:{dL:avg(z.shadows,'dL'),da:avg(z.shadows,'da'),db:avg(z.shadows,'db'),n:z.shadows.length},overall:{dL:avg(gp.map(p=>({dL:p.scanLab[0]-p.lab[0]})),'dL'),da:avg(gp.map(p=>({da:p.scanLab[1]-p.lab[1]})),'da'),db:avg(gp.map(p=>({db:p.scanLab[2]-p.lab[2]})),'db')}}}
+function chromaAnalysis(pd){const cp=pd.filter(p=>p.cat==='saturated'&&!p.outlier),lo=[],hi=[];for(const p of cp){const rc=Math.sqrt(p.lab[1]**2+p.lab[2]**2),sc=Math.sqrt(p.scanLab[1]**2+p.scanLab[2]**2);if(rc<30)lo.push(sc-rc);else hi.push(sc-rc)}const a=arr=>arr.length?arr.reduce((s,v)=>s+v,0)/arr.length:0;return{loChroma:{dC:a(lo),n:lo.length},hiChroma:{dC:a(hi),n:hi.length},weightedDC:(a(lo)+a(hi)*2)/3}}
+function detectOscillation(k){if(history.length<3)return 0;const r=history.slice(-4);let sc=0;for(let i=1;i<r.length;i++){const p=r[i-1].delta?r[i-1].delta[k]||0:0,c=r[i].delta?r[i].delta[k]||0:0;if(p&&c&&Math.sign(p)!==Math.sign(c))sc++}return sc}
+function buildSensFromHistory(){const vh=history.filter(h=>h.channelDevs&&h.settings);if(vh.length<2)return null;const est={};PARAM_KEYS.forEach(k=>{est[k]={dL:[],da:[],db:[],dC:[]}});for(let i=1;i<vh.length;i++){const p=vh[i-1],c=vh[i];PARAM_KEYS.forEach(k=>{const ds=c.settings[k]-p.settings[k];if(Math.abs(ds)<.5)return;est[k].dL.push((c.channelDevs.dL-p.channelDevs.dL)/ds);est[k].da.push((c.channelDevs.da-p.channelDevs.da)/ds);est[k].db.push((c.channelDevs.db-p.channelDevs.db)/ds);est[k].dC.push(((c.channelDevs.dC||0)-(p.channelDevs.dC||0))/ds)})}const r={};PARAM_KEYS.forEach(k=>{const d=DEFAULT_SENS[k],av=(a,dv)=>a.length?a.reduce((s,v)=>s+v,0)/a.length:dv;r[k]={dL:av(est[k].dL,d.dL),da:av(est[k].da,d.da),db:av(est[k].db,d.db),dC:av(est[k].dC,d.dC||0)}});return r}
+function determineConvergence(de){const n=history.length;if(de<CONV.CALIBRATED_DE)return'calibrated';if(n<CONV.PROBE_ITERATIONS)return'probing';if(n>=CONV.DEGRADE_COUNT+1){const best=Math.min(...history.map(h=>h.avgDE)),rec=history.slice(-CONV.DEGRADE_COUNT);if(rec.every(h=>h.avgDE>best+.1))return'degraded'}if(n>=CONV.PLATEAU_WINDOW){const rd=history.slice(-CONV.PLATEAU_WINDOW).map(h=>h.avgDE),sp=Math.max(...rd)-Math.min(...rd);if(sp<CONV.PLATEAU_SPREAD){const av=rd.reduce((s,v)=>s+v,0)/rd.length;return av<CONV.GOOD_DE?'plateau':'ceiling'}}if(n>=2&&history[n-1].avgDE<history[n-2].avgDE)return'improving';return'probing'}
+function findBestIdx(){if(!history.length)return-1;let b=0;for(let i=1;i<history.length;i++)if(history[i].avgDE<history[b].avgDE)b=i;return b}
+
+function computeCorrection(zones,chroma,avgDE){
+  const n=history.length,iter=n,state=n>0?determineConvergence(avgDE):'probing';
+  convergenceState=state;bestHistoryIdx=findBestIdx();
+  let damp=Math.max(CONV.MIN_DAMP,CONV.BASE_DAMP*Math.pow(CONV.DAMP_DECAY,iter));
+  let maxStep=CONV.MAX_STEP;
+  if(state==='plateau'||state==='calibrated')maxStep=CONV.FINE_STEP;
+  if(avgDE<CONV.GOOD_DE)maxStep=Math.min(maxStep,4);
+  const sens=buildSensFromHistory()||(()=>{const r={};PARAM_KEYS.forEach(k=>r[k]={...DEFAULT_SENS[k]});return r})();
+  sensitivityMatrix=sens;
+  const devL=zones.overall.dL,devA=zones.overall.da,devB=zones.overall.db,devC=chroma.weightedDC;
+  const contrastDev=(zones.highlights.n&&zones.shadows.n)?(zones.highlights.dL-zones.shadows.dL):0;
+  const delta={},reasons={};
+
+  if(state==='calibrated'){PARAM_KEYS.forEach(k=>{delta[k]=0;reasons[k]='откалибровано'});recommended={...driverSettings};return{delta,reasons,state,method:'откалибровано',sens}}
+  if(state==='degraded'&&bestHistoryIdx>=0){const best=history[bestHistoryIdx];PARAM_KEYS.forEach(k=>{delta[k]=best.settings[k]-driverSettings[k];reasons[k]='откат к #'+(bestHistoryIdx+1)});recommended={...best.settings};return{delta,reasons,state,method:'откат к лучшему',sens}}
+
+  // Brightness
+  {const d=devL,osc=detectOscillation('brightness'),od=osc>=CONV.OSCILLATION_THRESHOLD?.5:1;if(Math.abs(d)<CONV.DEAD_ZONE){delta.brightness=0;reasons.brightness='в норме'}else{const s=sens.brightness.dL||2.5;let st=(-d/s)*damp*od;delta.brightness=clamp(Math.round(st),-maxStep,maxStep);reasons.brightness=osc>=CONV.OSCILLATION_THRESHOLD?'осцилляция':iter<CONV.PROBE_ITERATIONS?'пробный':'секущие'}}
+  // Contrast
+  {const d=contrastDev,osc=detectOscillation('contrast'),od=osc>=CONV.OSCILLATION_THRESHOLD?.5:1;if(Math.abs(d)<CONV.DEAD_ZONE*1.5){delta.contrast=0;reasons.contrast='в норме'}else{const s=sens.contrast.dL||1.8;let st=(-d/s)*damp*od*.7;delta.contrast=clamp(Math.round(st),-maxStep,maxStep);reasons.contrast=osc>=CONV.OSCILLATION_THRESHOLD?'осцилляция':iter<CONV.PROBE_ITERATIONS?'пробный':'секущие'}}
+  // CMY cross-coupled
+  {const sc=sens.cyan,sm=sens.magenta,sy=sens.yellow,tA=-devA,tB=-devB;
+  let cC=null,cM=null,cY=null;
+  if(Math.abs(devA)>CONV.DEAD_ZONE&&sc.da&&Math.abs(sc.da)>.1)cC=tA/sc.da;
+  if(Math.abs(devA)>CONV.DEAD_ZONE&&sm.da&&Math.abs(sm.da)>.1){const res=tA-(cC||0)*sc.da;if(Math.abs(res)>CONV.DEAD_ZONE*.5)cM=res/sm.da}
+  if(Math.abs(devB)>CONV.DEAD_ZONE&&sy.db&&Math.abs(sy.db)>.1){const res=tB-(cC||0)*sc.db-(cM||0)*sm.db;cY=res/sy.db}
+  ['cyan','magenta','yellow'].forEach(k=>{const v=k==='cyan'?cC:k==='magenta'?cM:cY;const osc=detectOscillation(k),od=osc>=CONV.OSCILLATION_THRESHOLD?.5:1;let st=(v||0)*damp*od;delta[k]=clamp(Math.round(st),-maxStep,maxStep);reasons[k]=v===null?'в норме':(osc>=CONV.OSCILLATION_THRESHOLD?'осцилляция':iter<CONV.PROBE_ITERATIONS?'пробный':'перекрёстн.')})}
+  // Saturation
+  {const d=devC,osc=detectOscillation('saturation'),od=osc>=CONV.OSCILLATION_THRESHOLD?.5:1;if(Math.abs(d)<CONV.DEAD_ZONE*1.2){delta.saturation=0;reasons.saturation='в норме'}else{const s=sens.saturation.dC||1.5;let st=(-d/s)*damp*od;delta.saturation=clamp(Math.round(st),-maxStep,maxStep);reasons.saturation=osc>=CONV.OSCILLATION_THRESHOLD?'осцилляция':iter<CONV.PROBE_ITERATIONS?'пробный':'секущие'}}
+
+  const allZero=PARAM_KEYS.every(k=>delta[k]===0);
+  if(allZero&&avgDE>=CONV.GOOD_DE){convergenceState='ceiling';recommended={...driverSettings};return{delta,reasons,state:'ceiling',method:'потолок принтера',sens}}
+  recommended={};PARAM_KEYS.forEach(k=>{recommended[k]=clamp(driverSettings[k]+(delta[k]||0),-25,25)});
+  const method=iter<CONV.PROBE_ITERATIONS?'прощупывание':state==='plateau'?'тонкая подстройка':buildSensFromHistory()?'адаптивные секущие':'начальная оценка';
+  return{delta,reasons,state,method,sens}
+}
+
+// ============ ANALYSIS ============
+async function runAnalysis(){
+  if(!refImg||!scanImg)return;showProg('Эталон...',10);await sleep(50);
+  refResults=sampleAllPatches(refImg,(x,y)=>refMm2px(x,y,refImg.width,refImg.height),SAMPLE_RADIUS_MM,false);
+  showProg('Метки...',25);await sleep(50);
+  let corners=detectScanCorners(scanImg),found=corners.filter(Boolean);
+  const info=document.getElementById('detectInfo');info.style.display='block';let usedCorners;
+  if(found.length<3){info.innerHTML='<span style="color:var(--acc)">Найдено '+found.length+'/4 меток. Укажите вручную.</span>';hideProg();const cv=document.getElementById('mainCv'),ctx=cv.getContext('2d'),area=document.getElementById('canvasArea'),sc=Math.min((area.clientWidth-20)/scanImg.width,(area.clientHeight-20)/scanImg.height,1);cv.width=Math.round(scanImg.width*sc);cv.height=Math.round(scanImg.height*sc);ctx.drawImage(scanImg,0,0,cv.width,cv.height);usedCorners=await startManualCornerMode();showProg('Скан...',40);await sleep(50);info.innerHTML='<span style="color:var(--ok)">Углы заданы вручную</span>';scanResults=sampleAllPatches(scanImg,(x,y)=>bilinearMm2px(x,y,usedCorners),SAMPLE_RADIUS_MM,true)}else{const fl=[...corners];if(!fl[0]&&fl[1]&&fl[3])fl[0]={x:fl[3].x,y:fl[1].y};if(!fl[1]&&fl[0]&&fl[2])fl[1]={x:fl[2].x,y:fl[0].y};if(!fl[2]&&fl[1]&&fl[3])fl[2]={x:fl[1].x,y:fl[3].y};if(!fl[3]&&fl[0]&&fl[2])fl[3]={x:fl[0].x,y:fl[2].y};info.innerHTML='<span style="color:var(--ok)">Найдено '+found.length+'/4 меток</span>';usedCorners=fl;showProg('Скан...',40);await sleep(50);scanResults=sampleAllPatches(scanImg,(x,y)=>bilinearMm2px(x,y,usedCorners),SAMPLE_RADIUS_MM,true)}
+  showProg('Нормализация...',55);await sleep(50);
+  const norm=buildNormalization(refResults,scanResults);normalizationInfo=norm;
+  const normScan=scanResults.map(sr=>{const c=applyNormalization(norm,sr.rgb);return{...sr,rawRgb:sr.rgb,rawLab:sr.lab,rgb:c,lab:rgb2lab(...c)}});
+  showProg('CIEDE2000...',75);await sleep(50);readDriverInputs();
+  const patchData=[];for(let i=0;i<PATCHES.length;i++){const ref=refResults[i],sc=normScan[i];patchData.push({...ref,scanRgb:sc.rgb,scanLab:sc.lab,rawScanRgb:sc.rawRgb,de:deltaE(ref.lab,sc.lab),outlier:false})}
+  const deV=patchData.map(p=>p.de).sort((a,b)=>a-b),med=deV[Math.floor(deV.length/2)],devs=patchData.map(p=>Math.abs(p.de-med)).sort((a,b)=>a-b),mad=devs[Math.floor(devs.length/2)]||1;let outlierCount=0;patchData.forEach(p=>{if(.6745*(p.de-med)/Math.max(mad,.1)>3.5){p.outlier=true;outlierCount++}});
+  const clean=patchData.filter(p=>!p.outlier),avgDE=clean.reduce((s,p)=>s+p.de,0)/(clean.length||1);
+  showProg('Коррекция...',85);await sleep(50);
+  const zones=zoneAnalysis(patchData),chroma=chromaAnalysis(patchData),correction=computeCorrection(zones,chroma,avgDE);
+  const grayMid=patchData.filter(p=>GRAY_IDS.includes(p.id)&&p.id!=='H1'&&p.id!=='H11'&&!p.outlier);
+  const avgA_gray=grayMid.length?grayMid.reduce((s,p)=>s+(p.scanLab[1]-p.lab[1]),0)/grayMid.length:0;
+  const avgB_gray=grayMid.length?grayMid.reduce((s,p)=>s+(p.scanLab[2]-p.lab[2]),0)/grayMid.length:0;
+  analysisData={patchData,avgDE,avgDL:zones.overall.dL,avgA_gray,avgB_gray,chromaDiff:chroma.weightedDC,contrastDiff:(zones.highlights.n&&zones.shadows.n)?(zones.highlights.dL-zones.shadows.dL):0,delta:correction.delta,method:correction.method,outlierCount,norm,zones,chroma,correction,convergenceState};
+  history.push({ts:new Date().toISOString(),tsLocal:new Date().toLocaleString(),avgDE,settings:{...driverSettings},recommended:recommended?{...recommended}:null,delta:{...correction.delta},channelDevs:{dL:zones.overall.dL,da:zones.overall.da,db:zones.overall.db,dC:chroma.weightedDC},method:correction.method,state:correction.state});
+  bestHistoryIdx=findBestIdx();showProg('Готово!',100);await sleep(300);hideProg();
+  displayResults();drawCanvas();renderHistory();toast(grade(avgDE).emoji+' ΔE = '+avgDE.toFixed(2),'success');
+}
+
+// ============ DISPLAY ============
+function displayResults(){
+  const d=analysisData;if(!d)return;document.getElementById('resultsSection').style.display='block';
+  const g=grade(d.avgDE),badge=document.getElementById('resBadge');badge.className='res-badge '+g.cls;
+  document.getElementById('resVal').textContent=d.avgDE.toFixed(1);document.getElementById('resGrade').textContent=g.label;
+  const convBox=document.getElementById('convBox'),state=d.convergenceState;convBox.style.display='block';convBox.className='conv-box '+state;
+  const msgs={calibrated:'<strong>Принтер откалиброван!</strong><br>ΔE < '+CONV.CALIBRATED_DE+' — дальнейшая настройка бессмысленна.',plateau:'<strong>Плато достигнуто</strong><br>Последние '+CONV.PLATEAU_WINDOW+' итерации дают одинаковый ΔE.',ceiling:'<strong>Потолок принтера</strong><br>Параметры в мёртвой зоне, ΔE='+d.avgDE.toFixed(1)+' — предел данного принтера/бумаги.',degraded:'<strong>Калибровка ухудшилась!</strong><br>Рекомендуется откат к лучшему (#'+(bestHistoryIdx+1)+', ΔE='+(bestHistoryIdx>=0?history[bestHistoryIdx].avgDE.toFixed(1):'?')+').',probing:'<strong>Прощупывание (#'+history.length+'/'+CONV.PROBE_ITERATIONS+')</strong><br>Изучаю реакцию принтера.',improving:'<strong>Улучшение</strong><br>ΔE снижается. Продолжайте.'};
+  convBox.innerHTML=msgs[state]||'Итерация #'+history.length;
+  document.getElementById('btnRollback').style.display=state==='degraded'?'block':'none';
+  let diag='';const aV=d.avgA_gray,bV=d.avgB_gray;
+  if(Math.abs(aV)>.5||Math.abs(bV)>.5){const parts=[];if(aV>.5)parts.push('розоватый (M+)');else if(aV<-.5)parts.push('зеленоватый (C+)');if(bV>.5)parts.push('желтоватый (Y+)');else if(bV<-.5)parts.push('синеватый (Y-)');const warm=(aV>.3&&bV>.3)||bV>1,cold=(aV<-.3&&bV<-.3)||bV<-1;diag+='<strong>'+(warm?'Тёплый':cold?'Холодный':'Сдвиг')+':</strong> '+parts.join(', ')+'<br>'}else diag+='<strong>Серые нейтральны</strong><br>';
+  if(d.avgDL>2)diag+='<strong>Светлее</strong> эталона (+'+d.avgDL.toFixed(1)+' L*)<br>';else if(d.avgDL<-2)diag+='<strong>Темнее</strong> эталона ('+d.avgDL.toFixed(1)+' L*)<br>';else diag+='<strong>Яркость в норме</strong><br>';
+  if(Math.abs(d.chromaDiff)>2)diag+='<strong>'+(d.chromaDiff>0?'Перенасыщен':'Недонасыщен')+'</strong> (ΔC*='+d.chromaDiff.toFixed(1)+')<br>';
+  if(d.zones){const z=d.zones;diag+='<span style="color:var(--t3);font-size:8px">Зоны: света='+z.highlights.dL.toFixed(1)+' средние='+z.mids.dL.toFixed(1)+' тени='+z.shadows.dL.toFixed(1)+'</span><br>'}
+  diag+='<span style="color:var(--t3);font-size:8px">a*='+aV.toFixed(1)+' b*='+bV.toFixed(1)+' ΔL*='+d.avgDL.toFixed(1)+' · '+d.method+'</span>';
+  document.getElementById('diagBox').innerHTML=diag;
+  if(wizardMode){const s1=Math.abs(d.avgDL)<1.5&&Math.abs(d.contrastDiff)<1.5,s2=Math.abs(aV)<.7&&Math.abs(bV)<.7;if(wizardStep===1&&s1)wizardStep=2;if(wizardStep===2&&s2)wizardStep=3;updateWizardUI();const ws=WIZARD_STEPS[wizardStep];document.getElementById('wizStepBox').style.display='block';document.getElementById('wizStepBox').innerHTML='<strong>'+ws.label+'</strong><br>'+ws.desc}else{document.getElementById('wizStepBox').style.display='none';updateWizardUI()}
+  const fv=v=>(v>0?'+':'')+v,rec=document.getElementById('recBox');
+  if(state==='calibrated'){rec.style.display='block';rec.innerHTML='<div class="rec-head">ИЗМЕНЕНИЯ НЕ ТРЕБУЮТСЯ</div><div style="color:var(--ok);font-size:9px">Текущие настройки оптимальны</div>';document.getElementById('btnApply').style.display='none'}else{rec.style.display='block';let rH='<div class="rec-head">УСТАНОВИТЬ В ДРАЙВЕРЕ</div>';const ak=wizardMode?WIZARD_STEPS[wizardStep].keys:PARAM_KEYS;ak.forEach(k=>{const ch=d.correction.delta[k]!==0,rs=d.correction.reasons[k]||'';rH+='<div class="rec-row"><span>'+PARAM_LABELS[k]+'</span><span class="rec-val" style="'+(ch?'':'opacity:.4')+'">'+fv(recommended[k])+'</span></div>';if(rs&&ch)rH+='<div style="font-size:7px;color:var(--t3);text-align:right;margin-top:-2px">'+rs+'</div>'});if(wizardMode){const lk=PARAM_KEYS.filter(k=>!ak.includes(k));if(lk.length)rH+='<div style="opacity:.35;margin-top:2px">'+lk.map(k=>'<div class="rec-row"><span>'+PARAM_LABELS[k]+'</span><span class="rec-val">'+fv(recommended[k])+'</span></div>').join('')+'</div>'}rec.innerHTML=rH;document.getElementById('btnApply').style.display=state==='ceiling'?'none':'block'}
+  if(normalizationInfo){const ni=document.getElementById('normInfo');ni.style.display='block';ni.innerHTML='Luma γ='+normalizationInfo.gamma.toFixed(2)+' · '+normalizationInfo.grayPoints+' точек<br>Белый: ['+normalizationInfo.scanWhite.join(',')+'] → ['+normalizationInfo.refWhite.join(',')+']'}
+  let tbl='<table class="patch-tbl"><tr><th>ID</th><th>Эталон</th><th>Скан</th><th>ΔE</th></tr>';d.patchData.forEach(p=>{const c=p.de<2?'good':p.de<4?'ok':p.de<7?'med':'bad';tbl+='<tr'+(p.outlier?' style="opacity:.4"':'')+'><td>'+p.label+'</td><td><span class="patch-swatch" style="background:rgb('+p.rgb.join(',')+')">\u00a0</span></td><td><span class="patch-swatch" style="background:rgb('+p.scanRgb.join(',')+')">\u00a0</span></td><td class="de-cell '+c+'">'+p.de.toFixed(1)+'</td></tr>'});tbl+='</table>';document.getElementById('tblWrap').innerHTML=tbl;
+  if(d.correction){let ah='<strong>Состояние:</strong> '+state+'<br><strong>Метод:</strong> '+d.correction.method+'<br><strong>Демпф.:</strong> '+Math.max(CONV.MIN_DAMP,CONV.BASE_DAMP*Math.pow(CONV.DAMP_DECAY,history.length-1)).toFixed(2)+'<br><strong>Лучший:</strong> #'+(bestHistoryIdx+1)+' = '+(bestHistoryIdx>=0?history[bestHistoryIdx].avgDE.toFixed(2):'—')+'<br><strong>Осцилляции:</strong> '+PARAM_KEYS.map(k=>k[0].toUpperCase()+':'+detectOscillation(k)).join(' ')+'<br>';if(sensitivityMatrix){ah+='<br><strong>Чувствительность:</strong><br>';PARAM_KEYS.forEach(k=>{const s=sensitivityMatrix[k];ah+=k+': dL='+(s.dL||0).toFixed(2)+' da='+(s.da||0).toFixed(2)+' db='+(s.db||0).toFixed(2)+(s.dC?' dC='+s.dC.toFixed(2):'')+'<br>'})}document.getElementById('algoInfo').innerHTML=ah}
+}
+function applyRecommended(){if(!recommended)return;const keys=wizardMode?WIZARD_STEPS[wizardStep].keys:PARAM_KEYS;keys.forEach(k=>{driverSettings[k]=recommended[k]});writeDriverInputs();toast('Применено','success')}
+function rollbackToBest(){if(bestHistoryIdx<0)return;const best=history[bestHistoryIdx];PARAM_KEYS.forEach(k=>{driverSettings[k]=best.settings[k]});writeDriverInputs();toast('Откат к #'+(bestHistoryIdx+1)+' (ΔE='+best.avgDE.toFixed(1)+')','success')}
+
+// ============ HISTORY ============
+function renderHistory(){const list=document.getElementById('histList'),wrap=document.getElementById('histChartWrap');if(!history.length){wrap.style.display='none';list.innerHTML='';return}wrap.style.display='block';drawHistChart();bestHistoryIdx=findBestIdx();list.innerHTML='';const fv=v=>(v>0?'+':'')+v;[...history].reverse().forEach((h,ri)=>{const i=history.length-1-ri,g=grade(h.avgDE),isBest=i===bestHistoryIdx,el=document.createElement('div');el.className='hist-entry';let trend='';if(i>0){const diff=h.avgDE-history[i-1].avgDE;trend=diff<-.3?' ▼'+Math.abs(diff).toFixed(1):diff>.3?' ▲+'+diff.toFixed(1):''}el.innerHTML=(isBest?'<span class="best-marker">🏆</span> ':'')+' <span style="color:'+({'grade-a':'var(--ok)','grade-b':'#66bb6a','grade-c':'var(--warn)','grade-d':'var(--acc)'}[g.cls]||'var(--t2)')+'">'+g.emoji+' '+h.avgDE.toFixed(1)+'</span>'+trend+' <span style="color:var(--t3)">#'+(i+1)+' · '+h.method+'</span><br><span style="color:var(--t3)">'+PARAM_KEYS.map(k=>PARAM_LABELS[k]+':'+fv(h.settings[k])).join(' ')+'</span>';el.onclick=()=>{PARAM_KEYS.forEach(k=>{driverSettings[k]=h.settings[k]});writeDriverInputs();toast('#'+(i+1)+' загружено','info')};list.appendChild(el)})}
+function drawHistChart(){const cv=document.getElementById('histChart'),ctx=cv.getContext('2d'),dpr=window.devicePixelRatio||1,w=cv.parentElement.clientWidth-12,h=100;cv.width=w*dpr;cv.height=h*dpr;cv.style.width=w+'px';cv.style.height=h+'px';ctx.scale(dpr,dpr);ctx.clearRect(0,0,w,h);if(!history.length)return;const vals=history.map(h=>h.avgDE),mx=Math.max(...vals,10),mn=Math.min(...vals,0),rng=mx-mn||1,pad={t:12,b:16,l:24,r:6},cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;ctx.strokeStyle='rgba(45,58,92,.4)';ctx.lineWidth=1;[0,2,4,7].forEach(v=>{if(v>mx)return;const y=pad.t+ch*(1-(v-mn)/rng);ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();ctx.fillStyle='#8892b0';ctx.font='8px JetBrains Mono';ctx.textAlign='right';ctx.fillText(v,pad.l-3,y+3)});const calY=pad.t+ch*(1-(CONV.CALIBRATED_DE-mn)/rng);ctx.fillStyle='rgba(46,213,115,.06)';ctx.fillRect(pad.l,calY,cw,h-pad.b-calY);ctx.strokeStyle='rgba(46,213,115,.3)';ctx.setLineDash([3,3]);ctx.beginPath();ctx.moveTo(pad.l,calY);ctx.lineTo(w-pad.r,calY);ctx.stroke();ctx.setLineDash([]);if(vals.length===1){const x=pad.l+cw/2,y=pad.t+ch*(1-(vals[0]-mn)/rng);ctx.fillStyle='#e94560';ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.fill();return}const step=cw/(vals.length-1);ctx.strokeStyle='#e94560';ctx.lineWidth=2;ctx.beginPath();vals.forEach((v,i)=>{const x=pad.l+step*i,y=pad.t+ch*(1-(v-mn)/rng);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y)});ctx.stroke();vals.forEach((v,i)=>{const x=pad.l+step*i,y=pad.t+ch*(1-(v-mn)/rng),isBest=i===bestHistoryIdx;ctx.fillStyle=v<2?'#2ed573':v<4?'#66bb6a':v<7?'#ffa502':'#e94560';ctx.beginPath();ctx.arc(x,y,isBest?5:3,0,Math.PI*2);ctx.fill();if(isBest){ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.stroke()}})}
+
+// ============ CANVAS ============
+function drawCanvas(){const cv=document.getElementById('mainCv'),ctx=cv.getContext('2d'),area=document.getElementById('canvasArea'),mxW=area.clientWidth-20,mxH=area.clientHeight-20,lbl=document.getElementById('cvLabel');if(!refImg&&!scanImg){cv.width=300;cv.height=200;ctx.fillStyle='#253256';ctx.fillRect(0,0,300,200);ctx.fillStyle='#8892b0';ctx.font='600 12px Nunito';ctx.textAlign='center';ctx.fillText('Загрузите эталон и скан',150,100);lbl.textContent='';return}const img=scanImg||refImg,sc=Math.min(mxW/img.width,mxH/img.height,1),dw=Math.round(img.width*sc),dh=Math.round(img.height*sc);cv.width=dw;cv.height=dh;ctx.drawImage(img,0,0,dw,dh);if(manualCornerMode&&manualCorners.length>0)manualCorners.forEach((c,i)=>{const cx=c.x*sc,cy=c.y*sc;ctx.fillStyle='#e94560';ctx.beginPath();ctx.arc(cx,cy,6,0,Math.PI*2);ctx.fill();ctx.fillStyle='#fff';ctx.font='bold 9px JetBrains Mono';ctx.textAlign='center';ctx.fillText(['TL','TR','BR','BL'][i],cx,cy+3)});if(analysisData&&!manualCornerMode){const ppm=dw/PAGE_W_MM,r=SAMPLE_RADIUS_MM*ppm;analysisData.patchData.forEach(p=>{const[px,py]=refMm2px(p.x,p.y,dw,dh),col=p.de<2?'#2ed573':p.de<4?'#66bb6a':p.de<7?'#ffa502':'#e94560';ctx.fillStyle=col;ctx.font='bold '+Math.max(6,Math.round(ppm*1.3))+'px JetBrains Mono';ctx.textAlign='center';ctx.fillText(p.de.toFixed(1),px,py+r+Math.max(6,ppm*1.3));ctx.strokeStyle=p.outlier?'rgba(255,165,2,.7)':col;ctx.lineWidth=p.outlier?2:1;ctx.setLineDash(p.outlier?[2,2]:[]);ctx.strokeRect(px-r,py-r,r*2,r*2);ctx.setLineDash([])});lbl.textContent='ΔE = '+analysisData.avgDE.toFixed(2)+' · '+analysisData.method}else lbl.textContent=refImg?(scanImg?'Эталон + скан':'Эталон'):'Скан'}
+
+// ============ DRIVER GRID ============
+function buildDriverGrid(){const g=document.getElementById('drvGrid');g.innerHTML='';PARAM_KEYS.forEach(k=>{const c=document.createElement('div');c.className='drv-cell';c.innerHTML='<span class="dl">'+PARAM_LABELS[k]+'</span><input type="number" id="drv_'+k+'" value="'+driverSettings[k]+'" min="-25" max="25">';g.appendChild(c)})}
+function readDriverInputs(){PARAM_KEYS.forEach(k=>{const el=document.getElementById('drv_'+k);if(el)driverSettings[k]=clamp(+el.value||0,-25,25)})}
+function writeDriverInputs(){PARAM_KEYS.forEach(k=>{const el=document.getElementById('drv_'+k);if(el)el.value=driverSettings[k]})}
+
+// ============ EXPORTS ============
+function exportCSV(){const d=analysisData;if(!d)return;let csv='\uFEFF'+'Патч;Кат;Эт.R;Эт.G;Эт.B;Ск.R;Ск.G;Ск.B;ΔE\n';d.patchData.forEach(p=>{csv+=p.label+';'+p.cat+';'+p.rgb.join(';')+';'+p.scanRgb.join(';')+';'+p.de.toFixed(2)+'\n'});const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='colorblind.csv';a.click();toast('CSV','success')}
+function exportXLSX(){const d=analysisData;if(!d)return;let x='<?xml version="1.0"?>\n<?mso-application progid="Excel.Sheet"?>\n<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Styles><Style ss:ID="h"><Font ss:Bold="1"/></Style></Styles><Worksheet ss:Name="Data"><Table>\n<Row>';['Патч','R','G','B','sR','sG','sB','ΔE'].forEach(h=>{x+='<Cell ss:StyleID="h"><Data ss:Type="String">'+h+'</Data></Cell>'});x+='</Row>\n';d.patchData.forEach(p=>{x+='<Row><Cell><Data ss:Type="String">'+p.label+'</Data></Cell>';p.rgb.forEach(v=>x+='<Cell><Data ss:Type="Number">'+v+'</Data></Cell>');p.scanRgb.forEach(v=>x+='<Cell><Data ss:Type="Number">'+v+'</Data></Cell>');x+='<Cell><Data ss:Type="Number">'+p.de.toFixed(2)+'</Data></Cell></Row>\n'});x+='</Table></Worksheet></Workbook>';const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([x],{type:'application/vnd.ms-excel'}));a.download='colorblind.xls';a.click();toast('XLS','success')}
+
+function exportTxt(){const d=analysisData;if(!d)return;const fv=v=>(v>0?’+’:’’)+v;let t=‘colorblind Beta 1.4\n’+new Date().toLocaleString()+’\nΔE00: ‘+d.avgDE.toFixed(2)+’\nСост.: ‘+d.convergenceState+’\n\nДрайвер:\n’+PARAM_KEYS.map(k=>’  ‘+PARAM_LABELS[k]+’: ‘+fv(recommended[k])).join(’\n’)+’\n\nИстория (’+history.length+’):\n’;history.forEach((h,i)=>{t+=’  #’+(i+1)+’ ΔE=’+h.avgDE.toFixed(1)+’ [’+h.state+’] ‘+PARAM_KEYS.map(k=>k+’:’+fv(h.settings[k])).join(’ ‘)+’\n’});const a=document.createElement(‘a’);a.href=URL.createObjectURL(new Blob([t]));a.download=‘colorblind.txt’;a.click();toast(‘TXT’,‘success’)}
+function exportCubeLUT(){const d=analysisData;if(!d)return;toast(‘LUT…’,‘info’);setTimeout(()=>{try{const pts=[];d.patchData.forEach(p=>{if(p.id===‘H1’||p.id===‘H11’)return;pts.push({pos:p.rgb.map(v=>v/255),err:p.scanRgb.map((v,i)=>v/255-p.rgb[i]/255)})});pts.push({pos:[0,0,0],err:[0,0,0]},{pos:[1,1,1],err:[0,0,0]},{pos:[.5,.5,.5],err:[0,0,0]});const sz=17,st=1/(sz-1);let out=‘TITLE “colorblind”\nLUT_3D_SIZE ‘+sz+’\n’;for(let ir=0;ir<sz;ir++){const r=ir*st;for(let ig=0;ig<sz;ig++){const g=ig*st;for(let ib=0;ib<sz;ib++){const b=ib*st;let sw=0,er=0,eg2=0,eb=0,md=9;for(const p of pts){const d=Math.sqrt((r-p.pos[0])**2+(g-p.pos[1])**2+(b-p.pos[2])**2);if(d<.001){sw=1;er=p.err[0];eg2=p.err[1];eb=p.err[2];break}const w=1/d**2.5;sw+=w;er+=w*p.err[0];eg2+=w*p.err[1];eb+=w*p.err[2];if(d<md)md=d}er/=sw;eg2/=sw;eb/=sw;const dm=Math.min(1,.15/Math.max(md,.001))*.7+.3;er*=dm;eg2*=dm;eb*=dm;const mx=.15;out+=clamp(r-clamp(er,-mx,mx),0,1).toFixed(6)+’ ‘+clamp(g-clamp(eg2,-mx,mx),0,1).toFixed(6)+’ ‘+clamp(b-clamp(eb,-mx,mx),0,1).toFixed(6)+’\n’}}}const a=document.createElement(‘a’);a.href=URL.createObjectURL(new Blob([out]));a.download=‘colorblind.cube’;a.click();toast(‘LUT’,‘success’)}catch(e){toast(e.message,‘error’)}},50)}
+function downloadScanInstructions(){const t=‘colorblind — Инструкция\n\nРежим: Профессиональный\nЦвет: Без цветокоррекции\n300 dpi · PNG\nАвтоэкспозиция: ВЫКЛ\nРезкость: ВЫКЛ\nЯркость/Контраст: 0\n’;const a=document.createElement(‘a’);a.href=URL.createObjectURL(new Blob([t]));a.download=‘инструкция.txt’;a.click()}
+
+// ============ SAVE/LOAD ============
+function saveColorblind(){readDriverInputs();const d={format:‘colorblind’,version:4,ts:new Date().toISOString(),driverSettings:{…driverSettings},recommended:recommended?{…recommended}:null,history:[…history]};const a=document.createElement(‘a’);a.href=URL.createObjectURL(new Blob([JSON.stringify(d,null,2)]));a.download=‘colorblind_’+new Date().toISOString().slice(0,10)+’.colorblind’;a.click();toast(‘Сохранено’,‘success’)}
+function loadColorblind(file){const r=new FileReader();r.onload=e=>{try{const d=JSON.parse(e.target.result);if(d.driverSettings){driverSettings={…driverSettings,…d.driverSettings};writeDriverInputs()}if(d.history)history=d.history;if(d.recommended)recommended=d.recommended;bestHistoryIdx=findBestIdx();renderHistory();toast(history.length+’ итераций’,‘success’)}catch(err){toast(err.message,‘error’)}};r.readAsText(file)}
+function resetAll(){refImg=scanImg=null;refResults=scanResults=analysisData=recommended=null;normalizationInfo=null;manualCornerMode=false;manualCorners=[];convergenceState=‘idle’;bestHistoryIdx=-1;sensitivityMatrix=null;driverSettings={brightness:0,contrast:0,saturation:0,cyan:0,magenta:0,yellow:0};document.getElementById(‘cornerHint’).style.display=‘none’;document.getElementById(‘detectInfo’).style.display=‘none’;document.getElementById(‘resultsSection’).style.display=‘none’;document.getElementById(‘convBox’).style.display=‘none’;updateDropZoneUI();buildDriverGrid();checkReady();drawCanvas();updateWizardUI()}
+
+// ============ UTILS ============
+function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
+function showProg(t,p){document.getElementById(‘progOv’).classList.add(‘visible’);document.getElementById(‘progTxt’).textContent=t;document.getElementById(‘progFill’).style.width=p+’%’}
+function hideProg(){document.getElementById(‘progOv’).classList.remove(‘visible’)}
+function toast(m,t=‘info’){const el=document.createElement(‘div’);el.className=’toast ’+t;el.textContent=m;document.getElementById(‘toastC’).appendChild(el);setTimeout(()=>{el.style.opacity=‘0’;el.style.transition=‘opacity .3s’;setTimeout(()=>el.remove(),300)},3000)}
+
+// ============ INIT ============
+document.addEventListener(‘dragover’,e=>e.preventDefault());
+document.addEventListener(‘drop’,e=>e.preventDefault());
+try{setupDropZone();buildDriverGrid();drawCanvas();renderHistory();
+document.getElementById(‘mainCv’).addEventListener(‘click’,onCanvasClick);
+document.getElementById(‘cbLoadInput’).addEventListener(‘change’,e=>{if(e.target.files[0])loadColorblind(e.target.files[0]);e.target.value=’’});
+window.addEventListener(‘resize’,()=>{drawCanvas();if(history.length)drawHistChart()});
+}catch(e){document.body.innerHTML=’<pre style="color:red;padding:20px">’+e.message+’\n’+e.stack+’</pre>’}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>photoBlender</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,300&family=Instrument+Serif:ital@0;1&display=swap');
+
+:root {
+  --bg-deep: #0a0e14; --bg-panel: #111820; --bg-card: #19202b;
+  --bg-hover: #1f2937; --border: #2a3444; --accent: #e74c3c;
+  --accent-glow: rgba(231,76,60,0.15); --text: #e8eaed;
+  --text-dim: #8899aa; --text-muted: #556677;
+  --success: #2ecc71; --warning: #f39c12;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'DM Sans',sans-serif; background:var(--bg-deep); color:var(--text); min-height:100vh; overflow-x:hidden; }
+
+.grain { position:fixed; inset:0; z-index:0; pointer-events:none; opacity:0.03; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); background-size:256px; }
+.app { position:relative; z-index:1; max-width:960px; margin:0 auto; padding:40px 24px 80px; }
+header { text-align:center; margin-bottom:48px; animation:fadeDown .6s ease-out; }
+@keyframes fadeDown { from{opacity:0;transform:translateY(-20px)} to{opacity:1;transform:translateY(0)} }
+@keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+header h1 { font-family:'Instrument Serif',serif; font-size:3.2rem; font-weight:400; letter-spacing:-0.02em; margin-bottom:8px; }
+header h1 span { color:var(--accent); font-style:italic; }
+header p { color:var(--text-dim); font-size:.95rem; font-weight:300; letter-spacing:.03em; }
+
+.heic-status { display:inline-flex; align-items:center; gap:6px; margin-top:8px; padding:4px 12px; border-radius:20px; font-size:.75rem; font-weight:500; transition:all .3s; }
+.heic-status.loading { background:rgba(243,156,18,.15); color:var(--warning); border:1px solid rgba(243,156,18,.3); }
+.heic-status.ready { background:rgba(46,204,113,.12); color:var(--success); border:1px solid rgba(46,204,113,.3); }
+.heic-status.failed { background:rgba(231,76,60,.12); color:var(--accent); border:1px solid rgba(231,76,60,.3); }
+.heic-dot { width:6px; height:6px; border-radius:50%; }
+.heic-status.loading .heic-dot { background:var(--warning); animation:pulse 1s infinite; }
+.heic-status.ready .heic-dot { background:var(--success); }
+.heic-status.failed .heic-dot { background:var(--accent); }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+.section { background:var(--bg-panel); border:1px solid var(--border); border-radius:12px; padding:28px; margin-bottom:20px; animation:fadeUp .5s ease-out both; }
+.section:nth-child(2){animation-delay:.1s} .section:nth-child(3){animation-delay:.2s} .section:nth-child(4){animation-delay:.3s}
+.section-title { font-family:'Instrument Serif',serif; font-size:1.3rem; font-weight:400; color:var(--text); display:flex; align-items:center; gap:10px; }
+.section-title .num { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; background:var(--accent); color:#fff; font-family:'DM Sans',sans-serif; font-size:.75rem; font-weight:700; border-radius:6px; }
+.section-header { display:flex; align-items:center; justify-content:space-between; cursor:pointer; user-select:none; }
+.toggle-btn { background:var(--bg-card); border:1px solid var(--border); color:var(--text-dim); width:34px; height:34px; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:1.1rem; transition:all .2s; flex-shrink:0; }
+.toggle-btn:hover { border-color:var(--accent); color:var(--accent); }
+.toggle-btn svg { transition:transform .3s; width:16px; height:16px; }
+.toggle-btn.open svg { transform:rotate(180deg); }
+.collapsible-body { max-height:0; overflow:hidden; transition:max-height .4s ease, opacity .3s ease; opacity:0; }
+.collapsible-body.open { max-height:2000px; opacity:1; }
+.collapsible-inner { padding-top:20px; }
+
+.dropzone { border:2px dashed var(--border); border-radius:10px; padding:48px 24px; text-align:center; cursor:pointer; transition:all .3s; position:relative; overflow:hidden; }
+.dropzone::before { content:''; position:absolute; inset:0; background:var(--accent-glow); opacity:0; transition:opacity .3s; }
+.dropzone:hover,.dropzone.dragover { border-color:var(--accent); }
+.dropzone:hover::before,.dropzone.dragover::before { opacity:1; }
+.dropzone-icon { font-size:2.8rem; margin-bottom:12px; display:block; filter:grayscale(.3); }
+.dropzone-text { color:var(--text-dim); font-size:.9rem; line-height:1.7; }
+.dropzone-text strong { color:var(--accent); font-weight:500; }
+.dropzone input { display:none; }
+
+.tile-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(110px, 1fr)); gap:8px; }
+.tile { position:relative; aspect-ratio:1; border-radius:8px; overflow:hidden; background:var(--bg-card); cursor:default; transition:transform .15s; }
+.tile:hover { transform:scale(1.03); }
+.tile img { width:100%; height:100%; object-fit:cover; display:block; }
+.tile-overlay { position:absolute; inset:0; background:linear-gradient(transparent 50%, rgba(0,0,0,.7)); display:flex; flex-direction:column; justify-content:flex-end; padding:6px 8px; }
+.tile-name { font-size:.65rem; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:500; }
+.tile-status { font-size:.6rem; margin-top:2px; }
+.tile-status.pending { color:var(--text-muted); } .tile-status.done { color:var(--success); }
+.tile-status.error { color:var(--accent); } .tile-status.processing { color:var(--warning); }
+.tile-status.cropped { color:#6fc3df; } .tile-status.converting { color:var(--warning); }
+.tile-remove { position:absolute; top:4px; right:4px; background:rgba(0,0,0,.6); border:none; color:#fff; width:22px; height:22px; border-radius:50%; cursor:pointer; font-size:.85rem; display:flex; align-items:center; justify-content:center; opacity:0; transition:opacity .2s; line-height:1; }
+.tile:hover .tile-remove { opacity:1; } .tile-remove:hover { background:var(--accent); }
+.tile-crop-btn { position:absolute; top:4px; left:4px; background:rgba(0,0,0,.6); border:1px solid transparent; color:#fff; padding:2px 6px; border-radius:4px; cursor:pointer; font-size:.6rem; font-family:inherit; font-weight:500; opacity:0; transition:opacity .2s; }
+.tile:hover .tile-crop-btn { opacity:1; } .tile-crop-btn:hover { background:var(--accent); }
+.tile-crop-btn.has-crop { opacity:1; background:rgba(46,204,113,.25); border-color:var(--success); color:var(--success); }
+
+.file-count { display:flex; justify-content:space-between; align-items:center; margin-top:12px; padding-top:12px; border-top:1px solid var(--border); font-size:.82rem; color:var(--text-dim); }
+.btn-clear { background:none; border:1px solid var(--border); color:var(--text-dim); padding:5px 12px; border-radius:6px; cursor:pointer; font-size:.78rem; font-family:inherit; transition:all .2s; }
+.btn-clear:hover { border-color:var(--accent); color:var(--accent); }
+.settings-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+@media(max-width:600px){ .settings-grid{grid-template-columns:1fr;} }
+.setting-group label { display:block; font-size:.8rem; color:var(--text-dim); margin-bottom:6px; letter-spacing:.04em; text-transform:uppercase; }
+.setting-group select { width:100%; padding:10px 12px; background:var(--bg-card); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:inherit; font-size:.9rem; outline:none; transition:border-color .2s; cursor:pointer; appearance:none; -webkit-appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238899aa' stroke-width='1.5' fill='none'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 12px center; padding-right:32px; }
+.setting-group select:focus,.setting-group select:hover { border-color:var(--accent); }
+.setting-group select option { background:var(--bg-panel); color:var(--text); }
+.quality-display { display:flex; justify-content:space-between; align-items:center; margin-top:4px; }
+.quality-val { font-size:.85rem; color:var(--accent); font-weight:700; }
+.quality-hint { font-size:.75rem; color:var(--text-muted); }
+input[type="range"] { -webkit-appearance:none; width:100%; height:6px; background:var(--bg-card); border-radius:3px; border:1px solid var(--border); padding:0; margin-top:8px; }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance:none; width:18px; height:18px; background:var(--accent); border-radius:50%; cursor:pointer; border:2px solid var(--bg-deep); box-shadow:0 0 8px rgba(231,76,60,.3); }
+input[type="range"]::-moz-range-thumb { width:18px; height:18px; background:var(--accent); border-radius:50%; cursor:pointer; border:2px solid var(--bg-deep); }
+
+.fit-check-row { margin-top:14px; display:none; } .fit-check-row.visible { display:flex; }
+.fit-check-label { display:flex; align-items:center; gap:10px; cursor:pointer; font-size:.85rem; color:var(--text-dim); user-select:none; transition:color .2s; }
+.fit-check-label:hover { color:var(--text); }
+.fit-checkbox { -webkit-appearance:none; appearance:none; width:20px; height:20px; border-radius:5px; flex-shrink:0; background:var(--bg-card); border:1px solid var(--border); cursor:pointer; position:relative; transition:all .2s; }
+.fit-checkbox:checked { background:var(--accent); border-color:var(--accent); }
+.fit-checkbox:checked::after { content:'✓'; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#fff; font-size:.7rem; font-weight:700; }
+.fit-checkbox:hover { border-color:var(--accent); }
+.fit-hint { font-size:.72rem; color:var(--text-muted); margin-top:4px; margin-left:30px; }
+.orientation-row { display:flex; gap:8px; margin-top:16px; }
+.orient-btn { flex:1; padding:10px; background:var(--bg-card); border:1px solid var(--border); border-radius:8px; color:var(--text-dim); font-family:inherit; font-size:.82rem; cursor:pointer; transition:all .2s; text-align:center; }
+.orient-btn:hover { border-color:var(--text-muted); }
+.orient-btn.active { border-color:var(--accent); color:var(--accent); background:var(--accent-glow); }
+.orient-btn .icon { font-size:1.2rem; display:block; margin-bottom:4px; }
+
+.btn-convert { width:100%; padding:16px 32px; background:var(--accent); color:#fff; border:none; border-radius:10px; font-family:inherit; font-size:1rem; font-weight:700; cursor:pointer; transition:all .3s; letter-spacing:.03em; position:relative; overflow:hidden; }
+.btn-convert::after { content:''; position:absolute; inset:0; background:linear-gradient(135deg,rgba(255,255,255,.1),transparent); pointer-events:none; }
+.btn-convert:hover:not(:disabled) { background:#d62c1a; transform:translateY(-1px); box-shadow:0 6px 24px rgba(231,76,60,.3); }
+.btn-convert:disabled { opacity:.4; cursor:not-allowed; }
+.progress-wrap { margin-top:16px; display:none; } .progress-wrap.visible { display:block; }
+.progress-bar-bg { height:6px; background:var(--bg-card); border-radius:3px; overflow:hidden; }
+.progress-bar-fill { height:100%; background:var(--accent); border-radius:3px; width:0%; transition:width .3s; }
+.progress-text { display:flex; justify-content:space-between; margin-top:8px; font-size:.8rem; color:var(--text-dim); }
+
+.toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px); background:var(--bg-panel); border:1px solid var(--success); color:var(--success); padding:12px 24px; border-radius:10px; font-size:.9rem; font-family:inherit; z-index:999; transition:transform .4s; box-shadow:0 8px 32px rgba(0,0,0,.4); max-width:90vw; text-align:center; }
+.toast.show { transform:translateX(-50%) translateY(0); } .toast.error { border-color:var(--accent); color:var(--accent); }
+.footer-hint { text-align:center; margin-top:32px; font-size:.78rem; color:var(--text-muted); letter-spacing:.02em; }
+
+.crop-modal-overlay { position:fixed; inset:0; z-index:1000; background:rgba(0,0,0,.85); backdrop-filter:blur(8px); display:none; align-items:center; justify-content:center; padding:20px; }
+.crop-modal-overlay.open { display:flex; }
+.crop-modal { background:var(--bg-panel); border:1px solid var(--border); border-radius:14px; max-width:680px; width:100%; max-height:90vh; overflow:hidden; display:flex; flex-direction:column; }
+.crop-modal-header { display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--border); }
+.crop-modal-header h3 { font-family:'Instrument Serif',serif; font-size:1.1rem; font-weight:400; }
+.crop-modal-close { background:none; border:none; color:var(--text-dim); font-size:1.4rem; cursor:pointer; padding:4px; line-height:1; transition:color .2s; }
+.crop-modal-close:hover { color:var(--accent); }
+.crop-canvas-wrap { position:relative; flex:1; overflow:hidden; display:flex; align-items:center; justify-content:center; padding:20px; background:var(--bg-deep); min-height:300px; max-height:60vh; cursor:grab; }
+.crop-canvas-wrap:active { cursor:grabbing; }
+.crop-canvas-wrap canvas { max-width:100%; max-height:100%; }
+.crop-modal-footer { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 20px; border-top:1px solid var(--border); }
+.crop-hint { font-size:.78rem; color:var(--text-muted); flex:1; }
+.crop-modal-footer button { padding:10px 20px; border-radius:8px; font-family:inherit; font-size:.85rem; font-weight:600; cursor:pointer; transition:all .2s; }
+.btn-crop-reset { background:none; border:1px solid var(--border); color:var(--text-dim); }
+.btn-crop-reset:hover { border-color:var(--accent); color:var(--accent); }
+.btn-crop-apply { background:var(--accent); border:none; color:#fff; }
+.btn-crop-apply:hover { background:#d62c1a; }
+</style>
+</head>
+<body>
+<div class="grain"></div>
+<div class="app">
+  <header>
+    <h1>photo<span>Blender</span></h1>
+    <p>Архив для фотолабы за 2 клика</p>
+    <div class="heic-status loading" id="heicStatus"><span class="heic-dot"></span><span id="heicStatusText">Загрузка HEIC-декодера...</span></div>
+  </header>
+
+  <div class="section">
+    <div class="section-title"><span class="num">1</span> Загрузка изображений</div>
+    <div class="dropzone" id="dropzone">
+      <span class="dropzone-icon">📂</span>
+      <div class="dropzone-text">Перетащите файлы сюда или <strong>нажмите для выбора</strong><br>HEIC · JPEG · PNG · TIFF · WEBP · BMP</div>
+      <input type="file" id="fileInput" multiple accept="image/*,.heic,.heif">
+    </div>
+    <div class="tile-grid" id="tileGrid" style="margin-top:16px;"></div>
+    <div class="file-count" id="fileCount" style="display:none;"><span id="countText">0 файлов</span><button class="btn-clear" id="btnClear">Очистить всё</button></div>
+  </div>
+
+  <div class="section" id="settingsSection">
+    <div class="section-header" id="settingsHeader">
+      <div class="section-title"><span class="num">2</span> Настройки конвертации</div>
+      <button class="toggle-btn" id="toggleSettings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+    </div>
+    <div class="collapsible-body" id="settingsBody">
+      <div class="collapsible-inner">
+        <div class="settings-grid">
+          <div class="setting-group"><label>Качество JPEG</label><input type="range" id="quality" min="80" max="100" value="97" step="1"><div class="quality-display"><span class="quality-val" id="qualityVal">97%</span><span class="quality-hint">минимальное сжатие</span></div></div>
+          <div class="setting-group"><label>Кадрирование (опционально)</label><select id="cropFormat"><option value="none">Без кадрирования</option><option value="A6">A6 — 105 × 148 мм</option><option value="A5">A5 — 148 × 210 мм</option><option value="A4">A4 — 210 × 297 мм</option><option value="A3">A3 — 297 × 420 мм</option></select></div>
+        </div>
+        <div class="orientation-row" id="orientRow" style="display:none;"><button class="orient-btn active" data-orient="auto"><span class="icon">⟳</span> Авто</button><button class="orient-btn" data-orient="portrait"><span class="icon">▯</span> Портрет</button><button class="orient-btn" data-orient="landscape"><span class="icon">▭</span> Альбом</button></div>
+        <div class="fit-check-row" id="fitRow"><label class="fit-check-label"><input type="checkbox" class="fit-checkbox" id="fitCheck">Вписать фото в лист целиком</label></div>
+        <div class="fit-hint" id="fitHint" style="display:none;">Фото будет уменьшено без обрезки, пустое пространство заполнится белым</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title"><span class="num">3</span> Конвертация</div>
+    <button class="btn-convert" id="btnConvert" disabled>Скачать Zip</button>
+    <div class="progress-wrap" id="progressWrap"><div class="progress-bar-bg"><div class="progress-bar-fill" id="progressFill"></div></div><div class="progress-text"><span id="progressLabel">Обработка...</span><span id="progressPercent">0%</span></div></div>
+  </div>
+  <div class="footer-hint">Все операции выполняются локально в браузере · Ваши фото не покидают устройство</div>
+</div>
+
+<div class="crop-modal-overlay" id="cropOverlay"><div class="crop-modal"><div class="crop-modal-header"><h3 id="cropTitle">Кадрирование</h3><button class="crop-modal-close" id="cropClose">×</button></div><div class="crop-canvas-wrap" id="cropCanvasWrap"><canvas id="cropCanvas"></canvas></div><div class="crop-modal-footer"><span class="crop-hint">Перетаскивайте фото, чтобы выбрать область кадрирования</span><button class="btn-crop-reset" id="cropReset">Сбросить</button><button class="btn-crop-apply" id="cropApply">Применить</button></div></div></div>
+<div class="toast" id="toast"></div>
+
+<!-- =====================================================
+     libheif-js v1.19.8 — modern HEIC decoder
+     Replaces heic2any which used ancient libheif
+     ===================================================== -->
+<script>
+let libheifModule = null, libheifReady = false;
+const LIBHEIF_URLS = [
+  'https://cdn.jsdelivr.net/npm/libheif-js@1.19.8/libheif/libheif.js',
+  'https://unpkg.com/libheif-js@1.19.8/libheif/libheif.js'
+];
+function loadScript(u){return new Promise((r,j)=>{const s=document.createElement('script');s.src=u;s.onload=()=>r(u);s.onerror=()=>j(new Error('Load failed: '+u));document.head.appendChild(s);})}
+async function initLibheif(){
+  const el=$('heicStatus'),tx=$('heicStatusText');
+  for(const u of LIBHEIF_URLS){try{
+    console.log('[libheif] Trying:',u); await loadScript(u);
+    if(typeof libheif!=='undefined'&&libheif.HeifDecoder){libheifModule=libheif;libheifReady=true;
+      console.log('[libheif] OK from:',u);el.className='heic-status ready';tx.textContent='HEIC декодер активен (libheif 1.19)';return;}
+    console.warn('[libheif] Loaded but no HeifDecoder');
+  }catch(e){console.warn('[libheif] Failed:',u,e.message);}}
+  el.className='heic-status failed';tx.textContent='HEIC декодер не загружен — нет интернета?';
+}
+initLibheif();
+</script>
+
+<script>
+const PAPER={A6:{w:105,h:148},A5:{w:148,h:210},A4:{w:210,h:297},A3:{w:297,h:420}};
+const DPI=300,MM2IN=25.4,mm2px=mm=>Math.round((mm/MM2IN)*DPI);
+let files=[],orientation='auto';
+const $=id=>document.getElementById(id);
+const dropzone=$('dropzone'),fileInput=$('fileInput'),tileGrid=$('tileGrid'),fileCount=$('fileCount'),countText=$('countText'),btnClear=$('btnClear'),qualitySlider=$('quality'),qualityVal=$('qualityVal'),cropFormat=$('cropFormat'),orientRow=$('orientRow'),btnConvert=$('btnConvert'),progressWrap=$('progressWrap'),progressFill=$('progressFill'),progressLabel=$('progressLabel'),progressPercent=$('progressPercent'),toast=$('toast'),settingsHeader=$('settingsHeader'),settingsBody=$('settingsBody'),toggleSettings=$('toggleSettings'),cropOverlay=$('cropOverlay'),cropCanvas=$('cropCanvas'),cropCanvasWrap=$('cropCanvasWrap'),cropClose=$('cropClose'),cropReset=$('cropReset'),cropApply=$('cropApply'),cropTitle=$('cropTitle'),fitCheck=$('fitCheck'),fitRow=$('fitRow'),fitHint=$('fitHint');
+
+settingsHeader.addEventListener('click',()=>{const o=settingsBody.classList.toggle('open');toggleSettings.classList.toggle('open',o);});
+dropzone.addEventListener('click',()=>fileInput.click());
+dropzone.addEventListener('dragover',e=>{e.preventDefault();dropzone.classList.add('dragover');});
+dropzone.addEventListener('dragleave',()=>dropzone.classList.remove('dragover'));
+dropzone.addEventListener('drop',e=>{e.preventDefault();dropzone.classList.remove('dragover');addFiles(e.dataTransfer.files);});
+fileInput.addEventListener('change',e=>{addFiles(e.target.files);fileInput.value='';});
+btnClear.addEventListener('click',clearFiles);
+btnConvert.addEventListener('click',startConversion);
+qualitySlider.addEventListener('input',()=>{qualityVal.textContent=qualitySlider.value+'%';});
+cropFormat.addEventListener('change',()=>{const h=cropFormat.value!=='none';orientRow.style.display=h?'flex':'none';fitRow.classList.toggle('visible',h);fitHint.style.display=(h&&fitCheck.checked)?'block':'none';files.forEach(f=>{f.cropOffset=null;});renderTiles();});
+fitCheck.addEventListener('change',()=>{fitHint.style.display=fitCheck.checked?'block':'none';files.forEach(f=>{f.cropOffset=null;});renderTiles();});
+document.querySelectorAll('.orient-btn').forEach(btn=>{btn.addEventListener('click',()=>{document.querySelectorAll('.orient-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');orientation=btn.dataset.orient;files.forEach(f=>{f.cropOffset=null;});renderTiles();});});
+
+/* ======= HEIC DECODE via libheif-js ======= */
+function isHeicFile(f){const e=f.name.split('.').pop().toLowerCase();return e==='heic'||e==='heif';}
+async function waitForLibheif(ms=25000){if(libheifReady)return true;const t=Date.now();while(Date.now()-t<ms){if(libheifReady)return true;await new Promise(r=>setTimeout(r,200));}return false;}
+
+async function decodeHeicToImage(file){
+  console.log('[HEIC] Decoding:',file.name,file.size,'bytes');
+  if(!await waitForLibheif(25000)) throw new Error('HEIC декодер не загружен');
+  const buf=await file.arrayBuffer();
+  const u8=new Uint8Array(buf);
+  console.log('[HEIC] Calling HeifDecoder...');
+  const dec=new libheifModule.HeifDecoder();
+  const imgs=dec.decode(u8);
+  if(!imgs||!imgs.length) throw new Error('libheif: нет изображений в файле');
+  const img=imgs[0],w=img.get_width(),h=img.get_height();
+  console.log('[HEIC] Decoded:',w,'x',h);
+  if(!w||!h) throw new Error('libheif: нулевые размеры');
+  const rgba=await new Promise((res,rej)=>{
+    img.display({data:new Uint8ClampedArray(w*h*4),width:w,height:h},(d)=>{
+      if(!d){rej(new Error('libheif: display() failed'));return;}
+      res(d);
+    });
+  });
+  console.log('[HEIC] Pixels extracted, rendering...');
+  const c=document.createElement('canvas');c.width=w;c.height=h;
+  const ctx=c.getContext('2d');
+  ctx.putImageData(new ImageData(new Uint8ClampedArray(rgba.data.buffer,rgba.data.byteOffset,rgba.data.byteLength),w,h),0,0);
+  const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',0.97));
+  const url=URL.createObjectURL(blob);
+  return new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error('decode failed'));i.src=url;});
+}
+
+/* ======= FILES ======= */
+function addFiles(nf){for(const f of nf){const e=f.name.split('.').pop().toLowerCase();if(!['jpg','jpeg','png','heic','heif','tiff','tif','webp','bmp','gif'].includes(e))continue;if(files.find(x=>x.file.name===f.name&&x.file.size===f.size))continue;files.push({file:f,status:'pending',thumb:null,imgEl:null,cropOffset:null});}renderTiles();btnConvert.disabled=files.length===0;}
+function clearFiles(){files.forEach(f=>{if(f.thumb)URL.revokeObjectURL(f.thumb);});files=[];renderTiles();btnConvert.disabled=true;}
+function removeFile(i){if(files[i].thumb)URL.revokeObjectURL(files[i].thumb);files.splice(i,1);renderTiles();btnConvert.disabled=files.length===0;}
+function updateTileStatus(i,c,t){const tiles=tileGrid.querySelectorAll('.tile');if(tiles[i]){const el=tiles[i].querySelector('.tile-status');if(el){el.className='tile-status '+c;el.textContent=t;}}}
+
+function renderTiles(){
+  tileGrid.innerHTML='';const hasCrop=cropFormat.value!=='none';
+  files.forEach((f,i)=>{
+    const tile=document.createElement('div');tile.className='tile';
+    if(f.thumb){const img=document.createElement('img');img.src=f.thumb;tile.appendChild(img);}
+    const ov=document.createElement('div');ov.className='tile-overlay';
+    const nm=document.createElement('div');nm.className='tile-name';nm.textContent=f.file.name;ov.appendChild(nm);
+    const sm={pending:'Ожидание',done:'Готово',error:'Ошибка',processing:'Обработка...',converting:'Декодирование HEIC...'};
+    const st=document.createElement('div');st.className='tile-status '+(f.cropOffset?'cropped':f.status);st.textContent=f.cropOffset?'✓ кадрировано':(sm[f.status]||'');ov.appendChild(st);tile.appendChild(ov);
+    const rm=document.createElement('button');rm.className='tile-remove';rm.textContent='×';rm.onclick=e=>{e.stopPropagation();removeFile(i);};tile.appendChild(rm);
+    if(hasCrop&&!fitCheck.checked){const cb=document.createElement('button');cb.className='tile-crop-btn'+(f.cropOffset?' has-crop':'');cb.textContent=f.cropOffset?'✓':'✎';cb.onclick=e=>{e.stopPropagation();openCropModal(i);};tile.appendChild(cb);tile.style.cursor='pointer';tile.addEventListener('click',()=>openCropModal(i));}
+    tileGrid.appendChild(tile);
+    if(!f.thumb)generateThumb(f,i);
+  });
+  const has=files.length>0;fileCount.style.display=has?'flex':'none';
+  if(has)countText.textContent=`${files.length} ${getDeclension(files.length,'файл','файла','файлов')}`;
+}
+
+function getDeclension(n,a,b,c){const x=Math.abs(n)%100,y=x%10;if(x>10&&x<20)return c;if(y>1&&y<5)return b;if(y===1)return a;return c;}
+
+async function generateThumb(entry,index){
+  try{
+    if(isHeicFile(entry.file)){
+      entry.status='converting';updateTileStatus(index,'converting','Декодирование HEIC...');
+      try{const img=await decodeHeicToImage(entry.file);entry.thumb=img.src;entry.imgEl=img;entry.status='pending';}
+      catch(e){console.error('[Thumb] HEIC fail:',entry.file.name,e);entry.status='error';updateTileStatus(index,'error',e.message||'Ошибка HEIC');showToast(`${entry.file.name}: ${e.message}`,true);return;}
+    }else{
+      const url=URL.createObjectURL(entry.file);entry.thumb=url;
+      const img=new Image();img.onload=()=>{entry.imgEl=img;};img.onerror=()=>{entry.status='error';updateTileStatus(index,'error','Ошибка');};img.src=url;
+    }
+    const tiles=tileGrid.querySelectorAll('.tile');
+    if(tiles[index]){let ex=tiles[index].querySelector('img');if(!ex){ex=document.createElement('img');tiles[index].insertBefore(ex,tiles[index].firstChild);}ex.src=entry.thumb;updateTileStatus(index,'pending','Ожидание');}
+  }catch(e){console.error('[Thumb]',entry.file.name,e);entry.status='error';updateTileStatus(index,'error','Ошибка');showToast(`Ошибка: ${entry.file.name}`,true);}
+}
+
+function showToast(m,e=false){toast.textContent=m;toast.className='toast'+(e?' error':'');requestAnimationFrame(()=>toast.classList.add('show'));setTimeout(()=>toast.classList.remove('show'),4500);}
+
+/* ===== CROP MODAL ===== */
+let cropState={idx:-1,img:null,offsetX:0,offsetY:0,startX:0,startY:0,_scale:1,_baseOffX:0,_baseOffY:0};
+function getCropTarget(iw,ih){const f=cropFormat.value;if(f==='none')return null;const p=PAPER[f];let pw=mm2px(p.w),ph=mm2px(p.h);if(orientation==='landscape')[pw,ph]=[Math.max(pw,ph),Math.min(pw,ph)];else if(orientation==='portrait')[pw,ph]=[Math.min(pw,ph),Math.max(pw,ph)];else{if(iw>ih)[pw,ph]=[Math.max(pw,ph),Math.min(pw,ph)];else[pw,ph]=[Math.min(pw,ph),Math.max(pw,ph)];}return{tw:pw,th:ph};}
+function openCropModal(idx){const e=files[idx];if(!e.imgEl){showToast('Изображение ещё загружается...',true);return;}const t=getCropTarget(e.imgEl.naturalWidth,e.imgEl.naturalHeight);if(!t)return;cropState.idx=idx;cropState.img=e.imgEl;cropState.offsetX=e.cropOffset?e.cropOffset.x:0;cropState.offsetY=e.cropOffset?e.cropOffset.y:0;cropTitle.textContent=`Кадрирование — ${e.file.name}`;cropCanvasWrap.style.cursor=fitCheck.checked?'default':'grab';cropOverlay.classList.add('open');drawCrop();}
+function closeCropModal(){cropOverlay.classList.remove('open');cropState.idx=-1;}
+cropClose.addEventListener('click',closeCropModal);cropOverlay.addEventListener('click',e=>{if(e.target===cropOverlay)closeCropModal();});
+cropReset.addEventListener('click',()=>{cropState.offsetX=0;cropState.offsetY=0;if(cropState.idx>=0)files[cropState.idx].cropOffset=null;drawCrop();renderTiles();});
+cropApply.addEventListener('click',()=>{if(cropState.idx>=0)files[cropState.idx].cropOffset={x:cropState.offsetX,y:cropState.offsetY};closeCropModal();renderTiles();});
+
+function drawCrop(){
+  const img=cropState.img;if(!img)return;const t=getCropTarget(img.naturalWidth,img.naturalHeight);if(!t)return;
+  const isFit=fitCheck.checked,wW=cropCanvasWrap.clientWidth-40,wH=cropCanvasWrap.clientHeight-40;
+  if(isFit){const s=Math.min(wW/t.tw,wH/t.th,1),cw=Math.round(t.tw*s),ch=Math.round(t.th*s);cropCanvas.width=cw;cropCanvas.height=ch;const ctx=cropCanvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,cw,ch);const fs=Math.min(cw/img.naturalWidth,ch/img.naturalHeight),dw=img.naturalWidth*fs,dh=img.naturalHeight*fs;ctx.drawImage(img,0,0,img.naturalWidth,img.naturalHeight,(cw-dw)/2,(ch-dh)/2,dw,dh);ctx.strokeStyle='rgba(231,76,60,0.6)';ctx.lineWidth=2;ctx.strokeRect(1,1,cw-2,ch-2);cropState._scale=1;return;}
+  const sc=Math.min(wW/img.naturalWidth,wH/img.naturalHeight,1),cs=Math.max(t.tw/img.naturalWidth,t.th/img.naturalHeight),sW=t.tw/cs,sH=t.th/cs;
+  cropCanvas.width=Math.round(sW*sc);cropCanvas.height=Math.round(sH*sc);const ctx=cropCanvas.getContext('2d');
+  const mX=(img.naturalWidth-sW)/2,mY=(img.naturalHeight-sH)/2;cropState.offsetX=clamp(cropState.offsetX,-mX,mX);cropState.offsetY=clamp(cropState.offsetY,-mY,mY);
+  ctx.clearRect(0,0,cropCanvas.width,cropCanvas.height);ctx.drawImage(img,(img.naturalWidth-sW)/2+cropState.offsetX,(img.naturalHeight-sH)/2+cropState.offsetY,sW,sH,0,0,cropCanvas.width,cropCanvas.height);
+  ctx.strokeStyle='rgba(231,76,60,0.6)';ctx.lineWidth=2;ctx.strokeRect(1,1,cropCanvas.width-2,cropCanvas.height-2);
+  ctx.strokeStyle='rgba(255,255,255,0.15)';ctx.lineWidth=1;for(let i=1;i<3;i++){const x=(cropCanvas.width/3)*i,y=(cropCanvas.height/3)*i;ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,cropCanvas.height);ctx.stroke();ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(cropCanvas.width,y);ctx.stroke();}
+  cropState._scale=sc;
+}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+
+let pointerDown=false;
+cropCanvasWrap.addEventListener('pointerdown',e=>{if(cropState.idx<0||fitCheck.checked)return;pointerDown=true;cropState.startX=e.clientX;cropState.startY=e.clientY;cropState._baseOffX=cropState.offsetX;cropState._baseOffY=cropState.offsetY;cropCanvasWrap.setPointerCapture(e.pointerId);});
+cropCanvasWrap.addEventListener('pointermove',e=>{if(!pointerDown||cropState.idx<0)return;cropState.offsetX=cropState._baseOffX-(e.clientX-cropState.startX)/cropState._scale;cropState.offsetY=cropState._baseOffY-(e.clientY-cropState.startY)/cropState._scale;drawCrop();});
+cropCanvasWrap.addEventListener('pointerup',()=>{pointerDown=false;});
+cropCanvasWrap.addEventListener('pointercancel',()=>{pointerDown=false;});
+window.addEventListener('resize',()=>{if(cropState.idx>=0)drawCrop();});
+
+/* ===== EXPORT ===== */
+async function loadImage(file){
+  if(isHeicFile(file))return await decodeHeicToImage(file);
+  return new Promise((r,j)=>{const i=new Image();i.onload=()=>r(i);i.onerror=()=>j(new Error('Ошибка: '+file.name));i.src=URL.createObjectURL(file);});
+}
+
+function processImage(img,quality,cropOffset){
+  const fmt=cropFormat.value,isFit=fitCheck.checked;let tW,tH;
+  if(fmt!=='none'){const p=PAPER[fmt];let pw=mm2px(p.w),ph=mm2px(p.h);if(orientation==='landscape')[pw,ph]=[Math.max(pw,ph),Math.min(pw,ph)];else if(orientation==='portrait')[pw,ph]=[Math.min(pw,ph),Math.max(pw,ph)];else{if(img.naturalWidth>img.naturalHeight)[pw,ph]=[Math.max(pw,ph),Math.min(pw,ph)];else[pw,ph]=[Math.min(pw,ph),Math.max(pw,ph)];}tW=pw;tH=ph;}else{tW=img.naturalWidth;tH=img.naturalHeight;}
+  const c=document.createElement('canvas');c.width=tW;c.height=tH;const ctx=c.getContext('2d',{colorSpace:'srgb'});ctx.fillStyle='#fff';ctx.fillRect(0,0,tW,tH);
+  if(fmt!=='none'){if(isFit){const s=Math.min(tW/img.naturalWidth,tH/img.naturalHeight),dw=img.naturalWidth*s,dh=img.naturalHeight*s;ctx.drawImage(img,0,0,img.naturalWidth,img.naturalHeight,(tW-dw)/2,(tH-dh)/2,dw,dh);}else{const s=Math.max(tW/img.naturalWidth,tH/img.naturalHeight),sw=tW/s,sh=tH/s;let ox=cropOffset?cropOffset.x:0,oy=cropOffset?cropOffset.y:0;ox=clamp(ox,-(img.naturalWidth-sw)/2,(img.naturalWidth-sw)/2);oy=clamp(oy,-(img.naturalHeight-sh)/2,(img.naturalHeight-sh)/2);ctx.drawImage(img,(img.naturalWidth-sw)/2+ox,(img.naturalHeight-sh)/2+oy,sw,sh,0,0,tW,tH);}}else{ctx.drawImage(img,0,0);}
+  return new Promise(r=>{c.toBlob(b=>r(b),'image/jpeg',quality/100);});
+}
+
+async function startConversion(){
+  if(!files.length)return;
+  if(files.some(f=>isHeicFile(f.file))&&!libheifReady){showToast('HEIC декодер не загружен! Проверьте интернет.',true);return;}
+  btnConvert.disabled=true;progressWrap.classList.add('visible');progressFill.style.width='0%';progressPercent.textContent='0%';
+  const q=parseInt(qualitySlider.value),zip=new JSZip(),folder=zip.folder('photoBlender_sRGB');let done=0,errs=0;
+  for(let i=0;i<files.length;i++){
+    const e=files[i];e.status='processing';renderTiles();
+    progressLabel.textContent=isHeicFile(e.file)?`Декодирование HEIC: ${e.file.name}`:`Обработка: ${e.file.name}`;
+    try{const img=await loadImage(e.file);const blob=await processImage(img,q,e.cropOffset);folder.file(e.file.name.replace(/\.[^.]+$/,'')+'.jpg',blob);e.status='done';done++;URL.revokeObjectURL(img.src);}
+    catch(err){console.error('[Export]',e.file.name,err);e.status='error';errs++;showToast(`Ошибка: ${e.file.name}`,true);}
+    progressFill.style.width=Math.round(((i+1)/files.length)*100)+'%';progressPercent.textContent=Math.round(((i+1)/files.length)*100)+'%';renderTiles();
+  }
+  progressLabel.textContent='Создание ZIP-архива...';
+  try{const c=await zip.generateAsync({type:'blob'},m=>{progressPercent.textContent=`ZIP: ${Math.round(m.percent)}%`;});saveAs(c,`photoBlender_${new Date().toISOString().slice(0,10).replace(/-/g,'')}.zip`);
+    if(errs>0){progressLabel.textContent=`Готово: ${done} из ${files.length} (ошибок: ${errs})`;showToast(`Архив: ${done} фото, ${errs} ошибок`,true);}
+    else{progressLabel.textContent=`Готово: ${done} из ${files.length} файлов`;showToast(`✓ Архив сохранён — ${done} фото в sRGB`);}
+  }catch(e){console.error('[ZIP]',e);showToast('Ошибка при создании архива',true);}
+  btnConvert.disabled=false;
+}
+</script>
+</body>
+</html>

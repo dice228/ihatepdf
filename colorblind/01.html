@@ -1,0 +1,1484 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>colorblind — Калибровка по патчам</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg1:#1a1a2e;--bg2:#16213e;--bg3:#0f3460;--bgC:#253256;--acc:#e94560;--accH:#ff6b81;--accS:rgba(233,69,96,.15);--t1:#fff;--t2:#e8ecf8;--t3:#c0c8de;--brd:#2d3a5c;--ok:#2ed573;--warn:#ffa502;--r:10px;--rs:6px}
+html,body{height:100%;font-family:'Nunito',sans-serif;background:var(--bg1);color:var(--t1);overflow:hidden}
+.app{display:flex;flex-direction:column;height:100vh}
+.topbar{height:50px;background:var(--bg2);border-bottom:1px solid var(--brd);display:flex;align-items:center;padding:0 16px;gap:10px;flex-shrink:0}
+.topbar-logo{font-weight:800;font-size:15px;color:var(--acc);display:flex;align-items:center;gap:6px}.topbar-logo span{color:var(--t1)}
+.topbar-div{width:1px;height:26px;background:var(--brd)}
+.topbar-info{font-size:11px;color:var(--t3);font-family:'JetBrains Mono',monospace}
+.topbar-r{margin-left:auto;display:flex;gap:6px}
+.btn{padding:6px 13px;border:none;border-radius:var(--rs);font-family:'Nunito',sans-serif;font-weight:700;font-size:12px;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.btn-p{background:var(--acc);color:#fff}.btn-p:hover{background:var(--accH)}
+.btn-s{background:var(--bgC);color:var(--t1);border:1px solid var(--brd)}.btn-s:hover{background:var(--bg3)}
+.btn-w{background:rgba(255,165,2,.15);color:var(--warn);border:1px solid rgba(255,165,2,.3)}.btn-w:hover{background:rgba(255,165,2,.25)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.main{flex:1;display:flex;overflow:hidden}
+.sidebar-l{width:310px;background:var(--bg2);border-right:1px solid var(--brd);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
+.sidebar-l .sidebar-scroll{flex:1;overflow-y:auto;padding:12px}
+.sidebar-r{width:370px;background:var(--bg2);border-left:1px solid var(--brd);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
+.sidebar-r-tabs{display:flex;border-bottom:1px solid var(--brd);flex-shrink:0}
+.sr-tab{flex:1;padding:8px 6px;text-align:center;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.3px;color:var(--t3);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s}
+.sr-tab:hover{color:var(--t2);background:var(--bgC)}
+.sr-tab.active{color:var(--acc);border-bottom-color:var(--acc);background:var(--accS)}
+.sr-panel{display:none;flex:1;overflow-y:auto;padding:12px}.sr-panel.active{display:block}
+.canvas-area{flex:1;overflow:auto;display:flex;align-items:center;justify-content:center;background:var(--bg1);position:relative}
+.sec-t{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--acc);margin-bottom:6px;display:flex;align-items:center;gap:5px}
+.sec-d{font-size:11px;color:var(--t2);line-height:1.6;margin-bottom:8px}
+.drop-zone{padding:28px 14px;border:2px dashed var(--brd);border-radius:var(--r);text-align:center;cursor:pointer;transition:all .3s;margin-bottom:10px}
+.drop-zone:hover,.drop-zone.dragover{border-color:var(--acc);background:var(--accS)}
+.drop-zone.has-file{border-color:var(--ok);background:rgba(46,213,115,.06)}
+.drop-zone .dz-icon{font-size:28px;margin-bottom:6px}
+.drop-zone .dz-label{font-size:12px;color:var(--t2);line-height:1.5}.drop-zone .dz-label strong{color:var(--t1)}
+.drop-zone .dz-sub{font-size:10px;color:var(--t3);margin-top:4px}
+.drop-zone .dz-files{display:flex;gap:6px;justify-content:center;margin-top:8px;flex-wrap:wrap}
+.dz-file-tag{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;background:var(--bgC);border:1px solid var(--brd);border-radius:var(--rs);font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--t2)}
+.dz-file-tag .dz-rm{cursor:pointer;color:var(--acc);font-size:11px;margin-left:2px}.dz-file-tag .dz-rm:hover{color:var(--accH)}
+.info-box{padding:7px 9px;background:var(--bgC);border-radius:var(--rs);font-size:10px;color:var(--t2);line-height:1.5;font-family:'JetBrains Mono',monospace;border:1px solid var(--brd);margin-bottom:8px}.info-box strong{color:var(--t1)}.info-box .w{color:var(--warn)}.info-box .e{color:var(--acc)}.info-box .g{color:var(--ok)}
+.divider{height:1px;background:var(--brd);margin:8px 0}
+.drv-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-bottom:8px}
+.drv-cell{display:flex;flex-direction:column;align-items:center;gap:2px;padding:5px 3px;background:var(--bgC);border:1px solid var(--brd);border-radius:var(--rs)}
+.drv-cell .drv-l{font-size:7px;font-weight:700;text-transform:uppercase;color:var(--t3)}
+.drv-cell input{width:100%;padding:3px 2px;border-radius:4px;border:1px solid var(--brd);background:var(--bg1);color:var(--t1);font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;text-align:center;outline:none}
+.drv-cell input:focus{border-color:var(--acc)}
+.preset-btn{padding:3px 8px;font-size:9px;font-weight:600;font-family:'Nunito',sans-serif;background:var(--bgC);color:var(--t2);border:1px solid var(--brd);border-radius:var(--rs);cursor:pointer;transition:all .15s}
+.preset-btn:hover{background:var(--bg3);color:#fff;border-color:var(--t3)}
+.patch-tbl{width:100%;border-collapse:collapse;font-size:9px;font-family:'JetBrains Mono',monospace}
+.patch-tbl th{background:var(--bgC);padding:4px;text-align:left;font-weight:700;color:var(--t3);border:1px solid var(--brd);text-transform:uppercase;font-size:8px;letter-spacing:.3px;position:sticky;top:0;z-index:2}
+.patch-tbl td{padding:3px 4px;border:1px solid var(--brd);vertical-align:middle}
+.patch-tbl tr:hover{background:rgba(255,255,255,.03)}
+.patch-swatch{width:18px;height:14px;border-radius:2px;border:1px solid rgba(255,255,255,.1);display:inline-block;vertical-align:middle}
+.de-cell{font-weight:700}.de-cell.good{color:var(--ok)}.de-cell.ok{color:var(--warn)}.de-cell.bad{color:var(--acc)}
+.delta-badge{display:flex;align-items:center;gap:10px;padding:10px;background:var(--bgC);border:1px solid var(--brd);border-radius:var(--r);margin-bottom:8px}
+.delta-badge .db-val{font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:800}
+.delta-badge .db-label{font-size:11px;color:var(--t2);line-height:1.4}.delta-badge .db-label strong{display:block;font-size:12px;color:var(--t1)}
+.delta-badge.good .db-val{color:var(--ok)}.delta-badge.ok .db-val{color:var(--warn)}.delta-badge.bad .db-val{color:var(--acc)}
+.ep{background:var(--bgC);border:1px solid var(--brd);border-radius:var(--r);padding:10px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--t2);line-height:1.9;margin-bottom:8px}
+.ep .ep-row{display:flex;justify-content:space-between;align-items:baseline;gap:4px;flex-wrap:wrap}.ep .ep-val{font-weight:800;color:var(--t1);white-space:nowrap}
+.filter-tabs{display:flex;gap:3px;margin-bottom:6px;flex-wrap:wrap}
+.ftab{padding:3px 8px;font-size:9px;font-weight:700;border:1px solid var(--brd);border-radius:var(--rs);cursor:pointer;background:var(--bgC);color:var(--t3);transition:all .15s}
+.ftab:hover{color:var(--t1)}.ftab.active{color:var(--acc);border-color:var(--acc);background:var(--accS)}
+.cv-overlay{position:absolute;top:8px;left:8px;background:rgba(0,0,0,.8);padding:4px 8px;border-radius:var(--rs);font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--t2);z-index:5;pointer-events:none}
+.corner-hint{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);background:rgba(233,69,96,.9);color:#fff;padding:8px 16px;border-radius:var(--r);font-size:12px;font-weight:700;z-index:10;pointer-events:none;animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.7}}
+.toast-c{position:fixed;bottom:16px;right:16px;z-index:10000;display:flex;flex-direction:column;gap:6px}
+.toast{padding:7px 12px;border-radius:var(--rs);font-size:11px;font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,.3);animation:tIn .3s;max-width:300px}
+.toast.info{background:var(--bg3);color:var(--t1);border:1px solid var(--brd)}.toast.success{background:#1a4a2e;color:var(--ok);border:1px solid #2d6b42}.toast.error{background:#4a1a2e;color:var(--acc);border:1px solid #6b2d42}
+@keyframes tIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.prog-ov{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:none;align-items:center;justify-content:center;flex-direction:column;gap:10px}
+.prog-ov.visible{display:flex}
+.prog-bar{width:240px;height:5px;background:var(--bgC);border-radius:3px;overflow:hidden}
+.prog-fill{height:100%;background:var(--acc);width:0;transition:width .3s;border-radius:3px}
+.prog-txt{font-size:12px;color:var(--t1);font-weight:600}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--brd);border-radius:3px}
+.norm-box{padding:8px 10px;background:rgba(46,213,115,.06);border:1px solid rgba(46,213,115,.2);border-radius:var(--rs);font-size:10px;color:var(--t2);line-height:1.5;font-family:'JetBrains Mono',monospace;margin-bottom:8px}
+.norm-box strong{color:var(--ok)}
+/* History */
+.hist-entry{padding:8px;background:var(--bgC);border:1px solid var(--brd);border-radius:var(--rs);margin-bottom:6px;font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--t2);line-height:1.6;cursor:pointer;transition:all .15s;position:relative}
+.hist-entry:hover{border-color:var(--acc);background:rgba(233,69,96,.05)}
+.hist-entry .he-num{position:absolute;top:4px;right:6px;font-size:8px;color:var(--t3)}
+.hist-entry .he-de{font-size:16px;font-weight:800;display:inline-block;margin-right:6px}
+.hist-entry .he-de.good{color:var(--ok)}.hist-entry .he-de.ok{color:var(--warn)}.hist-entry .he-de.bad{color:var(--acc)}
+.hist-entry .he-params{color:var(--t3);font-size:9px;margin-top:2px}
+.hist-entry .he-trend{font-size:9px;font-weight:700;margin-left:4px}
+.hist-entry .he-trend.up{color:var(--acc)}.hist-entry .he-trend.down{color:var(--ok)}.hist-entry .he-trend.flat{color:var(--t3)}
+.hist-chart-wrap{background:var(--bgC);border:1px solid var(--brd);border-radius:var(--r);padding:8px;margin-bottom:10px;position:relative}
+.hist-chart-wrap canvas{width:100%;height:140px;display:block}
+.hist-chart-title{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--t3);margin-bottom:6px}
+.hist-best{padding:8px;background:rgba(46,213,115,.08);border:1px solid rgba(46,213,115,.25);border-radius:var(--rs);font-size:10px;color:var(--t2);font-family:'JetBrains Mono',monospace;line-height:1.6;margin-bottom:8px}
+.hist-best strong{color:var(--ok)}
+.hist-actions{display:flex;gap:4px;margin-bottom:8px}
+/* .colorblind save */
+.save-row{display:flex;gap:4px;margin-bottom:4px}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="topbar-logo">🔴🟢🔵 <span>colorblind</span></div>
+    <div class="topbar-div"></div>
+    <div class="topbar-info">Патч-калибровка · Epson L805 · A6</div>
+    <div class="topbar-r">
+      <button class="btn btn-s" onclick="resetAll()">🔄 Сброс</button>
+      <button class="btn btn-w" onclick="saveColorblind()">💾 .colorblind</button>
+      <button class="btn btn-s" onclick="document.getElementById('cbLoadInput').click()">📂 Загрузить</button>
+      <input type="file" id="cbLoadInput" accept=".colorblind" hidden>
+      <button class="btn btn-p" id="btnRun" onclick="runAnalysis()" disabled>🔍 Анализ</button>
+    </div>
+  </header>
+  <div class="main">
+    <aside class="sidebar-l"><div class="sidebar-scroll">
+      <div class="sec-t">📷 Загрузка файлов</div>
+      <div class="sec-d">Перетащите или нажмите · PNG / JPG / PDF</div>
+      <div class="drop-zone" id="dropZone">
+        <div class="dz-icon">📁</div>
+        <div class="dz-label"><strong>Перетащите сюда</strong> два файла</div>
+        <div class="dz-sub">1) Эталон мишени · 2) Скан отпечатка (300 dpi)</div>
+        <div class="dz-files" id="dzFiles"></div>
+      </div>
+      <input type="file" id="inFiles" multiple accept="image/*,.pdf" hidden>
+      <div id="detectInfo" class="info-box" style="display:none"></div>
+      <div class="divider"></div>
+      <div class="sec-t">⚙️ Настройки драйвера Epson L805</div>
+      <div class="sec-d">Текущие значения. Коррекция суммируется при повторном анализе.</div>
+      <div class="drv-grid" id="drvGrid"></div>
+      <div style="display:flex;gap:3px;flex-wrap:wrap;margin-bottom:8px" id="presetArea"></div>
+      <div class="divider"></div>
+      <div class="info-box" style="font-size:9px;line-height:1.6">
+        <strong>Как это работает:</strong><br>
+        1. Находит угловые метки (или задайте вручную)<br>
+        2. Нормализует кривые по белому/чёрному<br>
+        3. Сравнивает цвета в Lab (ΔE CIEDE2000)<br>
+        4. Вычисляет коррекцию для драйвера<br>
+        5. Запоминает историю итераций<br><br>
+        <span class="w">⚠ Поддержка PDF — через pdf.js</span>
+      </div>
+      <div class="divider"></div>
+      <button class="btn btn-s" style="width:100%;margin-bottom:4px" onclick="exportTxt()">💾 Экспорт TXT</button>
+      <button class="btn btn-s" style="width:100%" onclick="downloadScanInstructions()">📋 Инструкция сканера</button>
+    </div></aside>
+    <main class="canvas-area" id="canvasArea">
+      <canvas id="mainCv"></canvas>
+      <div class="cv-overlay" id="cvLabel">Загрузите эталон и скан</div>
+      <div class="corner-hint" id="cornerHint" style="display:none">Кликните на угловую метку <span id="cornerIdx">1</span>/4</div>
+    </main>
+    <aside class="sidebar-r">
+      <div class="sidebar-r-tabs">
+        <div class="sr-tab active" data-panel="results" onclick="switchRTab(this)">📊 Результаты</div>
+        <div class="sr-tab" data-panel="patches" onclick="switchRTab(this)">📋 Патчи</div>
+        <div class="sr-tab" data-panel="history" onclick="switchRTab(this)">📈 История</div>
+      </div>
+      <!-- RESULTS PANEL -->
+      <div class="sr-panel active" id="panel-results">
+        <div class="delta-badge" id="deBadge" style="display:none">
+          <div class="db-val" id="deVal">—</div>
+          <div class="db-label"><strong>Delta E (CIEDE2000)</strong><span id="deDesc"></span></div>
+        </div>
+        <div id="normInfo" class="norm-box" style="display:none"></div>
+        <div class="ep" id="epPreview" style="display:none"></div>
+        <button class="btn btn-p" style="width:100%;display:none;margin-bottom:8px" id="btnApply" onclick="applyRecommended()">✅ Применить как текущие</button>
+        <div class="divider"></div>
+        <div id="spiderWrap" style="display:none">
+          <div class="sec-t">🕸 Отклонения CMY по каналам</div>
+          <canvas id="spiderChart" style="width:100%;height:260px;display:block"></canvas>
+          <div style="font-size:8px;color:var(--t3);text-align:center;margin-top:4px;font-family:'JetBrains Mono',monospace">Внешний контур = макс. ΔE00 · Пунктир = ΔE00 < 1.5 (норма)</div>
+        </div>
+        <div class="divider"></div>
+        <div id="cubeWrap" style="display:none">
+          <div class="sec-t">🎲 3D LUT коррекция (.cube)</div>
+          <div class="sec-d" style="line-height:1.5">Применяется к изображению <strong>перед печатью</strong> в Photoshop, Lightroom, GIMP, darktable. Компенсирует ошибки принтера поточечно — точнее, чем 6 ползунков драйвера.</div>
+          <div style="display:flex;gap:4px;margin-bottom:6px">
+            <select id="cubeSize" style="flex:1;padding:4px;border-radius:var(--rs);border:1px solid var(--brd);background:var(--bgC);color:var(--t1);font-family:'JetBrains Mono',monospace;font-size:11px">
+              <option value="9">9³ = 729 (быстро)</option>
+              <option value="17" selected>17³ = 4913 (стандарт)</option>
+              <option value="33">33³ = 35937 (точно)</option>
+            </select>
+            <button class="btn btn-p" style="flex:1" onclick="exportCubeLUT()">📦 Скачать .cube</button>
+          </div>
+          <div class="info-box" style="font-size:8px;line-height:1.5" id="cubeInfo">
+            <strong>Как применить:</strong><br>
+            Photoshop → Image → Adjustments → Color Lookup → Load 3D LUT<br>
+            Lightroom → Develop → Profile Browser → Import<br>
+            GIMP → Colors → Color Mapping → Sample Colorize<br>
+            darktable → 3D LUT module → Load .cube
+          </div>
+          <div class="info-box" style="font-size:8px;line-height:1.5;border-color:rgba(255,165,2,.3);background:rgba(255,165,2,.05)">
+            <span class="w">⚠ Ограничения:</span> LUT построен по 63 опорным точкам с интерполяцией (IDW). Точность зависит от качества скана. Для профессиональной печати используйте спектрофотометр + ICC.
+          </div>
+        </div>
+      </div>
+      <!-- PATCHES PANEL -->
+      <div class="sr-panel" id="panel-patches">
+        <div style="display:flex;gap:4px;margin-bottom:8px">
+          <button class="btn btn-s" style="flex:1;font-size:10px" onclick="exportCSV()">📊 Экспорт CSV</button>
+          <button class="btn btn-s" style="flex:1;font-size:10px" onclick="exportXLSX()">📊 Экспорт XLSX</button>
+        </div>
+        <div class="filter-tabs" id="filterTabs"></div>
+        <div style="max-height:calc(100vh - 220px);overflow-y:auto" id="tblWrap"></div>
+      </div>
+      <!-- HISTORY PANEL -->
+      <div class="sr-panel" id="panel-history">
+        <div class="sec-t">📈 Память итераций</div>
+        <div class="sec-d">Какие настройки давали лучший / худший результат</div>
+        <div class="hist-chart-wrap" id="histChartWrap" style="display:none">
+          <div class="hist-chart-title">ΔE по итерациям</div>
+          <canvas id="histChart"></canvas>
+        </div>
+        <div class="hist-best" id="histBest" style="display:none"></div>
+        <div class="hist-actions">
+          <button class="btn btn-s btn-sm" style="font-size:10px;padding:4px 8px" onclick="clearHistory()">🗑 Очистить</button>
+        </div>
+        <div id="histList"></div>
+      </div>
+    </aside>
+  </div>
+</div>
+<div class="toast-c" id="toastC"></div>
+<div class="prog-ov" id="progOv"><div class="prog-txt" id="progTxt">Анализ...</div><div class="prog-bar"><div class="prog-fill" id="progFill"></div></div></div>
+
+<script>
+// ============ PATCH TABLE ============
+const PATCHES=[
+{id:'c_25',cat:'cmyk',label:'C 25%',x:15.0,y:24},{id:'c_50',cat:'cmyk',label:'C 50%',x:24.8,y:24},
+{id:'c_75',cat:'cmyk',label:'C 75%',x:34.5,y:24},{id:'c_100',cat:'cmyk',label:'C 100%',x:44.2,y:24},
+{id:'m_25',cat:'cmyk',label:'M 25%',x:15.0,y:33},{id:'m_50',cat:'cmyk',label:'M 50%',x:24.8,y:33},
+{id:'m_75',cat:'cmyk',label:'M 75%',x:34.5,y:33},{id:'m_100',cat:'cmyk',label:'M 100%',x:44.2,y:33},
+{id:'y_25',cat:'cmyk',label:'Y 25%',x:15.0,y:42},{id:'y_50',cat:'cmyk',label:'Y 50%',x:24.8,y:42},
+{id:'y_75',cat:'cmyk',label:'Y 75%',x:34.5,y:42},{id:'y_100',cat:'cmyk',label:'Y 100%',x:44.2,y:42},
+{id:'k_25',cat:'cmyk',label:'K 25%',x:15.0,y:51},{id:'k_50',cat:'cmyk',label:'K 50%',x:24.8,y:51},
+{id:'k_75',cat:'cmyk',label:'K 75%',x:34.5,y:51},{id:'k_100',cat:'cmyk',label:'K 100%',x:44.2,y:51},
+{id:'mx_red',cat:'mixed',label:'Red',x:60.9,y:24},{id:'mx_orange',cat:'mixed',label:'Orange',x:69.0,y:24},
+{id:'mx_green',cat:'mixed',label:'Green',x:78.4,y:24},{id:'mx_dkgreen',cat:'mixed',label:'Dk Green',x:87.8,y:24},
+{id:'mx_dkblue',cat:'mixed',label:'Dk Blue',x:97.1,y:24},{id:'mx_navy',cat:'mixed',label:'Navy',x:60.9,y:33},
+{id:'mx_teal1',cat:'mixed',label:'Teal',x:69.0,y:33},{id:'mx_cyanbl',cat:'mixed',label:'Cyan Blue',x:78.4,y:33},
+{id:'mx_purple1',cat:'mixed',label:'Purple',x:87.8,y:33},{id:'mx_magenta1',cat:'mixed',label:'Magenta',x:97.1,y:33},
+{id:'mx_emerald',cat:'mixed',label:'Emerald',x:60.9,y:42},{id:'mx_olive',cat:'mixed',label:'Olive',x:69.0,y:42},
+{id:'mx_olivegr',cat:'mixed',label:'Olive Green',x:78.4,y:42},{id:'mx_gold',cat:'mixed',label:'Gold',x:87.8,y:42},
+{id:'mx_brick',cat:'mixed',label:'Brick Red',x:97.1,y:42},{id:'mx_dkred',cat:'mixed',label:'Dk Red',x:60.9,y:51},
+{id:'mx_dkorange',cat:'mixed',label:'Dk Orange',x:69.0,y:51},{id:'mx_brown',cat:'mixed',label:'Brown',x:78.4,y:51},
+{id:'mx_dkbrown',cat:'mixed',label:'Dk Brown',x:87.8,y:51},{id:'mx_dknavy',cat:'mixed',label:'Dk Navy',x:97.1,y:51},
+{id:'gray_0',cat:'neutral',label:'Gray 0%',x:8.6,y:66},{id:'gray_10',cat:'neutral',label:'Gray 10%',x:17.8,y:66},
+{id:'gray_20',cat:'neutral',label:'Gray 20%',x:26.4,y:66},{id:'gray_30',cat:'neutral',label:'Gray 30%',x:35.1,y:66},
+{id:'gray_40',cat:'neutral',label:'Gray 40%',x:43.8,y:66},{id:'gray_50',cat:'neutral',label:'Gray 50%',x:52.8,y:66},
+{id:'gray_60',cat:'neutral',label:'Gray 60%',x:61.5,y:66},{id:'gray_70',cat:'neutral',label:'Gray 70%',x:70.2,y:66},
+{id:'gray_80',cat:'neutral',label:'Gray 80%',x:79.0,y:66},{id:'gray_90',cat:'neutral',label:'Gray 90%',x:87.8,y:66},
+{id:'gray_100',cat:'neutral',label:'Gray 100%',x:96.5,y:66},
+{id:'skin_1',cat:'skin',label:'Light Skin',x:9.4,y:86},{id:'skin_2',cat:'skin',label:'Medium Skin',x:19.6,y:86},
+{id:'skin_3',cat:'skin',label:'Tan Skin',x:29.9,y:86},{id:'skin_4',cat:'skin',label:'Dark Skin',x:40.1,y:86},
+{id:'mx_red2',cat:'mixed',label:'Red 2',x:61.2,y:86},{id:'mx_green2',cat:'mixed',label:'Green 2',x:70.1,y:86},
+{id:'mx_navybl',cat:'mixed',label:'Navy Blue',x:79.1,y:86},{id:'mx_purple2',cat:'mixed',label:'Purple 2',x:87.9,y:86},
+{id:'mx_skyblue',cat:'mixed',label:'Sky Blue',x:96.9,y:86},
+{id:'mx_cyan',cat:'mixed',label:'Cyan',x:61.2,y:95},{id:'mx_magenta2',cat:'mixed',label:'Magenta 2',x:70.1,y:95},
+{id:'mx_yellow',cat:'mixed',label:'Yellow',x:79.1,y:95},{id:'mx_forest',cat:'mixed',label:'Forest',x:87.9,y:95},
+{id:'mx_grape',cat:'mixed',label:'Grape',x:96.9,y:95},
+{id:'mx_teal2',cat:'mixed',label:'Teal 2',x:61.2,y:104},{id:'mx_hotpink',cat:'mixed',label:'Hot Pink',x:70.1,y:104},
+{id:'mx_amber',cat:'mixed',label:'Amber',x:79.1,y:104},{id:'mx_dkcyan',cat:'mixed',label:'Dk Cyan',x:87.9,y:104},
+{id:'mx_khaki',cat:'mixed',label:'Khaki',x:96.9,y:104},
+];
+const MARKERS=[{id:'tl',x:7.5,y:7.5},{id:'tr',x:97.5,y:7.5},{id:'br',x:97.5,y:140.5},{id:'bl',x:7.5,y:140.5}];
+const PAGE_W_MM=105,PAGE_H_MM=148,PATCH_SIZE_MM=8,SAMPLE_RADIUS_MM=1.75;
+const PARAM_KEYS=['brightness','contrast','saturation','cyan','magenta','yellow'];
+const PARAM_LABELS={brightness:'Яркость',contrast:'Контраст',saturation:'Насыщенн.',cyan:'Голубой',magenta:'Пурпурн.',yellow:'Жёлтый'};
+
+// ============ STATE ============
+let refImg=null,scanImg=null,refResults=null,scanResults=null,analysisData=null;
+let driverSettings={brightness:0,contrast:0,saturation:0,cyan:0,magenta:0,yellow:0};
+let recommended=null;
+let normalizationInfo=null;
+let manualCornerMode=false,manualCorners=[],pendingCornersResolve=null;
+
+// History persisted in memory (and in .colorblind files)
+let history=[];
+
+const PRESETS=[
+  {n:'Нули',v:{brightness:0,contrast:0,saturation:0,cyan:0,magenta:0,yellow:0}},
+  {n:'Фото глянец',v:{brightness:-2,contrast:3,saturation:5,cyan:0,magenta:0,yellow:0}},
+  {n:'Тёплые',v:{brightness:0,contrast:0,saturation:2,cyan:-3,magenta:1,yellow:3}},
+  {n:'Холодные',v:{brightness:0,contrast:0,saturation:2,cyan:3,magenta:-1,yellow:-3}},
+];
+
+// ============ RIGHT TAB SWITCH ============
+function switchRTab(el){
+  document.querySelectorAll('.sr-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.sr-panel').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('panel-'+el.dataset.panel).classList.add('active');
+}
+
+// ============ COLOR MATH (sRGB → linear → XYZ D65 → CIELAB) ============
+// sRGB → linear: IEC 61966-2-1 standard
+function srgb2lin(c){c/=255;return c<=.04045?c/12.92:Math.pow((c+.055)/1.055,2.4)}
+// Linear RGB → XYZ (D65 illuminant, sRGB primaries)
+function rgb2xyz(r,g,b){const lr=srgb2lin(r),lg=srgb2lin(g),lb=srgb2lin(b);return[lr*.4124564+lg*.3575761+lb*.1804375,lr*.2126729+lg*.7151522+lb*.072175,lr*.0193339+lg*.119192+lb*.9503041]}
+// XYZ → CIELAB (D65 white point: 0.95047, 1.0, 1.08883)
+function xyz2lab(x,y,z){const e=216/24389,k=24389/27;function f(t){return t>e?Math.cbrt(t):(k*t+16)/116}const fx=f(x/.95047),fy=f(y/1),fz=f(z/1.08883);return[116*fy-16,500*(fx-fy),200*(fy-fz)]}
+function rgb2lab(r,g,b){const[x,y,z]=rgb2xyz(r,g,b);return xyz2lab(x,y,z)}
+
+// ============ CIEDE2000 ============
+// Full implementation per CIE 142-2001 / Sharma et al. 2005
+function deltaE00(lab1,lab2){
+  const L1=lab1[0],a1=lab1[1],b1=lab1[2];
+  const L2=lab2[0],a2=lab2[1],b2=lab2[2];
+  const kL=1,kC=1,kH=1; // parametric weighting factors (1 for standard conditions)
+
+  // Step 1: Calculate C'ab, h'ab
+  const C1=Math.sqrt(a1*a1+b1*b1);
+  const C2=Math.sqrt(a2*a2+b2*b2);
+  const Cab_mean=(C1+C2)/2;
+  const Cab_mean7=Math.pow(Cab_mean,7);
+  const G=0.5*(1-Math.sqrt(Cab_mean7/(Cab_mean7+6103515625))); // 25^7 = 6103515625
+  const a1p=(1+G)*a1;
+  const a2p=(1+G)*a2;
+  const C1p=Math.sqrt(a1p*a1p+b1*b1);
+  const C2p=Math.sqrt(a2p*a2p+b2*b2);
+  let h1p=Math.atan2(b1,a1p)*180/Math.PI; if(h1p<0)h1p+=360;
+  let h2p=Math.atan2(b2,a2p)*180/Math.PI; if(h2p<0)h2p+=360;
+
+  // Step 2: Calculate ΔL', ΔC', ΔH'
+  const dLp=L2-L1;
+  const dCp=C2p-C1p;
+  let dhp;
+  if(C1p*C2p===0)dhp=0;
+  else{
+    dhp=h2p-h1p;
+    if(dhp>180)dhp-=360;
+    else if(dhp<-180)dhp+=360;
+  }
+  const dHp=2*Math.sqrt(C1p*C2p)*Math.sin(dhp*Math.PI/360);
+
+  // Step 3: Calculate CIEDE2000 weighting functions
+  const Lp_mean=(L1+L2)/2;
+  const Cp_mean=(C1p+C2p)/2;
+  let hp_mean;
+  if(C1p*C2p===0)hp_mean=h1p+h2p;
+  else{
+    hp_mean=(h1p+h2p)/2;
+    if(Math.abs(h1p-h2p)>180){
+      if(h1p+h2p<360)hp_mean+=180;
+      else hp_mean-=180;
+    }
+  }
+
+  const T=1
+    -0.17*Math.cos((hp_mean-30)*Math.PI/180)
+    +0.24*Math.cos(2*hp_mean*Math.PI/180)
+    +0.32*Math.cos((3*hp_mean+6)*Math.PI/180)
+    -0.20*Math.cos((4*hp_mean-63)*Math.PI/180);
+
+  const Lp_mean50sq=(Lp_mean-50)*(Lp_mean-50);
+  const SL=1+0.015*Lp_mean50sq/Math.sqrt(20+Lp_mean50sq);
+  const SC=1+0.045*Cp_mean;
+  const SH=1+0.015*Cp_mean*T;
+
+  const Cp_mean7=Math.pow(Cp_mean,7);
+  const RC=2*Math.sqrt(Cp_mean7/(Cp_mean7+6103515625));
+  const dTheta=30*Math.exp(-((hp_mean-275)/25)*((hp_mean-275)/25));
+  const RT=-Math.sin(2*dTheta*Math.PI/180)*RC;
+
+  // Step 4: Final ΔE00
+  const t1=dLp/(kL*SL);
+  const t2=dCp/(kC*SC);
+  const t3=dHp/(kH*SH);
+  return Math.sqrt(t1*t1+t2*t2+t3*t3+RT*t2*t3);
+}
+
+// Keep CIE76 as fallback / reference
+function deltaE76(l1,l2){return Math.hypot(l1[0]-l2[0],l1[1]-l2[1],l1[2]-l2[2])}
+// Primary delta E function
+function deltaE(l1,l2){return deltaE00(l1,l2)}
+function rgb2hsl(r,g,b){r/=255;g/=255;b/=255;const mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn;let s=0,l=(mx+mn)/2;if(d>0)s=l>.5?d/(2-mx-mn):d/(mx+mn);return[0,s*100,l*100]}
+function rgb2cmy(r,g,b){return[(255-r)/255*100,(255-g)/255*100,(255-b)/255*100]}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+
+// ============ NORMALIZATION: FULL GRAY RAMP CURVE (11-point per channel) ============
+// Instead of 2-point linear, uses all 11 gray patches to build a tone curve per R/G/B
+// Monotonic piecewise-linear interpolation: scanValue → refValue
+const GRAY_IDS=['gray_0','gray_10','gray_20','gray_30','gray_40','gray_50','gray_60','gray_70','gray_80','gray_90','gray_100'];
+
+function buildNormalization(refPatches,scanPatches){
+  // Collect gray patch pairs
+  const grayPairs=[];
+  GRAY_IDS.forEach(id=>{
+    const ri=PATCHES.findIndex(p=>p.id===id);
+    if(ri<0)return;
+    grayPairs.push({ref:refPatches[ri].rgb, scan:scanPatches[ri].rgb});
+  });
+  if(grayPairs.length<2)return null;
+
+  // Build per-channel LUT (piecewise-linear transfer curve)
+  const curves=[];
+  for(let ch=0;ch<3;ch++){
+    // Points sorted by scan value (input axis)
+    const pts=grayPairs.map(g=>({scanVal:g.scan[ch], refVal:g.ref[ch]}));
+    // Sort by scan value for monotonic interpolation
+    pts.sort((a,b)=>a.scanVal-b.scanVal);
+    // Remove duplicates (if two gray patches have same scan value in this channel)
+    const unique=[pts[0]];
+    for(let i=1;i<pts.length;i++){
+      if(pts[i].scanVal!==unique[unique.length-1].scanVal)unique.push(pts[i]);
+    }
+    curves.push(unique);
+  }
+
+  const refWhite=refPatches[PATCHES.findIndex(p=>p.id==='gray_0')].rgb;
+  const refBlack=refPatches[PATCHES.findIndex(p=>p.id==='gray_100')].rgb;
+  const scanWhite=scanPatches[PATCHES.findIndex(p=>p.id==='gray_0')].rgb;
+  const scanBlack=scanPatches[PATCHES.findIndex(p=>p.id==='gray_100')].rgb;
+
+  return{curves,refWhite,refBlack,scanWhite,scanBlack,grayPoints:grayPairs.length};
+}
+
+function applyNormalization(norm,rgb){
+  if(!norm)return rgb;
+  const out=[];
+  for(let ch=0;ch<3;ch++){
+    const curve=norm.curves[ch];
+    const v=rgb[ch];
+    // Find segment in piecewise curve
+    if(v<=curve[0].scanVal){
+      // Below lowest measured point — extrapolate from first segment
+      if(curve.length<2){out.push(Math.round(clamp(curve[0].refVal,0,255)));continue}
+      const slope=(curve[1].refVal-curve[0].refVal)/(curve[1].scanVal-curve[0].scanVal||1);
+      out.push(Math.round(clamp(curve[0].refVal+slope*(v-curve[0].scanVal),0,255)));
+    } else if(v>=curve[curve.length-1].scanVal){
+      // Above highest — extrapolate from last segment
+      const n=curve.length;
+      if(n<2){out.push(Math.round(clamp(curve[n-1].refVal,0,255)));continue}
+      const slope=(curve[n-1].refVal-curve[n-2].refVal)/(curve[n-1].scanVal-curve[n-2].scanVal||1);
+      out.push(Math.round(clamp(curve[n-1].refVal+slope*(v-curve[n-1].scanVal),0,255)));
+    } else {
+      // Interpolate between two surrounding points
+      for(let i=0;i<curve.length-1;i++){
+        if(v>=curve[i].scanVal&&v<=curve[i+1].scanVal){
+          const t=(v-curve[i].scanVal)/(curve[i+1].scanVal-curve[i].scanVal||1);
+          out.push(Math.round(clamp(curve[i].refVal+t*(curve[i+1].refVal-curve[i].refVal),0,255)));
+          break;
+        }
+      }
+    }
+  }
+  if(out.length<3)return rgb; // safety fallback
+  return out;
+}
+
+// ============ SAMPLE: GAUSSIAN-WEIGHTED MEDIAN ============
+// Gaussian weight from center, then weighted median per channel
+function samplePatch(imgData,w,h,px,py,radiusPx){
+  const r0=Math.max(0,Math.round(py-radiusPx)),r1=Math.min(h-1,Math.round(py+radiusPx));
+  const c0=Math.max(0,Math.round(px-radiusPx)),c1=Math.min(w-1,Math.round(px+radiusPx));
+  const sigma=radiusPx*0.6; // Gaussian sigma — 60% of radius
+  const sigma2sq=2*sigma*sigma;
+  const samples=[[],[],[]]; // per-channel value arrays
+  const weights=[];
+
+  for(let y=r0;y<=r1;y++){
+    for(let x=c0;x<=c1;x++){
+      const dx=x-px, dy=y-py;
+      const w_g=Math.exp(-(dx*dx+dy*dy)/sigma2sq); // Gaussian weight
+      const i=(y*w+x)*4;
+      samples[0].push({v:imgData[i],   w:w_g});
+      samples[1].push({v:imgData[i+1], w:w_g});
+      samples[2].push({v:imgData[i+2], w:w_g});
+    }
+  }
+
+  if(!samples[0].length)return[128,128,128];
+
+  // Weighted median per channel
+  const result=[];
+  for(let ch=0;ch<3;ch++){
+    const arr=samples[ch];
+    arr.sort((a,b)=>a.v-b.v);
+    const totalW=arr.reduce((s,a)=>s+a.w,0);
+    const halfW=totalW/2;
+    let cumW=0;
+    let median=arr[Math.floor(arr.length/2)].v;
+    for(const item of arr){
+      cumW+=item.w;
+      if(cumW>=halfW){median=item.v;break}
+    }
+    result.push(median);
+  }
+  return result;
+}
+function refMm2px(xmm,ymm,iw,ih){return[xmm/PAGE_W_MM*iw,ymm/PAGE_H_MM*ih]}
+function findMarkerInRegion(data,w,h,rx,ry,rw,rh){
+  const thr=90;let sx=0,sy=0,cnt=0;
+  for(let y=ry;y<ry+rh&&y<h;y++)for(let x=rx;x<rx+rw&&x<w;x++){const i=(y*w+x)*4;const lum=data[i]*.299+data[i+1]*.587+data[i+2]*.114;if(lum<thr){sx+=x;sy+=y;cnt++}}
+  if(cnt<50)return null;return{x:sx/cnt,y:sy/cnt,cnt};
+}
+function detectScanCorners(img){
+  const maxSz=800,sc=Math.min(maxSz/img.width,maxSz/img.height,1);
+  const w=Math.round(img.width*sc),h=Math.round(img.height*sc);
+  const cv=document.createElement('canvas');cv.width=w;cv.height=h;
+  const ctx=cv.getContext('2d');ctx.drawImage(img,0,0,w,h);
+  const d=ctx.getImageData(0,0,w,h).data;
+  const rw=Math.round(w*.2),rh=Math.round(h*.15);
+  const raw=[findMarkerInRegion(d,w,h,0,0,rw,rh),findMarkerInRegion(d,w,h,w-rw,0,rw,rh),findMarkerInRegion(d,w,h,w-rw,h-rh,rw,rh),findMarkerInRegion(d,w,h,0,h-rh,rw,rh)];
+  return raw.map(c=>c?{x:c.x/sc,y:c.y/sc,cnt:c.cnt}:null);
+}
+function bilinearMm2px(xmm,ymm,corners){
+  const u=(xmm-MARKERS[0].x)/(MARKERS[1].x-MARKERS[0].x),v=(ymm-MARKERS[0].y)/(MARKERS[3].y-MARKERS[0].y);
+  const tl=corners[0],tr=corners[1],br=corners[2],bl=corners[3];
+  return[(1-v)*((1-u)*tl.x+u*tr.x)+v*((1-u)*bl.x+u*br.x),(1-v)*((1-u)*tl.y+u*tr.y)+v*((1-u)*bl.y+u*br.y)];
+}
+function sampleAllPatches(img,mm2pxFn,radiusMm){
+  const cv=document.createElement('canvas');cv.width=img.width;cv.height=img.height;
+  const ctx=cv.getContext('2d');ctx.drawImage(img,0,0);
+  const d=ctx.getImageData(0,0,img.width,img.height);
+  const pxPerMm=img.width/PAGE_W_MM,radPx=radiusMm*pxPerMm,results=[];
+  for(const p of PATCHES){const[px,py]=mm2pxFn(p.x,p.y);const rgb=samplePatch(d.data,img.width,img.height,px,py,radPx);results.push({...p,rgb,lab:rgb2lab(...rgb),px:Math.round(px),py:Math.round(py)})}
+  return results;
+}
+
+// ============ PDF SUPPORT ============
+async function pdfToImage(file){
+  if(typeof pdfjsLib==='undefined'){toast('pdf.js не загружен','error');return null}
+  pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const buf=await file.arrayBuffer();
+  const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+  const page=await pdf.getPage(1);
+  const scale=2; // render at 2x for quality
+  const vp=page.getViewport({scale});
+  const cv=document.createElement('canvas');cv.width=vp.width;cv.height=vp.height;
+  const ctx=cv.getContext('2d');
+  await page.render({canvasContext:ctx,viewport:vp}).promise;
+  return new Promise(resolve=>{
+    const img=new Image();
+    img.onload=()=>resolve(img);
+    img.src=cv.toDataURL('image/png');
+  });
+}
+
+// ============ UPLOAD ============
+function setupDropZone(){
+  const dz=document.getElementById('dropZone'),inp=document.getElementById('inFiles');
+  dz.addEventListener('click',()=>inp.click());
+  dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('dragover')});
+  dz.addEventListener('dragleave',()=>dz.classList.remove('dragover'));
+  dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('dragover');handleDroppedFiles(e.dataTransfer.files)});
+  inp.addEventListener('change',()=>{handleDroppedFiles(inp.files);inp.value=''});
+}
+async function handleDroppedFiles(files){
+  const arr=Array.from(files).filter(f=>f.type.startsWith('image/')||f.type==='application/pdf');
+  if(!arr.length){toast('Нужны изображения или PDF','error');return}
+  for(const file of arr){
+    let img;
+    if(file.type==='application/pdf'){
+      toast('Конвертация PDF...','info');
+      img=await pdfToImage(file);
+      if(!img){toast('Ошибка PDF','error');continue}
+    } else {
+      img=await new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=e.target.result};r.readAsDataURL(file)});
+    }
+    img._name=file.name;img._size=file.size;
+    if(!refImg){refImg=img;refResults=null;analysisData=null;toast('Эталон: '+file.name,'success')}
+    else if(!scanImg){scanImg=img;scanResults=null;analysisData=null;toast('Скан: '+file.name,'success')}
+    else{toast('Оба файла уже загружены','info');return}
+    updateDropZoneUI();checkReady();drawCanvas();
+  }
+}
+function updateDropZoneUI(){
+  const dz=document.getElementById('dropZone'),files=document.getElementById('dzFiles');files.innerHTML='';
+  dz.classList.toggle('has-file',!!refImg&&!!scanImg);
+  if(refImg)files.innerHTML+=`<span class="dz-file-tag">🖼️ Эталон: ${refImg._name||'?'} (${refImg.width}×${refImg.height})<span class="dz-rm" onclick="event.stopPropagation();removeImg('ref')">✕</span></span>`;
+  if(scanImg)files.innerHTML+=`<span class="dz-file-tag">📄 Скан: ${scanImg._name||'?'} (${scanImg.width}×${scanImg.height})<span class="dz-rm" onclick="event.stopPropagation();removeImg('scan')">✕</span></span>`;
+}
+function removeImg(which){
+  if(which==='ref'){refImg=null;refResults=null}else{scanImg=null;scanResults=null;document.getElementById('detectInfo').style.display='none'}
+  analysisData=null;recommended=null;normalizationInfo=null;updateDropZoneUI();checkReady();drawCanvas();hideResults();
+}
+function checkReady(){document.getElementById('btnRun').disabled=!(refImg&&scanImg)}
+function hideResults(){document.getElementById('deBadge').style.display='none';document.getElementById('epPreview').style.display='none';document.getElementById('btnApply').style.display='none';document.getElementById('normInfo').style.display='none';document.getElementById('spiderWrap').style.display='none';document.getElementById('cubeWrap').style.display='none';document.getElementById('tblWrap').innerHTML='';document.getElementById('filterTabs').innerHTML=''}
+
+// ============ MANUAL CORNERS ============
+function startManualCornerMode(){
+  return new Promise(resolve=>{manualCornerMode=true;manualCorners=[];pendingCornersResolve=resolve;document.getElementById('cornerHint').style.display='block';document.getElementById('cornerIdx').textContent='1';drawCanvas();toast('Кликните на 4 угловые метки','info')});
+}
+function onCanvasClick(e){
+  if(!manualCornerMode||!scanImg)return;
+  const cv=document.getElementById('mainCv'),rect=cv.getBoundingClientRect();
+  const area=document.getElementById('canvasArea'),maxW=area.clientWidth-30,maxH=area.clientHeight-30;
+  const sc=Math.min(maxW/scanImg.width,maxH/scanImg.height,1);
+  const imgX=(e.clientX-rect.left)/sc,imgY=(e.clientY-rect.top)/sc;
+  manualCorners.push({x:imgX,y:imgY});
+  const labels=['↖TL','↗TR','↘BR','↙BL'];
+  toast(labels[manualCorners.length-1]+': ('+Math.round(imgX)+', '+Math.round(imgY)+')','info');
+  drawCanvas();
+  if(manualCorners.length>=4){manualCornerMode=false;document.getElementById('cornerHint').style.display='none';if(pendingCornersResolve){pendingCornersResolve(manualCorners);pendingCornersResolve=null}}
+  else document.getElementById('cornerIdx').textContent=(manualCorners.length+1);
+}
+
+// ============ ANALYSIS ============
+async function runAnalysis(){
+  if(!refImg||!scanImg)return;
+  showProg('Считывание эталона...',10);await sleep(50);
+  refResults=sampleAllPatches(refImg,(x,y)=>refMm2px(x,y,refImg.width,refImg.height),SAMPLE_RADIUS_MM);
+  showProg('Поиск угловых меток...',25);await sleep(50);
+  let corners=detectScanCorners(scanImg),found=corners.filter(Boolean);
+  const info=document.getElementById('detectInfo');info.style.display='block';
+  let usedCorners;
+  if(found.length<3){
+    info.innerHTML='<span class="e">❌ Найдено '+found.length+'/4 меток.</span><br>Укажите углы вручную — кликните по 4 угловым меткам.';
+    hideProg();drawCanvasScanForManual();
+    usedCorners=await startManualCornerMode();
+    showProg('Считывание скана...',40);await sleep(50);
+    const cn=['↖TL','↗TR','↘BR','↙BL'];
+    info.innerHTML='<span class="g">✅ Углы заданы вручную</span><br>'+usedCorners.map((c,i)=>cn[i]+': ('+Math.round(c.x)+', '+Math.round(c.y)+')').join('<br>');
+    scanResults=sampleAllPatches(scanImg,(x,y)=>bilinearMm2px(x,y,usedCorners),SAMPLE_RADIUS_MM);
+  } else {
+    const filled=[...corners];
+    if(!filled[0]&&filled[1]&&filled[3])filled[0]={x:filled[1].x-(filled[2]?filled[2].x-filled[3].x:filled[1].x-filled[3].x),y:filled[1].y};
+    if(!filled[1]&&filled[0]&&filled[2])filled[1]={x:filled[0].x+(filled[2].x-filled[3].x),y:filled[0].y};
+    if(!filled[2]&&filled[1]&&filled[3])filled[2]={x:filled[1].x,y:filled[3].y};
+    if(!filled[3]&&filled[0]&&filled[2])filled[3]={x:filled[0].x,y:filled[2].y};
+    const cn=['↖TL','↗TR','↘BR','↙BL'];
+    info.innerHTML='<span class="g">✅ Найдено '+found.length+'/4</span><br>'+filled.map((c,i)=>c?cn[i]+': ('+Math.round(c.x)+', '+Math.round(c.y)+') '+(corners[i]?'':'<span class="w">экстрапол.</span>'):'<span class="e">'+cn[i]+': —</span>').join('<br>');
+    usedCorners=filled;
+    showProg('Считывание скана...',40);await sleep(50);
+    scanResults=sampleAllPatches(scanImg,(x,y)=>bilinearMm2px(x,y,usedCorners),SAMPLE_RADIUS_MM);
+  }
+  showProg('Нормализация...',50);await sleep(50);
+  const norm=buildNormalization(refResults,scanResults);normalizationInfo=norm;
+  const normalizedScanResults=scanResults.map(sr=>{const c=applyNormalization(norm,sr.rgb);return{...sr,rawRgb:sr.rgb,rawLab:sr.lab,rgb:c,lab:rgb2lab(...c)}});
+  showProg('Сравнение цветов...',70);await sleep(50);
+  readDriverInputs();
+
+  // Step 1: Build patchData with ΔE for all patches
+  const patchData=[];
+  for(let i=0;i<PATCHES.length;i++){
+    const ref=refResults[i],sc=normalizedScanResults[i];
+    const de=deltaE(ref.lab,sc.lab);
+    patchData.push({...ref,scanRgb:sc.rgb,scanLab:sc.lab,rawScanRgb:sc.rawRgb,de,scanPx:sc.px,scanPy:sc.py,outlier:false});
+  }
+
+  // Step 1b: OUTLIER DETECTION (modified Z-score, MAD-based)
+  // Patches with ΔE far from median are flagged — likely dust, scratches, print defects
+  const deValues=patchData.map(p=>p.de);
+  deValues.sort((a,b)=>a-b);
+  const median=deValues[Math.floor(deValues.length/2)];
+  const deviations=patchData.map(p=>Math.abs(p.de-median));
+  deviations.sort((a,b)=>a-b);
+  const mad=deviations[Math.floor(deviations.length/2)]||1; // Median Absolute Deviation
+  const threshold=3.5; // modified Z-score threshold (Iglewicz & Hoaglin)
+  let outlierCount=0;
+  patchData.forEach(p=>{
+    const mZscore=0.6745*(p.de-median)/Math.max(mad,0.1);
+    if(mZscore>threshold){p.outlier=true;outlierCount++}
+  });
+
+  // Compute avgDE excluding outliers
+  const cleanPatches=patchData.filter(p=>!p.outlier);
+  const avgDE=cleanPatches.reduce((s,p)=>s+p.de,0)/(cleanPatches.length||1);
+  const avgDE_all=patchData.reduce((s,p)=>s+p.de,0)/patchData.length;
+
+  // Step 2: TARGETED SUBSETS for each driver parameter
+  // Helper: average delta for a subset
+  const subsetAvg=(ids,fn)=>{
+    const sub=patchData.filter(p=>ids.some(pat=>p.id.startsWith(pat)||p.id===pat));
+    if(!sub.length)return 0;
+    return sub.reduce((s,p)=>s+fn(p),0)/sub.length;
+  };
+
+  // --- CYAN: C 25/50/75/100% patches only (excluding outliers) ---
+  const cyanIds=['c_25','c_50','c_75','c_100'];
+  const cyanSub=patchData.filter(p=>cyanIds.includes(p.id)&&!p.outlier);
+  const dCyan=cyanSub.length?cyanSub.reduce((s,p)=>{
+    const rC=rgb2cmy(...p.rgb),sC=rgb2cmy(...p.scanRgb);
+    return s+(sC[0]-rC[0]);
+  },0)/cyanSub.length:0;
+
+  // --- MAGENTA: M 25/50/75/100% patches only ---
+  const magentaIds=['m_25','m_50','m_75','m_100'];
+  const magentaSub=patchData.filter(p=>magentaIds.includes(p.id)&&!p.outlier);
+  const dMagenta=magentaSub.length?magentaSub.reduce((s,p)=>{
+    const rC=rgb2cmy(...p.rgb),sC=rgb2cmy(...p.scanRgb);
+    return s+(sC[1]-rC[1]);
+  },0)/magentaSub.length:0;
+
+  // --- YELLOW: Y 25/50/75/100% patches only ---
+  const yellowIds=['y_25','y_50','y_75','y_100'];
+  const yellowSub=patchData.filter(p=>yellowIds.includes(p.id)&&!p.outlier);
+  const dYellow=yellowSub.length?yellowSub.reduce((s,p)=>{
+    const rC=rgb2cmy(...p.rgb),sC=rgb2cmy(...p.scanRgb);
+    return s+(sC[2]-rC[2]);
+  },0)/yellowSub.length:0;
+
+  // --- BRIGHTNESS: Gray ramp only (11 neutral patches, excl. outliers) ---
+  const grayIds=['gray_0','gray_10','gray_20','gray_30','gray_40','gray_50','gray_60','gray_70','gray_80','gray_90','gray_100'];
+  const graySub=patchData.filter(p=>grayIds.includes(p.id)&&!p.outlier);
+  const avgDL_gray=graySub.length?graySub.reduce((s,p)=>s+(p.scanLab[0]-p.lab[0]),0)/graySub.length:0;
+
+  // --- CONTRAST: Gray ramp — light vs dark spread ---
+  const grayLight=graySub.filter(p=>p.lab[0]>50);
+  const grayDark=graySub.filter(p=>p.lab[0]<=50);
+  let contrastDiff=0;
+  if(grayLight.length&&grayDark.length){
+    const refSpread=(grayLight.reduce((s,p)=>s+p.lab[0],0)/grayLight.length)-(grayDark.reduce((s,p)=>s+p.lab[0],0)/grayDark.length);
+    const scanSpread=(grayLight.reduce((s,p)=>s+p.scanLab[0],0)/grayLight.length)-(grayDark.reduce((s,p)=>s+p.scanLab[0],0)/grayDark.length);
+    contrastDiff=scanSpread-refSpread;
+  }
+
+  // --- SATURATION: mixed + skin patches (excl. outliers) ---
+  const satSub=patchData.filter(p=>(p.cat==='mixed'||p.cat==='skin')&&!p.outlier);
+  let satDiff=0;
+  if(satSub.length){
+    satDiff=satSub.reduce((s,p)=>{
+      const rH=rgb2hsl(...p.rgb),sH=rgb2hsl(...p.scanRgb);
+      return s+(sH[1]-rH[1]);
+    },0)/satSub.length;
+  }
+
+  // Step 3: ADAPTIVE LEARNING — compute recommended settings
+  // Raw deviations per channel (what we want to drive to zero)
+  const rawDeviations={
+    brightness: avgDL_gray,
+    contrast:   contrastDiff,
+    saturation: satDiff,
+    cyan:       dCyan,
+    magenta:    dMagenta,
+    yellow:     dYellow,
+  };
+
+  // Default coefficients (used on first iteration only)
+  const DEFAULT_COEFF={brightness:1.2,contrast:0.6,saturation:0.5,cyan:1.0,magenta:1.0,yellow:1.0};
+  const DAMPING_FIRST=0.6; // conservative first step
+
+  let delta={};
+  let method='fixed'; // for display
+
+  // Collect history points that have per-channel deviations stored
+  const validHist=history.filter(h=>h.channelDevs);
+
+  if(validHist.length>=2){
+    // ========== 3+ POINTS: LINEAR REGRESSION ==========
+    // For each parameter k, we have data points: (setting_k, deviation_k)
+    // We want to find: what setting_k gives deviation_k ≈ 0?
+    // Fit: deviation = a * setting + b → optimal setting = -b/a
+    method='regression ('+validHist.length+' точек)';
+    PARAM_KEYS.forEach(k=>{
+      const points=validHist.map(h=>({x:h.settings[k],y:h.channelDevs[k]}));
+      // Add current measurement as the latest point
+      points.push({x:driverSettings[k],y:rawDeviations[k]});
+
+      // Least squares: y = a*x + b
+      const n=points.length;
+      let sx=0,sy=0,sxy=0,sxx=0;
+      points.forEach(p=>{sx+=p.x;sy+=p.y;sxy+=p.x*p.y;sxx+=p.x*p.x});
+      const denom=n*sxx-sx*sx;
+
+      if(Math.abs(denom)<0.001){
+        // Degenerate — all x values the same, fall back to damped fixed
+        delta[k]=Math.round(clamp(-rawDeviations[k]*DEFAULT_COEFF[k]*DAMPING_FIRST,-25,25));
+      } else {
+        const a=(n*sxy-sx*sy)/denom;
+        const b=(sy*sxx-sx*sxy)/denom;
+
+        if(Math.abs(a)<0.01){
+          // Slope near zero — setting has little effect, use small correction
+          delta[k]=Math.round(clamp(-rawDeviations[k]*DEFAULT_COEFF[k]*0.3,-25,25));
+        } else {
+          // Optimal setting where deviation = 0: x_opt = -b/a
+          const xOpt=-b/a;
+          // Delta = optimal - current
+          delta[k]=Math.round(clamp(xOpt-driverSettings[k],-15,15));
+        }
+      }
+    });
+  } else if(validHist.length===1){
+    // ========== 2 POINTS (prev + current): SECANT METHOD ==========
+    // Estimate real sensitivity: how much does deviation change per unit slider change?
+    method='секущие';
+    const prev=validHist[0];
+    PARAM_KEYS.forEach(k=>{
+      const dSetting=driverSettings[k]-prev.settings[k];
+      const dDeviation=rawDeviations[k]-prev.channelDevs[k];
+
+      if(Math.abs(dSetting)<0.5){
+        // Setting didn't change — use damped default
+        delta[k]=Math.round(clamp(-rawDeviations[k]*DEFAULT_COEFF[k]*DAMPING_FIRST,-25,25));
+      } else {
+        // Real sensitivity: how much deviation changes per +1 slider unit
+        const sensitivity=dDeviation/dSetting;
+
+        if(Math.abs(sensitivity)<0.01){
+          // Slider has almost no effect on this channel
+          delta[k]=Math.round(clamp(-rawDeviations[k]*DEFAULT_COEFF[k]*0.3,-25,25));
+        } else {
+          // To zero out the deviation: need to shift by -deviation/sensitivity
+          const rawDelta=-rawDeviations[k]/sensitivity;
+          // Dampen by 70% to avoid overshoot
+          delta[k]=Math.round(clamp(rawDelta*0.7,-15,15));
+        }
+      }
+    });
+  } else {
+    // ========== FIRST ITERATION: DAMPED FIXED COEFFICIENTS ==========
+    method='начальная оценка (×'+DAMPING_FIRST+')';
+    PARAM_KEYS.forEach(k=>{
+      delta[k]=Math.round(clamp(-rawDeviations[k]*DEFAULT_COEFF[k]*DAMPING_FIRST,-25,25));
+    });
+  }
+
+  recommended={};
+  PARAM_KEYS.forEach(k=>{recommended[k]=clamp(driverSettings[k]+delta[k],-25,25)});
+
+  // Store detailed subset info for display
+  const subsetInfo={
+    cyan:  {patches:cyanIds.length,   avgDelta:dCyan.toFixed(1)},
+    magenta:{patches:magentaIds.length,avgDelta:dMagenta.toFixed(1)},
+    yellow: {patches:yellowIds.length, avgDelta:dYellow.toFixed(1)},
+    brightness:{patches:grayIds.length,avgDelta:avgDL_gray.toFixed(1)},
+    contrast:{patches:graySub.length,  avgDelta:contrastDiff.toFixed(1)},
+    saturation:{patches:satSub.length, avgDelta:satDiff.toFixed(1)},
+  };
+  const avgDL=graySub.reduce((s,p)=>s+(p.scanLab[0]-p.lab[0]),0)/(graySub.length||1);
+  const avgDA=patchData.reduce((s,p)=>s+(p.scanLab[1]-p.lab[1]),0)/patchData.length;
+  const avgDB=patchData.reduce((s,p)=>s+(p.scanLab[2]-p.lab[2]),0)/patchData.length;
+  analysisData={patchData,avgDE,avgDE_all,avgDL,avgDA,avgDB,delta,corners:usedCorners,norm,subsetInfo,method,outlierCount};
+
+  // === SAVE TO HISTORY (with per-channel deviations for learning) ===
+  const entry={
+    ts:new Date().toISOString(),
+    tsLocal:new Date().toLocaleString(),
+    avgDE,
+    settings:{...driverSettings},
+    recommended:{...recommended},
+    delta:{...delta},
+    channelDevs:{...rawDeviations}, // KEY: raw deviations stored for regression
+    method,
+    perCat:{}
+  };
+  const cats=['cmyk','neutral','skin','mixed'];
+  cats.forEach(cat=>{const cp=patchData.filter(p=>p.cat===cat);entry.perCat[cat]=cp.length?cp.reduce((s,p)=>s+p.de,0)/cp.length:0});
+  history.push(entry);
+
+  showProg('Готово!',100);await sleep(300);hideProg();
+  displayResults();drawCanvas();renderHistory();
+  toast('ΔE00 = '+avgDE.toFixed(2)+(outlierCount?' · '+outlierCount+' выбросов':'')+' · '+method,'success');
+}
+
+// ============ DISPLAY ============
+function displayResults(){
+  const d=analysisData;if(!d)return;
+  const b=document.getElementById('deBadge');b.style.display='flex';
+  const cls=d.avgDE<2?'good':d.avgDE<5?'ok':'bad';b.className='delta-badge '+cls;
+  document.getElementById('deVal').textContent=d.avgDE.toFixed(2);
+  document.getElementById('deDesc').textContent=d.avgDE<1?' · Отлично':d.avgDE<2?' · Хорошо':d.avgDE<5?' · Нужна коррекция':' · Сильное отклонение';
+  if(normalizationInfo){const ni=document.getElementById('normInfo');ni.style.display='block';
+    let normHtml='<strong>Тоновая кривая:</strong> '+normalizationInfo.grayPoints+' точек серой шкалы по R/G/B<br>'+
+      'Белый: скан ['+normalizationInfo.scanWhite.join(',')+'] → ['+normalizationInfo.refWhite.join(',')+']<br>'+
+      'Чёрный: скан ['+normalizationInfo.scanBlack.join(',')+'] → ['+normalizationInfo.refBlack.join(',')+']';
+    if(d.method)normHtml+='<br><strong>Метод:</strong> '+d.method;
+    if(d.outlierCount>0)normHtml+='<br><span style="color:var(--warn)">⚠ Выбросы: '+d.outlierCount+' патч(ей) исключены из расчёта (MAD z>3.5)</span>';
+    if(d.avgDE_all&&d.outlierCount>0)normHtml+='<br>ΔE00 с выбросами: '+d.avgDE_all.toFixed(2)+' → без: '+d.avgDE.toFixed(2);
+    ni.innerHTML=normHtml;
+  }
+  const ep=document.getElementById('epPreview');ep.style.display='block';const fv=v=>(v>0?'+':'')+v;
+  const si=d.subsetInfo||{};
+  const subLabels={brightness:'серая шкала',contrast:'серая шкала',saturation:'mixed+skin',cyan:'C 25–100%',magenta:'M 25–100%',yellow:'Y 25–100%'};
+  ep.innerHTML='<div style="font-size:8px;color:var(--warn);margin-bottom:2px">УСТАНОВИТЬ В ДРАЙВЕРЕ:</div>'+
+    PARAM_KEYS.map(k=>{
+      const s=si[k];const hint=s?'<span style="font-size:8px;color:var(--t3);margin-left:4px">('+subLabels[k]+' · '+s.patches+' патчей · Δ'+s.avgDelta+')</span>':'';
+      return '<div class="ep-row"><span>'+PARAM_LABELS[k]+hint+'</span><span class="ep-val">'+fv(recommended[k])+'</span></div>';
+    }).join('')+
+    '<div style="height:1px;background:var(--brd);margin:4px 0"></div>'+
+    '<div style="font-size:8px;color:var(--t3)">Было: '+PARAM_KEYS.map(k=>PARAM_LABELS[k]+':'+driverSettings[k]).join(' · ')+'</div>';
+  document.getElementById('btnApply').style.display='block';
+  const cats=[{id:'all',n:'Все ('+d.patchData.length+')'},{id:'cmyk',n:'CMYK'},{id:'neutral',n:'Серые'},{id:'skin',n:'Кожа'},{id:'mixed',n:'Смешан.'}];
+  const ft=document.getElementById('filterTabs');ft.innerHTML='';
+  cats.forEach((c,i)=>{const b=document.createElement('div');b.className='ftab'+(i===0?' active':'');b.textContent=c.n;b.onclick=()=>{ft.querySelectorAll('.ftab').forEach(x=>x.classList.remove('active'));b.classList.add('active');renderTable(c.id)};ft.appendChild(b)});
+  renderTable('all');
+  drawSpiderChart();
+  document.getElementById('cubeWrap').style.display='block';
+}
+function renderTable(cat){
+  const d=analysisData;if(!d)return;
+  const rows=cat==='all'?d.patchData:d.patchData.filter(p=>p.cat===cat);
+  let html='<table class="patch-tbl"><tr><th>Патч</th><th>Эталон</th><th>Скан</th><th>ΔE00</th><th>ΔL</th></tr>';
+  rows.forEach(p=>{const deCls=p.de<1.5?'good':p.de<3.5?'ok':'bad';const dl=p.scanLab[0]-p.lab[0];
+    const outMark=p.outlier?'<span style="color:var(--warn);font-weight:700" title="Выброс — исключён из расчёта"> ⚠</span>':'';
+    const rowStyle=p.outlier?' style="opacity:.5;background:rgba(255,165,2,.05)"':'';
+    html+='<tr'+rowStyle+'><td>'+p.label+outMark+'</td><td><span class="patch-swatch" style="background:rgb('+p.rgb.join(',')+')"></span> '+p.rgb.join(',')+'</td><td><span class="patch-swatch" style="background:rgb('+p.scanRgb.join(',')+')"></span> '+p.scanRgb.join(',')+'</td><td class="de-cell '+deCls+'">'+p.de.toFixed(2)+'</td><td>'+(dl>0?'+':'')+dl.toFixed(1)+'</td></tr>'});
+  html+='</table>';document.getElementById('tblWrap').innerHTML=html;
+}
+
+// ============ SPIDER CHART (CMY + K + Neutral + Skin + Mixed) ============
+function drawSpiderChart(){
+  const d=analysisData;if(!d){document.getElementById('spiderWrap').style.display='none';return}
+  document.getElementById('spiderWrap').style.display='block';
+  const cv=document.getElementById('spiderChart');
+  const dpr=window.devicePixelRatio||1;
+  const w=cv.parentElement.clientWidth;const h=260;
+  cv.width=w*dpr;cv.height=h*dpr;cv.style.width=w+'px';cv.style.height=h+'px';
+  const ctx=cv.getContext('2d');ctx.scale(dpr,dpr);ctx.clearRect(0,0,w,h);
+
+  // Compute per-channel average ΔE
+  const cyanPatches=d.patchData.filter(p=>p.id.startsWith('c_'));
+  const magentaPatches=d.patchData.filter(p=>p.id.startsWith('m_'));
+  const yellowPatches=d.patchData.filter(p=>p.id.startsWith('y_'));
+  const blackPatches=d.patchData.filter(p=>p.id.startsWith('k_'));
+  const neutralPatches=d.patchData.filter(p=>p.cat==='neutral');
+  const skinPatches=d.patchData.filter(p=>p.cat==='skin');
+  const mixedPatches=d.patchData.filter(p=>p.cat==='mixed');
+
+  const avgOf=arr=>arr.length?arr.reduce((s,p)=>s+p.de,0)/arr.length:0;
+  const axes=[
+    {label:'Cyan',    val:avgOf(cyanPatches),   col:'#00bcd4'},
+    {label:'Magenta', val:avgOf(magentaPatches), col:'#e91e63'},
+    {label:'Yellow',  val:avgOf(yellowPatches),  col:'#ffc107'},
+    {label:'Black',   val:avgOf(blackPatches),   col:'#78909c'},
+    {label:'Neutral', val:avgOf(neutralPatches), col:'#9e9e9e'},
+    {label:'Skin',    val:avgOf(skinPatches),    col:'#ff8a65'},
+    {label:'Mixed',   val:avgOf(mixedPatches),   col:'#ab47bc'},
+  ];
+  const n=axes.length;
+  const cx=w/2,cy=h/2+5;
+  const maxR=Math.min(w,h)/2-35;
+  const maxDE=Math.max(...axes.map(a=>a.val),d.avgDE,10);
+  const normR=1.5; // ΔE00 < 1.5 is "good" zone
+
+  // Grid rings
+  const rings=[normR, maxDE*0.5, maxDE];
+  rings.forEach(ring=>{
+    const r=maxR*(ring/maxDE);
+    ctx.beginPath();
+    for(let i=0;i<=n;i++){const angle=-Math.PI/2+2*Math.PI*i/n;ctx.lineTo(cx+r*Math.cos(angle),cy+r*Math.sin(angle))}
+    ctx.closePath();
+    if(ring===normR){ctx.strokeStyle='rgba(46,213,115,.35)';ctx.lineWidth=1.5;ctx.setLineDash([4,4])}
+    else{ctx.strokeStyle='rgba(45,58,92,.5)';ctx.lineWidth=1;ctx.setLineDash([])}
+    ctx.stroke();ctx.setLineDash([]);
+  });
+
+  // Axis lines
+  for(let i=0;i<n;i++){
+    const angle=-Math.PI/2+2*Math.PI*i/n;
+    ctx.strokeStyle='rgba(45,58,92,.4)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+maxR*Math.cos(angle),cy+maxR*Math.sin(angle));ctx.stroke();
+  }
+
+  // Fill shape
+  ctx.beginPath();
+  axes.forEach((a,i)=>{
+    const angle=-Math.PI/2+2*Math.PI*i/n;
+    const r=maxR*(a.val/maxDE);
+    const x=cx+r*Math.cos(angle),y=cy+r*Math.sin(angle);
+    if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+  });
+  ctx.closePath();
+  ctx.fillStyle='rgba(233,69,96,.12)';ctx.fill();
+  ctx.strokeStyle='#e94560';ctx.lineWidth=2;ctx.stroke();
+
+  // Dots + labels
+  axes.forEach((a,i)=>{
+    const angle=-Math.PI/2+2*Math.PI*i/n;
+    const r=maxR*(a.val/maxDE);
+    const x=cx+r*Math.cos(angle),y=cy+r*Math.sin(angle);
+    // Dot
+    ctx.fillStyle=a.col;ctx.beginPath();ctx.arc(x,y,5,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.stroke();
+    // Value
+    ctx.fillStyle='#fff';ctx.font='bold 10px JetBrains Mono';ctx.textAlign='center';
+    ctx.fillText(a.val.toFixed(1),x,y-10);
+    // Label at edge
+    const lR=maxR+18;
+    const lx=cx+lR*Math.cos(angle),ly=cy+lR*Math.sin(angle);
+    ctx.fillStyle=a.col;ctx.font='bold 9px Nunito';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(a.label,lx,ly);
+  });
+
+  // Center avg ΔE
+  ctx.fillStyle='rgba(0,0,0,.5)';ctx.beginPath();ctx.arc(cx,cy,18,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#fff';ctx.font='bold 11px JetBrains Mono';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(d.avgDE.toFixed(1),cx,cy);
+}
+
+// ============ EXPORT CSV ============
+function exportCSV(){
+  const d=analysisData;if(!d){toast('Сначала запустите анализ','error');return}
+  let csv='\uFEFF'; // UTF-8 BOM for Excel
+  csv+='Патч;Категория;Эталон R;Эталон G;Эталон B;Скан R;Скан G;Скан B;ΔE;ΔL;ΔA;ΔB\n';
+  d.patchData.forEach(p=>{
+    const dl=(p.scanLab[0]-p.lab[0]).toFixed(2);
+    const da=(p.scanLab[1]-p.lab[1]).toFixed(2);
+    const db=(p.scanLab[2]-p.lab[2]).toFixed(2);
+    csv+=p.label+';'+p.cat+';'+p.rgb[0]+';'+p.rgb[1]+';'+p.rgb[2]+';'+
+      p.scanRgb[0]+';'+p.scanRgb[1]+';'+p.scanRgb[2]+';'+
+      p.de.toFixed(2)+';'+dl+';'+da+';'+db+'\n';
+  });
+  csv+='\n;;;;;;;;;;\n';
+  csv+='Среднее ΔE00 (CIEDE2000);'+d.avgDE.toFixed(2)+';;;;;;;;;;;\n';
+  csv+='Дата;'+new Date().toLocaleString()+';;;;;;;;;;;\n';
+  const fv=v=>(v>0?'+':'')+v;
+  PARAM_KEYS.forEach(k=>{csv+=PARAM_LABELS[k]+' (текущ.);'+driverSettings[k]+';(рекоменд.);'+fv(recommended[k])+';;;;;;;\n'});
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='colorblind_patches.csv';a.click();
+  toast('CSV экспортирован','success');
+}
+
+// ============ EXPORT XLSX (via simple XML spreadsheet) ============
+function exportXLSX(){
+  const d=analysisData;if(!d){toast('Сначала запустите анализ','error');return}
+  // Generate SpreadsheetML (XML) that Excel can open
+  const fv=v=>(v>0?'+':'')+v;
+  let xml='<?xml version="1.0" encoding="UTF-8"?>\n';
+  xml+='<?mso-application progid="Excel.Sheet"?>\n';
+  xml+='<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"\n';
+  xml+=' xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">\n';
+  // Styles
+  xml+='<Styles>\n';
+  xml+='<Style ss:ID="hdr"><Font ss:Bold="1" ss:Size="10"/><Interior ss:Color="#253256" ss:Pattern="Solid"/><Font ss:Color="#FFFFFF" ss:Bold="1"/></Style>\n';
+  xml+='<Style ss:ID="good"><Font ss:Color="#2ED573" ss:Bold="1"/></Style>\n';
+  xml+='<Style ss:ID="ok"><Font ss:Color="#FFA502" ss:Bold="1"/></Style>\n';
+  xml+='<Style ss:ID="bad"><Font ss:Color="#E94560" ss:Bold="1"/></Style>\n';
+  xml+='<Style ss:ID="num"><NumberFormat ss:Format="0.00"/></Style>\n';
+  xml+='</Styles>\n';
+  // Sheet 1: Patches
+  xml+='<Worksheet ss:Name="Патчи">\n<Table>\n';
+  xml+='<Column ss:Width="100"/><Column ss:Width="70"/>';
+  for(let i=0;i<10;i++)xml+='<Column ss:Width="60"/>';
+  xml+='\n';
+  // Header
+  xml+='<Row>';
+  ['Патч','Категория','Эталон R','Эталон G','Эталон B','Скан R','Скан G','Скан B','ΔE','ΔL','ΔA','ΔB'].forEach(h=>{
+    xml+='<Cell ss:StyleID="hdr"><Data ss:Type="String">'+h+'</Data></Cell>';
+  });
+  xml+='</Row>\n';
+  // Data
+  d.patchData.forEach(p=>{
+    const dl=(p.scanLab[0]-p.lab[0]),da=(p.scanLab[1]-p.lab[1]),db=(p.scanLab[2]-p.lab[2]);
+    const deCls=p.de<1.5?'good':p.de<3.5?'ok':'bad';
+    xml+='<Row>';
+    xml+='<Cell><Data ss:Type="String">'+p.label+'</Data></Cell>';
+    xml+='<Cell><Data ss:Type="String">'+p.cat+'</Data></Cell>';
+    xml+='<Cell><Data ss:Type="Number">'+p.rgb[0]+'</Data></Cell>';
+    xml+='<Cell><Data ss:Type="Number">'+p.rgb[1]+'</Data></Cell>';
+    xml+='<Cell><Data ss:Type="Number">'+p.rgb[2]+'</Data></Cell>';
+    xml+='<Cell><Data ss:Type="Number">'+p.scanRgb[0]+'</Data></Cell>';
+    xml+='<Cell><Data ss:Type="Number">'+p.scanRgb[1]+'</Data></Cell>';
+    xml+='<Cell><Data ss:Type="Number">'+p.scanRgb[2]+'</Data></Cell>';
+    xml+='<Cell ss:StyleID="'+deCls+'"><Data ss:Type="Number">'+p.de.toFixed(2)+'</Data></Cell>';
+    xml+='<Cell ss:StyleID="num"><Data ss:Type="Number">'+dl.toFixed(2)+'</Data></Cell>';
+    xml+='<Cell ss:StyleID="num"><Data ss:Type="Number">'+da.toFixed(2)+'</Data></Cell>';
+    xml+='<Cell ss:StyleID="num"><Data ss:Type="Number">'+db.toFixed(2)+'</Data></Cell>';
+    xml+='</Row>\n';
+  });
+  xml+='</Table>\n</Worksheet>\n';
+  // Sheet 2: Summary
+  xml+='<Worksheet ss:Name="Сводка">\n<Table>\n';
+  xml+='<Column ss:Width="140"/><Column ss:Width="80"/><Column ss:Width="100"/><Column ss:Width="80"/>\n';
+  xml+='<Row><Cell ss:StyleID="hdr"><Data ss:Type="String">Параметр</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Значение</Data></Cell></Row>\n';
+  xml+='<Row><Cell><Data ss:Type="String">Среднее ΔE00 (CIEDE2000)</Data></Cell><Cell><Data ss:Type="Number">'+d.avgDE.toFixed(2)+'</Data></Cell></Row>\n';
+  xml+='<Row><Cell><Data ss:Type="String">Дата</Data></Cell><Cell><Data ss:Type="String">'+new Date().toLocaleString()+'</Data></Cell></Row>\n';
+  xml+='<Row><Cell><Data ss:Type="String"></Data></Cell></Row>\n';
+  xml+='<Row><Cell ss:StyleID="hdr"><Data ss:Type="String">Настройка</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Текущ.</Data></Cell><Cell ss:StyleID="hdr"><Data ss:Type="String">Рекоменд.</Data></Cell></Row>\n';
+  PARAM_KEYS.forEach(k=>{
+    xml+='<Row><Cell><Data ss:Type="String">'+PARAM_LABELS[k]+'</Data></Cell>';
+    xml+='<Cell><Data ss:Type="Number">'+driverSettings[k]+'</Data></Cell>';
+    xml+='<Cell><Data ss:Type="Number">'+recommended[k]+'</Data></Cell></Row>\n';
+  });
+  xml+='</Table>\n</Worksheet>\n</Workbook>';
+  const blob=new Blob([xml],{type:'application/vnd.ms-excel'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='colorblind_report.xls';a.click();
+  toast('XLSX экспортирован','success');
+}
+
+// ============ 3D LUT (.cube) GENERATION ============
+function exportCubeLUT(){
+  const d=analysisData;
+  if(!d||!d.patchData.length){toast('Сначала запустите анализ','error');return}
+
+  const size=parseInt(document.getElementById('cubeSize').value)||17;
+  const total=size*size*size;
+
+  toast('Генерация LUT '+size+'³ = '+total+' точек...','info');
+
+  // Use requestAnimationFrame to not block UI
+  setTimeout(()=>{
+    try{
+      const cube=generateCubeLUT(d.patchData, size);
+      const blob=new Blob([cube],{type:'text/plain'});
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download='colorblind_'+size+'x'+size+'x'+size+'.cube';
+      a.click();
+      URL.revokeObjectURL(a.href);
+      toast('LUT '+size+'³ экспортирован','success');
+    }catch(e){
+      toast('Ошибка: '+e.message,'error');
+    }
+  },50);
+}
+
+function generateCubeLUT(patchData, size){
+  // Step 1: Build reference points from patch data
+  // Each point: position = refRGB (what we wanted), error = scanRGB - refRGB
+  // The LUT corrects input before printing: LUT(x) = x - error(x)
+  // So if printer makes things too cyan, we subtract cyan before printing
+  const refPoints=[];
+  patchData.forEach(p=>{
+    // Skip extreme white/black used for normalization — they're identity by definition
+    if(p.id==='gray_0'||p.id==='gray_100')return;
+    const rr=p.rgb[0]/255, rg=p.rgb[1]/255, rb=p.rgb[2]/255;
+    const sr=p.scanRgb[0]/255, sg=p.scanRgb[1]/255, sb=p.scanRgb[2]/255;
+    // Error: what printer added/subtracted
+    refPoints.push({
+      pos:[rr,rg,rb],
+      err:[sr-rr, sg-rg, sb-rb]
+    });
+  });
+
+  // Also add identity anchors at white and black (no correction at extremes)
+  refPoints.push({pos:[0,0,0],err:[0,0,0]});
+  refPoints.push({pos:[1,1,1],err:[0,0,0]});
+  // Add mid-gray identity anchor if gray_50 was normalized well
+  refPoints.push({pos:[0.5,0.5,0.5],err:[0,0,0]});
+
+  // Step 2: For each grid point, interpolate correction via IDW
+  const power=2.5; // IDW power — slightly above 2 for smoother falloff
+  const epsilon=0.001; // prevent division by zero
+  const maxCorrection=0.15; // clamp correction to ±15% to avoid wild swings
+
+  let lines=[];
+  lines.push('TITLE "colorblind printer correction LUT"');
+  lines.push('# Generated by colorblind · '+new Date().toISOString());
+  lines.push('# Based on '+patchData.length+' measured patches');
+  lines.push('# Apply BEFORE printing to compensate printer errors');
+  lines.push('# IDW interpolation, power='+power+', max correction=±'+Math.round(maxCorrection*100)+'%');
+  lines.push('LUT_3D_SIZE '+size);
+  lines.push('DOMAIN_MIN 0.0 0.0 0.0');
+  lines.push('DOMAIN_MAX 1.0 1.0 1.0');
+  lines.push('');
+
+  const step=1/(size-1);
+
+  // .cube order: R changes slowest, B changes fastest
+  for(let ir=0;ir<size;ir++){
+    const r=ir*step;
+    for(let ig=0;ig<size;ig++){
+      const g=ig*step;
+      for(let ib=0;ib<size;ib++){
+        const b=ib*step;
+
+        // IDW interpolation of error at (r,g,b)
+        let sumW=0, sumEr=0, sumEg=0, sumEb=0;
+        let minDist=Infinity;
+
+        for(const pt of refPoints){
+          const dr=r-pt.pos[0], dg=g-pt.pos[1], db=b-pt.pos[2];
+          const dist=Math.sqrt(dr*dr+dg*dg+db*db);
+
+          if(dist<epsilon){
+            // Exact match — use this point directly
+            sumW=1; sumEr=pt.err[0]; sumEg=pt.err[1]; sumEb=pt.err[2];
+            break;
+          }
+
+          const w=1/Math.pow(dist,power);
+          sumW+=w;
+          sumEr+=w*pt.err[0];
+          sumEg+=w*pt.err[1];
+          sumEb+=w*pt.err[2];
+
+          if(dist<minDist)minDist=dist;
+        }
+
+        // Interpolated error
+        let er=sumEr/sumW, eg=sumEg/sumW, eb=sumEb/sumW;
+
+        // Distance-based dampening: far from any reference point → reduce correction
+        // If nearest point is far, we're extrapolating — be conservative
+        const confidence=Math.min(1, 0.15/Math.max(minDist,0.001)); // full confidence within 0.15 distance
+        const dampFactor=0.3+0.7*confidence; // minimum 30% correction even far away
+
+        er*=dampFactor; eg*=dampFactor; eb*=dampFactor;
+
+        // Clamp correction magnitude
+        er=Math.max(-maxCorrection,Math.min(maxCorrection,er));
+        eg=Math.max(-maxCorrection,Math.min(maxCorrection,eg));
+        eb=Math.max(-maxCorrection,Math.min(maxCorrection,eb));
+
+        // Corrected output = input - error (compensate what printer will add)
+        const outR=Math.max(0,Math.min(1, r-er));
+        const outG=Math.max(0,Math.min(1, g-eg));
+        const outB=Math.max(0,Math.min(1, b-eb));
+
+        lines.push(outR.toFixed(6)+' '+outG.toFixed(6)+' '+outB.toFixed(6));
+      }
+    }
+  }
+
+  return lines.join('\n');
+}
+
+// ============ SCANNER INSTRUCTIONS DOWNLOAD ============
+function downloadScanInstructions(){
+  const t=`═══════════════════════════════════════════════════════
+   colorblind — Инструкция по сканированию мишени
+   Настройки сканера Epson (Epson Scan)
+═══════════════════════════════════════════════════════
+
+▌ ЧЕКЛИСТ (КОРОТКО)
+──────────────────────────────────────────────────────
+  ☐ Режим: Профессиональный (Professional Mode)
+  ☐ Тип: Цветное
+  ☐ Разрешение: 300 dpi
+  ☐ Конфигурация → Цвет → «Без цветокоррекции»
+  ☐ Автоэкспозиция: ВЫКЛ
+  ☐ Повышение резкости: ВЫКЛ
+  ☐ Удаление растра: ВЫКЛ
+  ☐ Улучшение текста: ВЫКЛ
+  ☐ Яркость: 0 · Контрастность: 0
+  ☐ Формат: PNG (не JPEG!)
+  ☐ Мишень ровно на стекле
+
+▌ ПОДРОБНОСТИ
+──────────────────────────────────────────────────────
+  1. РЕЖИМ — только Профессиональный. В офисном и
+     простом режимах есть скрытые автокоррекции.
+
+  2. ЦВЕТ — «Без цветокоррекции» отключает ICC-
+     профиль сканера. colorblind сама нормализует
+     данные по белому и чёрному патчу.
+     Если этот пункт недоступен → ICM(C) → sRGB.
+
+  3. АВТОЭКСПОЗИЦИЯ — при включённой автоэкспозиции
+     белый и чёрный «гуляют» от скана к скану.
+     Для калибровки это недопустимо.
+
+  4. ПОСТОБРАБОТКА — резкость, удаление растра,
+     улучшение текста — всё искажает цвет в зонах
+     измерения. Отключить полностью.
+
+  5. ФОРМАТ — PNG без потерь. JPEG сжимает с потерями
+     и вносит артефакты, особенно на границах патчей.
+
+  6. РАЗМЕЩЕНИЕ — мишень ровно, крышка прижата,
+     угловые метки видны. Если программа не нашла
+     метки — укажите их кликом вручную.
+
+▌ ЧАСТЫЕ ОШИБКИ
+──────────────────────────────────────────────────────
+  ✗ JPEG → потеря точности ✗ Автоэкспозиция вкл
+  ✗ Офисный режим ✗ Резкость вкл ✗ 600+ dpi
+
+═══════════════════════════════════════════════════════
+  colorblind · ihatepdf.ru
+═══════════════════════════════════════════════════════`;
+  const blob=new Blob([t],{type:'text/plain;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='colorblind_инструкция_сканер.txt';a.click();
+  toast('Инструкция скачана','success');
+}
+
+// ============ HISTORY ============
+function renderHistory(){
+  const list=document.getElementById('histList');list.innerHTML='';
+  const wrap=document.getElementById('histChartWrap');
+  const bestEl=document.getElementById('histBest');
+  if(!history.length){wrap.style.display='none';bestEl.style.display='none';list.innerHTML='<div class="info-box">Пока нет итераций. Запустите анализ.</div>';return}
+
+  // Find best
+  const best=history.reduce((a,b)=>a.avgDE<b.avgDE?a:b);
+  bestEl.style.display='block';
+  const fv=v=>(v>0?'+':'')+v;
+  bestEl.innerHTML='<strong>🏆 Лучший результат: ΔE '+best.avgDE.toFixed(1)+'</strong><br>'+
+    PARAM_KEYS.map(k=>PARAM_LABELS[k]+': '+fv(best.settings[k])).join(' · ')+'<br>'+
+    '<span style="color:var(--t3)">'+best.tsLocal+'</span>';
+
+  // Draw chart
+  wrap.style.display='block';
+  drawHistChart();
+
+  // List entries (newest first)
+  [...history].reverse().forEach((h,ri)=>{
+    const i=history.length-1-ri;
+    const el=document.createElement('div');el.className='hist-entry';
+    const deCls=h.avgDE<2?'good':h.avgDE<5?'ok':'bad';
+    let trend='';
+    if(i>0){
+      const prev=history[i-1].avgDE;
+      const diff=h.avgDE-prev;
+      if(diff<-0.5)trend='<span class="he-trend down">▼ '+Math.abs(diff).toFixed(1)+'</span>';
+      else if(diff>0.5)trend='<span class="he-trend up">▲ +'+diff.toFixed(1)+'</span>';
+      else trend='<span class="he-trend flat">— '+Math.abs(diff).toFixed(1)+'</span>';
+    }
+    el.innerHTML='<span class="he-num">#'+(i+1)+'</span>'+
+      '<span class="he-de '+deCls+'">'+h.avgDE.toFixed(1)+'</span>'+trend+'<br>'+
+      '<span class="he-params">'+PARAM_KEYS.map(k=>PARAM_LABELS[k]+':'+fv(h.settings[k])).join(' · ')+'</span><br>'+
+      (h.method?'<span style="font-size:8px;color:var(--acc)">🧠 '+h.method+'</span><br>':'')+
+      '<span style="font-size:8px;color:var(--t3)">'+h.tsLocal+'</span>';
+    el.onclick=()=>{
+      PARAM_KEYS.forEach(k=>{driverSettings[k]=h.settings[k]});
+      writeDriverInputs();
+      toast('Настройки из итерации #'+(i+1)+' загружены','info');
+    };
+    list.appendChild(el);
+  });
+}
+
+function drawHistChart(){
+  const cv=document.getElementById('histChart');
+  const ctx=cv.getContext('2d');
+  const dpr=window.devicePixelRatio||1;
+  const w=cv.parentElement.clientWidth-16;
+  const h=140;
+  cv.width=w*dpr;cv.height=h*dpr;cv.style.width=w+'px';cv.style.height=h+'px';
+  ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,w,h);
+
+  if(history.length<1)return;
+
+  const vals=history.map(h=>h.avgDE);
+  const maxDE=Math.max(...vals,10);
+  const minDE=Math.min(...vals,0);
+  const range=maxDE-minDE||1;
+  const pad={t:15,b:20,l:30,r:10};
+  const cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;
+
+  // Grid
+  ctx.strokeStyle='rgba(45,58,92,.5)';ctx.lineWidth=1;
+  for(let i=0;i<=4;i++){
+    const y=pad.t+ch*i/4;
+    ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();
+    ctx.fillStyle='#c0c8de';ctx.font='9px JetBrains Mono';ctx.textAlign='right';
+    ctx.fillText((maxDE-range*i/4).toFixed(0),pad.l-4,y+3);
+  }
+
+  if(history.length===1){
+    // Single dot
+    const x=pad.l+cw/2, y=pad.t+ch*(1-(vals[0]-minDE)/range);
+    ctx.fillStyle='#e94560';ctx.beginPath();ctx.arc(x,y,5,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#fff';ctx.font='bold 10px JetBrains Mono';ctx.textAlign='center';
+    ctx.fillText(vals[0].toFixed(1),x,y-10);
+    return;
+  }
+
+  // Line
+  const step=cw/(vals.length-1);
+  ctx.strokeStyle='#e94560';ctx.lineWidth=2;ctx.beginPath();
+  vals.forEach((v,i)=>{
+    const x=pad.l+step*i,y=pad.t+ch*(1-(v-minDE)/range);
+    if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+  });ctx.stroke();
+
+  // Fill area
+  ctx.globalAlpha=.1;ctx.fillStyle='#e94560';ctx.beginPath();
+  vals.forEach((v,i)=>{const x=pad.l+step*i,y=pad.t+ch*(1-(v-minDE)/range);if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y)});
+  ctx.lineTo(pad.l+step*(vals.length-1),pad.t+ch);ctx.lineTo(pad.l,pad.t+ch);ctx.closePath();ctx.fill();
+  ctx.globalAlpha=1;
+
+  // Dots + labels
+  vals.forEach((v,i)=>{
+    const x=pad.l+step*i,y=pad.t+ch*(1-(v-minDE)/range);
+    const col=v<5?'#2ed573':v<10?'#ffa502':'#e94560';
+    ctx.fillStyle=col;ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#fff';ctx.font='bold 9px JetBrains Mono';ctx.textAlign='center';
+    ctx.fillText(v.toFixed(1),x,y-8);
+    ctx.fillStyle='#c0c8de';ctx.font='8px JetBrains Mono';
+    ctx.fillText('#'+(i+1),x,pad.t+ch+14);
+  });
+
+  // Best line
+  const bestDE=Math.min(...vals);
+  const bestY=pad.t+ch*(1-(bestDE-minDE)/range);
+  ctx.strokeStyle='rgba(46,213,115,.4)';ctx.setLineDash([4,4]);ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(pad.l,bestY);ctx.lineTo(w-pad.r,bestY);ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function clearHistory(){
+  if(!history.length)return;
+  if(!confirm('Очистить всю историю итераций?'))return;
+  history=[];renderHistory();toast('История очищена','info');
+}
+
+// ============ CANVAS ============
+function drawCanvas(){
+  const cv=document.getElementById('mainCv'),ctx=cv.getContext('2d');
+  const area=document.getElementById('canvasArea'),maxW=area.clientWidth-30,maxH=area.clientHeight-30;
+  const lbl=document.getElementById('cvLabel');
+  if(!refImg&&!scanImg){cv.width=400;cv.height=260;ctx.fillStyle='#253256';ctx.fillRect(0,0,400,260);ctx.fillStyle='#c0c8de';ctx.font='600 13px Nunito';ctx.textAlign='center';ctx.fillText('Загрузите эталон и скан',200,130);lbl.textContent='';return}
+  const img=scanImg||refImg;const sc=Math.min(maxW/img.width,maxH/img.height,1);
+  const dw=Math.round(img.width*sc),dh=Math.round(img.height*sc);
+  cv.width=dw;cv.height=dh;ctx.drawImage(img,0,0,dw,dh);
+  if(manualCornerMode&&manualCorners.length>0){
+    const labels=['TL','TR','BR','BL'];
+    manualCorners.forEach((c,i)=>{const cx=c.x*sc,cy=c.y*sc;ctx.fillStyle='#e94560';ctx.beginPath();ctx.arc(cx,cy,8,0,Math.PI*2);ctx.fill();ctx.fillStyle='#fff';ctx.font='bold 10px JetBrains Mono';ctx.textAlign='center';ctx.fillText(labels[i],cx,cy+3);ctx.strokeStyle='rgba(233,69,96,.5)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(cx-15,cy);ctx.lineTo(cx+15,cy);ctx.stroke();ctx.beginPath();ctx.moveTo(cx,cy-15);ctx.lineTo(cx,cy+15);ctx.stroke()});
+  }
+  if(refResults&&!manualCornerMode){const pxPerMm=dw/PAGE_W_MM;const r=SAMPLE_RADIUS_MM*pxPerMm;refResults.forEach(p=>{const[rpx,rpy]=refMm2px(p.x,p.y,dw,dh);ctx.strokeStyle='rgba(233,69,96,.4)';ctx.lineWidth=1;ctx.strokeRect(rpx-r,rpy-r,r*2,r*2)})}
+  if(analysisData&&!manualCornerMode){const pxPerMm=dw/PAGE_W_MM;const r=SAMPLE_RADIUS_MM*pxPerMm;analysisData.patchData.forEach(p=>{const[px,py]=refMm2px(p.x,p.y,dw,dh);const col=p.de<1.5?'#2ed573':p.de<3.5?'#ffa502':'#e94560';ctx.fillStyle=col;ctx.font='bold '+Math.max(8,Math.round(pxPerMm*1.8))+'px JetBrains Mono';ctx.textAlign='center';ctx.fillText(p.de.toFixed(1),px,py+r+Math.max(8,pxPerMm*2));if(p.outlier){ctx.setLineDash([3,3]);ctx.strokeStyle='rgba(255,165,2,.8)';ctx.lineWidth=3}else{ctx.setLineDash([]);ctx.strokeStyle=col;ctx.lineWidth=2}ctx.strokeRect(px-r,py-r,r*2,r*2);ctx.setLineDash([])});const oTxt=analysisData.outlierCount>0?' · '+analysisData.outlierCount+' выбр.':'';lbl.textContent='ΔE00 · среднее: '+analysisData.avgDE.toFixed(2)+' (CIEDE2000)'+oTxt}
+  else lbl.textContent=refImg?'Эталон'+(scanImg?' + скан':''):'Скан';
+}
+function drawCanvasScanForManual(){const cv=document.getElementById('mainCv'),ctx=cv.getContext('2d');const area=document.getElementById('canvasArea'),maxW=area.clientWidth-30,maxH=area.clientHeight-30;const sc=Math.min(maxW/scanImg.width,maxH/scanImg.height,1);const dw=Math.round(scanImg.width*sc),dh=Math.round(scanImg.height*sc);cv.width=dw;cv.height=dh;ctx.drawImage(scanImg,0,0,dw,dh);document.getElementById('cvLabel').textContent='Кликните по 4 угловым меткам'}
+
+// ============ DRIVER ============
+function buildDriverGrid(){const g=document.getElementById('drvGrid');g.innerHTML='';PARAM_KEYS.forEach(k=>{const c=document.createElement('div');c.className='drv-cell';c.innerHTML='<span class="drv-l">'+PARAM_LABELS[k]+'</span><input type="number" id="drv_'+k+'" value="'+driverSettings[k]+'" min="-25" max="25">';g.appendChild(c)})}
+function readDriverInputs(){PARAM_KEYS.forEach(k=>{const el=document.getElementById('drv_'+k);if(el)driverSettings[k]=clamp(+el.value||0,-25,25)})}
+function writeDriverInputs(){PARAM_KEYS.forEach(k=>{const el=document.getElementById('drv_'+k);if(el)el.value=driverSettings[k]})}
+function applyRecommended(){if(!recommended)return;PARAM_KEYS.forEach(k=>{driverSettings[k]=recommended[k]});writeDriverInputs();toast('Применено','success')}
+function buildPresets(){const a=document.getElementById('presetArea');a.innerHTML='';PRESETS.forEach(p=>{const b=document.createElement('button');b.className='preset-btn';b.textContent=p.n;b.onclick=()=>{PARAM_KEYS.forEach(k=>{driverSettings[k]=p.v[k]||0});writeDriverInputs();toast('Пресет: '+p.n,'info')};a.appendChild(b)})}
+
+// ============ .COLORBLIND SAVE/LOAD ============
+function saveColorblind(){
+  readDriverInputs();
+  const data={
+    format:'colorblind',
+    version:1,
+    ts:new Date().toISOString(),
+    driverSettings:{...driverSettings},
+    recommended:recommended?{...recommended}:null,
+    history:history.map(h=>({...h})),
+    analysisResult:analysisData?{avgDE:analysisData.avgDE,avgDL:analysisData.avgDL,avgDA:analysisData.avgDA,avgDB:analysisData.avgDB}:null
+  };
+  const json=JSON.stringify(data,null,2);
+  const blob=new Blob([json],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='colorblind_'+new Date().toISOString().slice(0,10)+'.colorblind';
+  a.click();URL.revokeObjectURL(a.href);
+  toast('Сохранено .colorblind','success');
+}
+
+function loadColorblind(file){
+  const r=new FileReader();
+  r.onload=e=>{
+    try{
+      const d=JSON.parse(e.target.result);
+      if(d.format!=='colorblind')throw new Error('Wrong format');
+      if(d.driverSettings){driverSettings={...driverSettings,...d.driverSettings};writeDriverInputs()}
+      if(d.history&&Array.isArray(d.history)){history=d.history}
+      if(d.recommended){recommended=d.recommended}
+      renderHistory();
+      toast('Загружено из .colorblind · '+d.history.length+' итераций','success');
+    }catch(err){toast('Ошибка: '+err.message,'error')}
+  };
+  r.readAsText(file);
+}
+
+// ============ EXPORT TXT ============
+function exportTxt(){
+  if(!analysisData)return;const fv=v=>(v>0?'+':'')+v;
+  let t='colorblind — Патч-калибровка Epson L805\n'+'='.repeat(45)+'\nДата: '+new Date().toLocaleString()+'\n\n';
+  if(normalizationInfo){t+='НОРМАЛИЗАЦИЯ:\n  Белый: скан ['+normalizationInfo.scanWhite.join(',')+'] → ['+normalizationInfo.refWhite.join(',')+']\n  Чёрный: скан ['+normalizationInfo.scanBlack.join(',')+'] → ['+normalizationInfo.refBlack.join(',')+']\n\n'}
+  t+='УСТАНОВИТЬ В ДРАЙВЕРЕ:\n'+PARAM_KEYS.map(k=>'  '+PARAM_LABELS[k].padEnd(12)+fv(recommended[k])).join('\n')+'\n\n';
+  t+='Было: '+PARAM_KEYS.map(k=>PARAM_LABELS[k]+':'+driverSettings[k]).join(' · ')+'\n';
+  t+='Среднее ΔE00 (CIEDE2000): '+analysisData.avgDE.toFixed(2)+'\n\n';
+  t+='ИСТОРИЯ ('+history.length+' итераций):\n';
+  history.forEach((h,i)=>{t+='  #'+(i+1)+' ΔE='+h.avgDE.toFixed(1)+' | '+PARAM_KEYS.map(k=>PARAM_LABELS[k]+':'+fv(h.settings[k])).join(' ')+'\n'});
+  t+='\nДЕТАЛИ:\n'+'ID'.padEnd(12)+'Эталон'.padEnd(16)+'Скан'.padEnd(16)+'ΔE\n';
+  analysisData.patchData.forEach(p=>{t+=p.id.padEnd(12)+p.rgb.join(',').padEnd(16)+p.scanRgb.join(',').padEnd(16)+p.de.toFixed(1)+'\n'});
+  const blob=new Blob([t],{type:'text/plain'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='colorblind_report.txt';a.click();toast('Экспорт','success');
+}
+
+// ============ RESET ============
+function resetAll(){
+  refImg=scanImg=null;refResults=scanResults=analysisData=recommended=null;normalizationInfo=null;
+  manualCornerMode=false;manualCorners=[];
+  driverSettings={brightness:0,contrast:0,saturation:0,cyan:0,magenta:0,yellow:0};
+  document.getElementById('cornerHint').style.display='none';document.getElementById('detectInfo').style.display='none';
+  updateDropZoneUI();buildDriverGrid();hideResults();checkReady();drawCanvas();
+  // History is NOT cleared on reset — it persists intentionally
+}
+
+// ============ UTILS ============
+function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
+function showProg(t,p){document.getElementById('progOv').classList.add('visible');document.getElementById('progTxt').textContent=t;document.getElementById('progFill').style.width=p+'%'}
+function hideProg(){document.getElementById('progOv').classList.remove('visible');document.getElementById('progFill').style.width='0'}
+function toast(m,t='info'){const el=document.createElement('div');el.className='toast '+t;el.textContent=m;document.getElementById('toastC').appendChild(el);setTimeout(()=>{el.style.opacity='0';el.style.transition='opacity .3s';setTimeout(()=>el.remove(),300)},3000)}
+
+// ============ INIT ============
+setupDropZone();buildDriverGrid();buildPresets();drawCanvas();renderHistory();
+document.getElementById('mainCv').addEventListener('click',onCanvasClick);
+document.getElementById('cbLoadInput').addEventListener('change',e=>{if(e.target.files[0])loadColorblind(e.target.files[0]);e.target.value=''});
+window.addEventListener('resize',()=>{drawCanvas();if(history.length)drawHistChart();if(analysisData)drawSpiderChart()});
+</script>
+</body>
+</html>

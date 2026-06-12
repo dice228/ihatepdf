@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>iHateCrop — Пакетное кадрирование сканов</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#101114;--s1:#191b21;--s2:#21232b;--s3:#2a2d38;
+  --brd:#32354a;--brd2:#484c68;
+  --tx:#dde0f0;--tx2:#8a8eb0;--tx3:#585c78;
+  --ac:#f59e0b;--ac2:#d48806;--acG:rgba(245,158,11,.12);
+  --gn:#34d399;--rd:#f87171;
+  --r:8px;--r2:12px;
+}
+html{font-size:15px}
+body{font-family:'Nunito',system-ui,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh}
+.mono{font-family:'JetBrains Mono',monospace}
+
+/* ── Layout ── */
+.wrap{max-width:1060px;margin:0 auto;padding:28px 20px 80px}
+header{text-align:center;padding-bottom:28px;margin-bottom:28px;border-bottom:1px solid var(–brd)}
+header h1{font-family:‘JetBrains Mono’,monospace;font-size:1.65rem;font-weight:700;letter-spacing:-.4px}
+header h1 b{color:var(–ac);font-weight:700}
+header p{font-size:.85rem;color:var(–tx2);margin-top:4px}
+
+/* ── Controls ── */
+.ctrls{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px}
+@media(max-width:680px){.ctrls{grid-template-columns:1fr}}
+.cg{background:var(–s1);border:1px solid var(–brd);border-radius:var(–r2);padding:16px 18px}
+.cg.span{grid-column:1/-1}
+.cg-label{font-family:‘JetBrains Mono’,monospace;font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(–tx2);margin-bottom:10px;display:flex;align-items:center;gap:7px}
+.cg-label i{font-style:normal;font-size:.85rem}
+.sr{display:flex;align-items:center;gap:12px}
+.sr input[type=range]{flex:1;-webkit-appearance:none;appearance:none;height:5px;background:var(–s3);border-radius:3px;outline:0}
+.sr input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;background:var(–ac);border-radius:50%;cursor:pointer;box-shadow:0 0 6px rgba(245,158,11,.25)}
+.sr input[type=range]::-moz-range-thumb{width:16px;height:16px;background:var(–ac);border:0;border-radius:50%;cursor:pointer}
+.sv{font-family:‘JetBrains Mono’,monospace;font-size:.85rem;font-weight:600;color:var(–ac);min-width:36px;text-align:right}
+.tog{display:flex;align-items:center;justify-content:space-between;gap:14px}
+.tog-info{font-size:.88rem;line-height:1.4}
+.tog-hint{font-size:.75rem;color:var(–tx3);margin-top:2px}
+.sw{position:relative;width:44px;height:24px;flex-shrink:0}
+.sw input{display:none}
+.sw span{position:absolute;inset:0;background:var(–s3);border-radius:12px;cursor:pointer;transition:.2s}
+.sw span::before{content:’’;position:absolute;top:3px;left:3px;width:18px;height:18px;background:var(–tx3);border-radius:50%;transition:.2s}
+.sw input:checked+span{background:var(–ac2)}
+.sw input:checked+span::before{transform:translateX(20px);background:var(–ac)}
+.sub-ctrl{margin-top:10px}
+
+/* ── Upload ── */
+.drop{border:2px dashed var(–brd);border-radius:var(–r2);padding:40px 20px;text-align:center;cursor:pointer;transition:.2s;background:var(–s1);margin-bottom:20px}
+.drop:hover,.drop.over{border-color:var(–ac);background:var(–acG)}
+.drop-ico{font-size:2.2rem;margin-bottom:8px}
+.drop-t{font-size:.95rem;font-weight:600}
+.drop-h{font-size:.8rem;color:var(–tx2);margin-top:4px}
+.drop input{display:none}
+
+/* ── Status ── */
+.bar{display:none;background:var(–s1);border:1px solid var(–brd);border-radius:var(–r2);padding:16px 18px;margin-bottom:20px}
+.bar.on{display:block}
+.bar-top{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:0}
+.bar-info{font-size:.88rem;display:flex;align-items:center;gap:6px}
+.bar-info b{font-family:‘JetBrains Mono’,monospace;color:var(–ac)}
+.bar-btns{display:flex;gap:8px;flex-wrap:wrap}
+.prg{margin-top:12px;display:none}
+.prg.on{display:block}
+.prg-track{width:100%;height:4px;background:var(–s3);border-radius:2px;overflow:hidden}
+.prg-fill{height:100%;width:0;background:var(–ac);border-radius:2px;transition:width .12s}
+.prg-txt{font-family:‘JetBrains Mono’,monospace;font-size:.72rem;color:var(–tx2);margin-top:5px;text-align:right}
+
+/* ── Buttons ── */
+.b{font-family:‘Nunito’,sans-serif;font-size:.82rem;font-weight:600;padding:8px 18px;border:1px solid var(–brd);border-radius:var(–r);background:var(–s1);color:var(–tx);cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.b:hover{border-color:var(–brd2);background:var(–s2)}
+.b:disabled{opacity:.3;cursor:not-allowed}
+.b.pr{background:var(–ac);border-color:var(–ac);color:#000}
+.b.pr:hover{background:#fbbf24;border-color:#fbbf24}
+.b.pr:disabled{background:var(–ac2);border-color:var(–ac2)}
+.b.dn{color:var(–rd);border-color:rgba(248,113,113,.25)}
+.b.dn:hover{background:rgba(248,113,113,.08)}
+.b-sm{font-size:.75rem;padding:4px 10px;border-radius:6px;border:1px solid var(–brd);background:var(–s2);color:var(–tx2);cursor:pointer;font-family:‘Nunito’,sans-serif;font-weight:600;transition:.15s}
+.b-sm:hover{color:var(–tx);border-color:var(–brd2)}
+
+/* ── Gallery ── */
+.gh{font-family:‘JetBrains Mono’,monospace;font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(–tx2);margin-bottom:14px}
+.gal{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+@media(max-width:500px){.gal{grid-template-columns:1fr 1fr}}
+.cd{background:var(–s1);border:1px solid var(–brd);border-radius:var(–r2);overflow:hidden;transition:border-color .15s}
+.cd:hover{border-color:var(–brd2)}
+.cd-pv{position:relative;aspect-ratio:4/3;background:var(–s3);display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:pointer}
+.cd-pv img{max-width:100%;max-height:100%;object-fit:contain;display:block}
+.cd-badge{position:absolute;top:6px;right:6px;font-family:‘JetBrains Mono’,monospace;font-size:.6rem;font-weight:600;padding:2px 6px;border-radius:4px;background:rgba(0,0,0,.65);color:var(–gn);backdrop-filter:blur(4px)}
+.cd-spin{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(16,17,20,.7)}
+.cd-info{padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:6px}
+.cd-name{font-size:.75rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.cd-sz{font-family:‘JetBrains Mono’,monospace;font-size:.68rem;color:var(–tx3);flex-shrink:0}
+.cd-acts{padding:0 12px 10px;display:flex;gap:6px}
+.cd-err{color:var(–rd);font-size:1.4rem}
+
+/* ── Spinner ── */
+.spin{width:24px;height:24px;border:3px solid var(–s3);border-top-color:var(–ac);border-radius:50%;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* ── Modal ── */
+.mdl{display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:100;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(5px)}
+.mdl.open{display:flex}
+.mdl img{max-width:94vw;max-height:88vh;object-fit:contain;border-radius:var(–r2);box-shadow:0 16px 50px rgba(0,0,0,.5)}
+.mdl-x{position:absolute;top:16px;right:20px;background:rgba(255,255,255,.1);border:0;color:#fff;font-size:1.3rem;width:40px;height:40px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s}
+.mdl-x:hover{background:rgba(255,255,255,.2)}
+.mdl-tabs{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);display:flex;gap:3px;background:rgba(0,0,0,.6);padding:3px;border-radius:8px;backdrop-filter:blur(6px)}
+.mdl-tab{padding:7px 16px;border:0;background:0;color:var(–tx2);font-family:‘Nunito’,sans-serif;font-size:.8rem;font-weight:600;border-radius:6px;cursor:pointer;transition:.12s}
+.mdl-tab.on{background:var(–ac);color:#000}
+
+/* ── Back Button ── */
+.back-btn{display:inline-flex;align-items:center;gap:8px;font-family:'JetBrains Mono',monospace;font-size:.78rem;font-weight:600;color:var(--tx2);text-decoration:none;padding:7px 14px 7px 10px;border:1px solid var(--brd);border-radius:var(--r);background:var(--s1);transition:all .2s ease;margin-bottom:24px;cursor:pointer}
+.back-btn:hover{color:var(--ac);border-color:var(--ac2);background:var(--acG)}
+.back-btn:hover .back-arrow{transform:translateX(-2px)}
+.back-arrow{display:inline-flex;font-size:1rem;transition:transform .2s ease;line-height:1}
+
+.empty{text-align:center;padding:50px 16px;color:var(–tx3);font-size:.88rem}
+.hidden{display:none!important}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+
+  <a href="https://ihatepdf.ru" class="back-btn">
+    <span class="back-arrow">←</span>
+    iHatePDF
+  </a>
+
+  <header>
+    <h1>iHateCrop</b></h1>
+    <p>Пакетное кадрирование сканов — JPEG и PDF, до 100 файлов</p>
+  </header>
+
+  <!-- Controls -->
+
+  <div class="ctrls">
+    <div class="cg">
+      <div class="cg-label"><i>◐</i> Порог белого</div>
+      <div class="sr">
+        <input type="range" id="rThr" min="180" max="255" value="230">
+        <span class="sv" id="vThr">230</span>
+      </div>
+    </div>
+    <div class="cg">
+      <div class="cg-label"><i>↔</i> Отступы (px)</div>
+      <div class="sr">
+        <input type="range" id="rPad" min="0" max="80" value="0">
+        <span class="sv" id="vPad">0</span>
+      </div>
+    </div>
+    <div class="cg">
+      <div class="cg-label"><i>▣</i> Рамка фотографии</div>
+      <div class="tog">
+        <div>
+          <div class="tog-info">Сохранять декоративную рамку</div>
+          <div class="tog-hint">Белая каёмка / фигурные края останутся</div>
+        </div>
+        <label class="sw"><input type="checkbox" id="cFrame"><span></span></label>
+      </div>
+      <div class="sub-ctrl" id="frameOpts" style="opacity:.3;pointer-events:none">
+        <div class="sr" style="margin-top:6px">
+          <span style="font-size:.78rem;color:var(--tx2);white-space:nowrap">Толщина</span>
+          <input type="range" id="rFrm" min="2" max="60" value="15">
+          <span class="sv" id="vFrm">15px</span>
+        </div>
+      </div>
+    </div>
+    <div class="cg">
+      <div class="cg-label"><i>⬡</i> PDF рендеринг</div>
+      <div class="sr">
+        <span style="font-size:.78rem;color:var(--tx2);white-space:nowrap">DPI (масштаб)</span>
+        <input type="range" id="rDpi" min="150" max="600" step="50" value="300">
+        <span class="sv" id="vDpi">300</span>
+      </div>
+      <div class="tog-hint" style="margin-top:6px">Для PDF: чем выше DPI, тем больше деталей, но медленнее</div>
+    </div>
+  </div>
+
+  <!-- Upload -->
+
+  <div class="drop" id="dropZone">
+    <div class="drop-ico">📷</div>
+    <div class="drop-t">Перетащите сканы сюда или нажмите для выбора</div>
+    <div class="drop-h">JPEG и PDF, до 100 файлов (каждая страница PDF = отдельное фото)</div>
+    <input type="file" id="fInput" accept="image/jpeg,image/jpg,application/pdf" multiple>
+  </div>
+
+  <!-- Status -->
+
+  <div class="bar" id="bar">
+    <div class="bar-top">
+      <div class="bar-info">Загружено: <b id="nFiles">0</b> изображений</div>
+      <div class="bar-btns">
+        <button class="b pr" id="bRun" disabled>▶ Обработать</button>
+        <button class="b" id="bZip" disabled>↓ ZIP</button>
+        <button class="b dn" id="bClr">✕ Очистить</button>
+      </div>
+    </div>
+    <div class="prg" id="prg">
+      <div class="prg-track"><div class="prg-fill" id="pFill"></div></div>
+      <div class="prg-txt" id="pTxt">0 / 0</div>
+    </div>
+  </div>
+
+  <!-- Gallery -->
+
+  <div id="galWrap" class="hidden">
+    <div class="gh">Результаты</div>
+    <div class="gal" id="gal"></div>
+  </div>
+
+  <div class="empty" id="empty">Загрузите сканы фотографий для начала работы</div>
+</div>
+
+<!-- Modal -->
+
+<div class="mdl" id="mdl">
+  <button class="mdl-x" id="mdlX">✕</button>
+  <img id="mdlImg" src="">
+  <div class="mdl-tabs">
+    <button class="mdl-tab on" data-m="crop">Результат</button>
+    <button class="mdl-tab" data-m="orig">Оригинал</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  /* ── Setup pdf.js worker ── */
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  /* ── State ── */
+  // Each entry: { name, origBlob, origUrl, cropBlob, cropUrl, cW, cH }
+  const items = [];
+  let busy = false;
+
+  /* ── DOM refs ── */
+  const $=id=>document.getElementById(id);
+  const rThr=$('rThr'), vThr=$('vThr');
+  const rPad=$('rPad'), vPad=$('vPad');
+  const cFrame=$('cFrame'), frameOpts=$('frameOpts');
+  const rFrm=$('rFrm'), vFrm=$('vFrm');
+  const rDpi=$('rDpi'), vDpi=$('vDpi');
+  const dropZone=$('dropZone'), fInput=$('fInput');
+  const bar=$('bar'), nFiles=$('nFiles');
+  const bRun=$('bRun'), bZip=$('bZip'), bClr=$('bClr');
+  const prg=$('prg'), pFill=$('pFill'), pTxt=$('pTxt');
+  const gal=$('gal'), galWrap=$('galWrap'), empty=$('empty');
+  const mdl=$('mdl'), mdlImg=$('mdlImg'), mdlX=$('mdlX');
+
+  /* ── Slider bindings ── */
+  rThr.oninput=()=>vThr.textContent=rThr.value;
+  rPad.oninput=()=>vPad.textContent=rPad.value;
+  rFrm.oninput=()=>vFrm.textContent=rFrm.value+'px';
+  rDpi.oninput=()=>vDpi.textContent=rDpi.value;
+  cFrame.onchange=()=>{
+    const on=cFrame.checked;
+    frameOpts.style.opacity=on?'1':'.3';
+    frameOpts.style.pointerEvents=on?'auto':'none';
+  };
+
+  /* ── Upload ── */
+  dropZone.onclick=()=>fInput.click();
+  dropZone.ondragover=e=>{e.preventDefault();dropZone.classList.add('over')};
+  dropZone.ondragleave=()=>dropZone.classList.remove('over');
+  dropZone.ondrop=e=>{e.preventDefault();dropZone.classList.remove('over');ingest(e.dataTransfer.files)};
+  fInput.onchange=()=>{ingest(fInput.files);fInput.value=''};
+
+  async function ingest(fileList){
+    const files=Array.from(fileList);
+    for(const f of files){
+      if(items.length>=100) break;
+      if(f.type==='image/jpeg'||f.type==='image/jpg'){
+        addItem(f.name, f);
+      } else if(f.type==='application/pdf'){
+        await extractPdfPages(f);
+      }
+    }
+    refresh();
+  }
+
+  async function extractPdfPages(file){
+    try{
+      const buf=await file.arrayBuffer();
+      const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+      const dpi=parseInt(rDpi.value)||300;
+      const scale=dpi/72;
+      const pages=pdf.numPages;
+      for(let p=1;p<=pages&&items.length<100;p++){
+        const page=await pdf.getPage(p);
+        const vp=page.getViewport({scale});
+        const canvas=document.createElement('canvas');
+        canvas.width=vp.width;
+        canvas.height=vp.height;
+        const ctx=canvas.getContext('2d');
+        await page.render({canvasContext:ctx,viewport:vp}).promise;
+        const blob=await new Promise(r=>canvas.toBlob(r,'image/jpeg',0.97));
+        const label=file.name.replace(/\.pdf$/i,'')+(pages>1?`_p${p}`:'')+'.jpg';
+        addItem(label, blob);
+      }
+    }catch(err){
+      console.error('PDF error:',file.name,err);
+    }
+  }
+
+  function addItem(name, blob){
+    const url=URL.createObjectURL(blob);
+    items.push({name, origBlob:blob, origUrl:url, cropBlob:null, cropUrl:null, cW:0, cH:0});
+  }
+
+  function refresh(){
+    const n=items.length;
+    const hasCrop=items.some(i=>i.cropBlob);
+    bar.classList.toggle('on',n>0);
+    nFiles.textContent=n;
+    bRun.disabled=n===0||busy;
+    bZip.disabled=!hasCrop||busy;
+    empty.classList.toggle('hidden',n>0);
+    galWrap.classList.toggle('hidden',!hasCrop);
+  }
+
+  /* ── Clear ── */
+  bClr.onclick=()=>{
+    items.forEach(i=>{
+      if(i.origUrl)URL.revokeObjectURL(i.origUrl);
+      if(i.cropUrl)URL.revokeObjectURL(i.cropUrl);
+    });
+    items.length=0;
+    gal.innerHTML='';
+    prg.classList.remove('on');
+    refresh();
+  };
+
+  /* ── Process ── */
+  bRun.onclick=async()=>{
+    if(busy||!items.length)return;
+    busy=true; bRun.disabled=true;
+    prg.classList.add('on');
+    gal.innerHTML='';
+    galWrap.classList.remove('hidden');
+    empty.classList.add('hidden');
+
+    const total=items.length;
+    const thr=+rThr.value, pad=+rPad.value;
+    const kf=cFrame.checked, fb=+rFrm.value;
+
+    // Placeholders
+    for(let i=0;i<total;i++){
+      const d=document.createElement('div');
+      d.className='cd';d.id='c'+i;
+      d.innerHTML=`<div class="cd-pv"><div class="cd-spin"><div class="spin"></div></div></div>
+        <div class="cd-info"><div class="cd-name" title="${esc(items[i].name)}">${esc(items[i].name)}</div><div class="cd-sz">…</div></div>`;
+      gal.appendChild(d);
+    }
+
+    for(let i=0;i<total;i++){
+      pFill.style.width=((i/total)*100)+'%';
+      pTxt.textContent=`${i+1} / ${total}`;
+      try{
+        const r=await crop(items[i].origBlob,thr,pad,kf,fb);
+        const it=items[i];
+        if(it.cropUrl)URL.revokeObjectURL(it.cropUrl);
+        it.cropBlob=r.blob; it.cropUrl=URL.createObjectURL(r.blob);
+        it.cW=r.w; it.cH=r.h;
+        fillCard(i);
+      }catch(e){
+        console.error(items[i].name,e);
+        errCard(i);
+      }
+      await new Promise(r=>setTimeout(r,5));
+    }
+
+    pFill.style.width='100%';
+    pTxt.textContent=`Готово: ${total} / ${total}`;
+    busy=false; refresh();
+  };
+
+  /* ── Crop algorithm ── */
+  function crop(blob,thr,pad,keepFrame,framePx){
+    return new Promise((res,rej)=>{
+      const img=new Image();
+      const objUrl=URL.createObjectURL(blob);
+      img.onload=()=>{
+        try{
+          const c=document.createElement('canvas');
+          c.width=img.width;c.height=img.height;
+          const ctx=c.getContext('2d',{willReadFrequently:true});
+          ctx.drawImage(img,0,0);
+          URL.revokeObjectURL(objUrl);
+
+          const id=ctx.getImageData(0,0,c.width,c.height);
+          const d=id.data, w=c.width, h=c.height;
+
+          let b=findBounds(d,w,h,thr);
+          if(!b){c.toBlob(bl=>res({blob:bl,w:c.width,h:c.height}),'image/jpeg',.95);return}
+
+          if(keepFrame) b=expandFrame(d,w,h,b,thr,framePx);
+
+          let{top:t,right:r,bottom:bt,left:l}=b;
+          t=Math.max(0,t-pad); l=Math.max(0,l-pad);
+          bt=Math.min(h-1,bt+pad); r=Math.min(w-1,r+pad);
+          const cw=r-l+1, ch=bt-t+1;
+
+          const oc=document.createElement('canvas');
+          oc.width=cw;oc.height=ch;
+          oc.getContext('2d').drawImage(c,l,t,cw,ch,0,0,cw,ch);
+          oc.toBlob(bl=>{bl?res({blob:bl,w:cw,h:ch}):rej('toBlob fail')},'image/jpeg',.95);
+        }catch(e){rej(e)}
+      };
+      img.onerror=()=>{URL.revokeObjectURL(objUrl);rej('load fail')};
+      img.src=objUrl;
+    });
+  }
+
+  /*
+   * Robust edge-scanning: scan rows/columns from each edge inward.
+   * A row or column counts as "white" if >= 97% of its pixels pass the threshold.
+   * The first row/col from each edge that has significant content = the crop boundary.
+   * This ignores scanner noise, dust specks, and slight color casts in white areas.
+   */
+  const CONTENT_RATIO = 0.03; // 3% of pixels in a row/col must be non-white to count as content
+
+  function isW(d,i,t){return d[i]>=t&&d[i+1]>=t&&d[i+2]>=t}
+
+  function rowContentRatio(d,w,y,thr){
+    let nw=0;
+    const base=y*w*4;
+    for(let x=0;x<w;x++){
+      if(!isW(d,base+x*4,thr)) nw++;
+    }
+    return nw/w;
+  }
+
+  function colContentRatio(d,w,h,x,thr,yStart,yEnd){
+    let nw=0;
+    const span=yEnd-yStart+1;
+    for(let y=yStart;y<=yEnd;y++){
+      if(!isW(d,(y*w+x)*4,thr)) nw++;
+    }
+    return nw/span;
+  }
+
+  function findBounds(d,w,h,thr){
+    // Scan from top
+    let top=0;
+    for(let y=0;y<h;y++){
+      if(rowContentRatio(d,w,y,thr)>=CONTENT_RATIO){top=y;break}
+      if(y===h-1) return null; // entirely white
+    }
+    // Scan from bottom
+    let bot=h-1;
+    for(let y=h-1;y>=top;y--){
+      if(rowContentRatio(d,w,y,thr)>=CONTENT_RATIO){bot=y;break}
+    }
+    // Scan from left (only within top..bot for speed)
+    let left=0;
+    for(let x=0;x<w;x++){
+      if(colContentRatio(d,w,h,x,thr,top,bot)>=CONTENT_RATIO){left=x;break}
+    }
+    // Scan from right
+    let right=w-1;
+    for(let x=w-1;x>=left;x--){
+      if(colContentRatio(d,w,h,x,thr,top,bot)>=CONTENT_RATIO){right=x;break}
+    }
+
+    // Safety: if bounds are essentially the whole image, try a tighter second pass
+    // scanning only within the rough bounds for precise edges
+    if(top>0||bot<h-1||left>0||right<w-1){
+      // Refine: within found bounds, do a pixel-precise pass
+      let fTop=bot, fBot=top, fLeft=right, fRight=left;
+      for(let y=top;y<=bot;y++){
+        const base=y*w*4;
+        for(let x=left;x<=right;x++){
+          if(!isW(d,base+x*4,thr)){
+            if(y<fTop)fTop=y; if(y>fBot)fBot=y;
+            if(x<fLeft)fLeft=x; if(x>fRight)fRight=x;
+          }
+        }
+      }
+      return{top:fTop,right:fRight,bottom:fBot,left:fLeft};
+    }
+    return null;
+  }
+
+  function expandFrame(d,w,h,b,thr,px){
+    const eT=Math.max(0,b.top-px), eL=Math.max(0,b.left-px);
+    const eB=Math.min(h-1,b.bottom+px), eR=Math.min(w-1,b.right+px);
+    let nT=eB,nB=eT,nL=eR,nR=eL;
+    for(let y=eT;y<=eB;y++){
+      const base=y*w*4;
+      for(let x=eL;x<=eR;x++){
+        if(!isW(d,base+x*4,thr)){
+          if(y<nT)nT=y; if(y>nB)nB=y;
+          if(x<nL)nL=x; if(x>nR)nR=x;
+        }
+      }
+    }
+    return{
+      top:Math.min(b.top,nT), bottom:Math.max(b.bottom,nB),
+      left:Math.min(b.left,nL), right:Math.max(b.right,nR)
+    };
+  }
+
+  /* ── Card helpers ── */
+  function fillCard(i){
+    const el=$('c'+i); if(!el)return;
+    const it=items[i];
+    el.innerHTML=`
+      <div class="cd-pv" data-i="${i}">
+        <img src="${it.cropUrl}" alt="">
+        <div class="cd-badge">${it.cW}×${it.cH}</div>
+      </div>
+      <div class="cd-info">
+        <div class="cd-name" title="${esc(it.name)}">${esc(it.name)}</div>
+        <div class="cd-sz">${fmtSz(it.cropBlob.size)}</div>
+      </div>
+      <div class="cd-acts">
+        <button class="b-sm" data-dl="${i}">↓ Скачать</button>
+        <button class="b-sm" data-vw="${i}">Смотреть</button>
+      </div>`;
+    el.querySelector('[data-dl]').onclick=()=>dlOne(i);
+    el.querySelector('[data-vw]').onclick=()=>openMdl(i);
+    el.querySelector('.cd-pv').onclick=()=>openMdl(i);
+  }
+
+  function errCard(i){
+    const el=$('c'+i); if(!el)return;
+    el.innerHTML=`<div class="cd-pv"><div class="cd-err">✕</div></div>
+      <div class="cd-info"><div class="cd-name">${esc(items[i].name)}</div><div class="cd-sz" style="color:var(--rd)">Ошибка</div></div>`;
+  }
+
+  /* ── Modal ── */
+  let mIdx=-1, mMode='crop';
+  function openMdl(i){
+    mIdx=i; mMode='crop'; updMdlImg();
+    mdl.classList.add('open');
+    mdl.querySelectorAll('.mdl-tab').forEach(t=>t.classList.toggle('on',t.dataset.m==='crop'));
+  }
+  function updMdlImg(){
+    const it=items[mIdx];
+    mdlImg.src=mMode==='crop'?(it.cropUrl||it.origUrl):it.origUrl;
+  }
+  mdlX.onclick=()=>mdl.classList.remove('open');
+  mdl.onclick=e=>{if(e.target===mdl)mdl.classList.remove('open')};
+  mdl.querySelectorAll('.mdl-tab').forEach(tab=>{
+    tab.onclick=()=>{
+      mdl.querySelectorAll('.mdl-tab').forEach(t=>t.classList.remove('on'));
+      tab.classList.add('on');
+      mMode=tab.dataset.m;
+      updMdlImg();
+    };
+  });
+  document.onkeydown=e=>{if(e.key==='Escape')mdl.classList.remove('open')};
+
+  /* ── Download ── */
+  function dlOne(i){
+    const it=items[i]; if(!it.cropBlob)return;
+    const a=document.createElement('a');
+    a.href=it.cropUrl; a.download='cropped_'+it.name; a.click();
+  }
+
+  bZip.onclick=async()=>{
+    if(busy)return;
+    bZip.disabled=true; bZip.textContent='↓ Создаю…';
+    const zip=new JSZip();
+    items.forEach(it=>{if(it.cropBlob)zip.file('cropped_'+it.name,it.cropBlob)});
+    try{
+      const bl=await zip.generateAsync({type:'blob'});
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(bl);a.download='scancrop_results.zip';a.click();
+      URL.revokeObjectURL(a.href);
+    }catch(e){console.error('zip',e)}
+    bZip.textContent='↓ ZIP'; bZip.disabled=false;
+  };
+
+  /* ── Utils ── */
+  function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+  function fmtSz(b){
+    if(b<1024)return b+' B';
+    if(b<1048576)return(b/1024).toFixed(1)+' KB';
+    return(b/1048576).toFixed(1)+' MB';
+  }
+})();
+</script>
+
+</body>
+</html>

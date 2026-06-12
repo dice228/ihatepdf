@@ -1,0 +1,1523 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>iHatePDF — Universal Document Analyzer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.20.1/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="/favicon.ico" type="image/x-icon">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg1:#1a1a2e;--bg2:#16213e;--bg3:#0f3460;--bgP:#1e2746;--bgC:#253256;
+  --acc:#e94560;--accH:#ff6b81;--accS:rgba(233,69,96,0.15);
+  --t1:#eef0f6;--t2:#8892b0;--t3:#5a6480;
+  --brd:#2d3a5c;--ok:#2ed573;--warn:#ffa502;
+  --r:10px;--rs:6px
+}
+html,body{min-height:100%;font-family:'Nunito',sans-serif;background:var(--bg1);color:var(--t1)}
+body{padding-bottom:40px}
+
+/* ===== TOPBAR ===== */
+.topbar{background:var(--bg2);border-bottom:1px solid var(--brd);display:flex;align-items:center;padding:0 20px;gap:12px;height:52px;position:sticky;top:0;z-index:100}
+.topbar-logo{font-weight:800;font-size:15px;color:var(--acc);white-space:nowrap;display:flex;align-items:center;gap:6px}
+.topbar-logo span{color:var(--t1)}
+.topbar-div{width:1px;height:28px;background:var(--brd);flex-shrink:0}
+.topbar-info{font-size:11px;color:var(--t2);font-family:'JetBrains Mono',monospace}
+.topbar-actions{margin-left:auto;display:flex;gap:8px;align-items:center}
+
+/* ===== NAV LINKS ===== */
+.nav-link{padding:5px 14px;border:1px solid var(--brd);border-radius:20px;font-size:11px;font-weight:600;color:var(--t2);text-decoration:none;transition:all .2s;font-family:'Nunito',sans-serif}
+.nav-link:hover{border-color:var(--acc);color:var(--acc);background:var(--accS)}
+
+/* ===== BUTTONS ===== */
+.btn{padding:6px 14px;border:none;border-radius:var(--rs);font-family:'Nunito',sans-serif;font-weight:600;font-size:12px;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.btn-p{background:var(--acc);color:#fff}.btn-p:hover{background:var(--accH);transform:translateY(-1px)}
+.btn-s{background:var(--bgC);color:var(--t1);border:1px solid var(--brd)}.btn-s:hover{background:var(--bg3)}
+.btn-g{background:transparent;color:var(--t2);border:1px solid var(--brd)}.btn-g:hover{color:var(--t1);background:var(--bgC)}
+.btn-ok{background:#1a4a2e;color:var(--ok);border:1px solid #2d6b42}.btn-ok:hover{background:#235c38}
+
+/* ===== MAIN CONTENT ===== */
+.main{max-width:1300px;margin:0 auto;padding:24px 20px;display:flex;flex-direction:column;gap:24px}
+
+/* ===== HERO HEADER ===== */
+.hero{background:var(--bg2);border:1px solid var(--brd);border-radius:var(--r);padding:28px 32px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px}
+.hero-logo{max-height:80px}
+.hero-subtitle{font-size:12px;color:var(--t2);font-style:italic}
+.hero-badges{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin-top:4px}
+.hero-badge{padding:3px 10px;border-radius:14px;font-size:10px;font-weight:700;background:var(--bgC);border:1px solid var(--brd);color:var(--t2)}
+
+/* ===== DUAL ZONE LAYOUT ===== */
+.dual-zones{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:900px){.dual-zones{grid-template-columns:1fr}}
+
+/* ===== UPLOAD ===== */
+.upload-area{border:2px dashed var(--brd);border-radius:var(--r);padding:32px 20px;text-align:center;cursor:pointer;transition:all .3s;background:var(--bg2)}
+.upload-area:hover,.upload-area.dragover{border-color:var(--acc);background:var(--accS)}
+.upload-area-icon{font-size:32px;margin-bottom:8px}
+.upload-area-title{font-size:14px;font-weight:700;color:var(--t1);margin-bottom:4px}
+.upload-area-sub{font-size:11px;color:var(--t2)}
+.upload-area-formats{font-size:10px;color:var(--t3);margin-top:6px;font-family:'JetBrains Mono',monospace}
+.files-count{font-size:11px;color:var(--ok);font-family:'JetBrains Mono',monospace;margin-top:8px;font-weight:600}
+
+/* ===== ZONE WRAPPER ===== */
+.zone-wrap{background:var(--bg2);border:1px solid var(--brd);border-radius:var(--r);padding:20px;display:flex;flex-direction:column;gap:14px}
+.zone-title{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--t2);display:flex;align-items:center;gap:8px}
+.zone-title .zone-icon{font-size:18px}
+.zone-badge{padding:2px 8px;border-radius:10px;font-size:9px;font-weight:700;font-family:'JetBrains Mono',monospace}
+.zone-badge.analysis{background:rgba(25,118,210,.15);color:#64b5f6;border:1px solid rgba(25,118,210,.3)}
+.zone-badge.convert{background:rgba(46,204,113,.12);color:#2ed573;border:1px solid rgba(46,204,113,.3)}
+
+/* ===== SUMMARY CARDS ===== */
+.summary-panel{display:none}
+.summary-panel.active{display:block}
+.summary-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--t3);margin-bottom:12px}
+.summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.summary-card{background:var(--bg2);border:1px solid var(--brd);border-radius:var(--r);padding:18px 16px;text-align:center}
+.summary-value{font-size:1.8em;font-weight:800;color:var(--acc);font-family:'JetBrains Mono',monospace;line-height:1}
+.summary-value.clr-gray{color:var(--t2)}
+.summary-value.clr-yellow{color:#ffc107}
+.summary-label{font-size:10px;color:var(--t2);margin-top:6px;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+
+/* ===== LOADING ===== */
+.loading{display:none;text-align:center;padding:32px;background:var(--bg2);border:1px solid var(--brd);border-radius:var(--r)}
+.loading.active{display:block}
+.spinner{display:inline-block;width:40px;height:40px;border:4px solid var(--brd);border-top:4px solid var(--acc);border-radius:50%;animation:spin 1s linear infinite;margin-bottom:12px}
+@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+.loading-text{font-size:12px;color:var(--t2);font-family:'JetBrains Mono',monospace;margin-bottom:10px}
+
+/* ===== PROGRESS BAR ===== */
+.progress-bar{width:100%;height:8px;background:var(--bgC);border-radius:4px;overflow:hidden;margin-top:10px}
+.progress-fill{height:100%;background:var(--acc);border-radius:4px;transition:width .3s;display:flex;align-items:center;justify-content:center;color:transparent;font-size:0}
+
+/* ===== DETAILED PROGRESS ===== */
+.progress-detail{margin-top:12px;font-size:11px;color:var(--t3);font-family:'JetBrains Mono',monospace;display:flex;flex-direction:column;gap:6px;align-items:center}
+.progress-file{color:var(--t1);font-weight:600;font-size:12px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.progress-stage{color:var(--warn);font-size:10px;text-transform:uppercase;letter-spacing:.5px}
+.progress-pages{color:var(--t2);font-size:10px}
+.progress-elapsed{color:var(--t3);font-size:10px}
+.progress-sub-bar{width:80%;max-width:400px;height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;margin-top:4px}
+.progress-sub-fill{height:100%;background:var(--warn);border-radius:2px;transition:width .2s;width:0%}
+
+/* ===== RESULTS SECTION ===== */
+#results{display:none;flex-direction:column;gap:20px}
+#results.visible{display:flex}
+
+/* ===== TABS ===== */
+.tabs-container{display:flex;gap:0;border-bottom:1px solid var(--brd);flex-wrap:wrap;background:var(--bg2);border-radius:var(--r) var(--r) 0 0;border:1px solid var(--brd);border-bottom:none}
+.tab-btn{padding:10px 18px;background:transparent;border:none;color:var(--t3);cursor:pointer;font-size:11px;font-weight:700;font-family:'Nunito',sans-serif;text-transform:uppercase;letter-spacing:.4px;border-bottom:2px solid transparent;transition:all .2s;margin-bottom:-1px}
+.tab-btn:hover{color:var(--t2)}
+.tab-btn.active{color:var(--acc);border-bottom-color:var(--acc)}
+.tab-content{display:none;background:var(--bg2);border:1px solid var(--brd);border-top:none;border-radius:0 0 var(--r) var(--r);padding:20px}
+.tab-content.active{display:block}
+.tab-content h3{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--t3);margin-bottom:16px}
+.tab-content p.subtitle{font-size:11px;color:var(--t3);margin-top:-10px;margin-bottom:14px;font-family:'JetBrains Mono',monospace}
+
+/* ===== TABLES ===== */
+.results-table{width:100%;border-collapse:collapse;font-size:12px}
+.results-table thead{background:var(--bg3)}
+.results-table th{padding:10px 14px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--t2);border-bottom:1px solid var(--brd)}
+.results-table td{padding:10px 14px;border-bottom:1px solid var(--brd);color:var(--t1)}
+.results-table tbody tr:hover{background:var(--bgC)}
+.results-table tbody tr:last-child td{border-bottom:none}
+.results-table tfoot td{padding:10px 14px;font-weight:700;color:var(--t1);background:var(--bgC);border-top:1px solid var(--brd)}
+
+/* ===== FILE STATUS BADGES ===== */
+.file-status,.page-type,.format-badge{display:inline-block;padding:3px 10px;border-radius:14px;font-size:10px;font-weight:700;font-family:'JetBrains Mono',monospace}
+.file-status.pdf{background:rgba(25,118,210,.15);color:#64b5f6;border:1px solid rgba(25,118,210,.3)}
+.file-status.image{background:rgba(123,31,162,.15);color:#ce93d8;border:1px solid rgba(123,31,162,.3)}
+.file-status.word{background:rgba(56,142,60,.15);color:#81c784;border:1px solid rgba(56,142,60,.3)}
+.file-status.excel{background:rgba(46,125,50,.15);color:#a5d6a7;border:1px solid rgba(46,125,50,.3)}
+.file-status.csv{background:rgba(0,131,143,.15);color:#80cbc4;border:1px solid rgba(0,131,143,.3)}
+.file-status.powerpoint{background:rgba(198,40,40,.15);color:#ef9a9a;border:1px solid rgba(198,40,40,.3)}
+.file-status.rtf{background:rgba(255,143,0,.15);color:#ffcc80;border:1px solid rgba(255,143,0,.3)}
+.page-type.color{background:var(--accS);color:var(--acc);border:1px solid rgba(233,69,96,.3)}
+.page-type.bw{background:rgba(90,100,128,.15);color:var(--t2);border:1px solid var(--brd)}
+.page-type.gray{background:rgba(90,100,128,.1);color:var(--t3);border:1px solid var(--brd)}
+.format-badge{background:rgba(25,118,210,.12);color:#64b5f6;border:1px solid rgba(25,118,210,.25)}
+
+/* ===== TOTAL ROW ===== */
+.total-row td{background:var(--bgC)!important;color:var(--t1)!important;font-weight:700}
+
+/* ===== CONVERTER PANEL ===== */
+.converter-panel{background:var(--bgC);border:1px solid var(--brd);border-radius:var(--rs);padding:16px;display:flex;flex-direction:column;gap:14px}
+.converter-row{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end}
+.sg{display:flex;flex-direction:column;gap:5px}
+.sg label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--t3)}
+.sg select,.sg input[type="number"],.sg input[type="text"]{padding:6px 10px;border-radius:var(--rs);border:1px solid var(--brd);background:var(--bg2);color:var(--t1);font-family:'Nunito',sans-serif;font-size:12px;min-width:120px}
+.sg select{cursor:pointer}
+.sg select option{background:var(--bg2);color:var(--t1)}
+
+/* ===== FORMAT INFO BOX ===== */
+.format-info-box{display:none;padding:10px 14px;background:var(--bgC);border:1px solid var(--brd);border-radius:var(--rs);font-size:11px;color:var(--t2);font-family:'JetBrains Mono',monospace}
+.format-info-box strong{color:var(--t1)}
+
+/* ===== CONVERSION PROGRESS ===== */
+.conv-progress{display:none;padding:10px 0}
+.conv-progress p{font-size:11px;color:var(--t2);font-family:'JetBrains Mono',monospace;margin-top:8px;text-align:center}
+
+/* ===== CONVERTED IMAGES GRID ===== */
+.converted-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-top:16px}
+.img-card{background:var(--bgC);border:1px solid var(--brd);border-radius:var(--rs);padding:12px;text-align:center}
+.img-card img{width:100%;height:auto;border-radius:4px;margin-bottom:8px;border:1px solid var(--brd);transition:transform .2s}
+.img-card img:hover{transform:scale(1.02)}
+.img-card-label{font-size:10px;color:var(--t2);font-family:'JetBrains Mono',monospace;margin-bottom:8px}
+
+/* ===== COLOR ANALYSIS CONTROLS ===== */
+.filter-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.filter-row label{font-size:11px;color:var(--t2);font-weight:600}
+.filter-btn{padding:5px 14px;border:1px solid var(--brd);border-radius:var(--rs);font-size:10px;font-weight:700;font-family:'Nunito',sans-serif;cursor:pointer;background:var(--bgC);color:var(--t2);transition:all .15s;text-transform:uppercase;letter-spacing:.3px}
+.filter-btn:hover{border-color:var(--t2);color:var(--t1)}
+.filter-btn.active{border-color:var(--acc);background:var(--accS);color:var(--acc)}
+
+/* ===== SELECTED FILE TYPE BADGE ===== */
+.file-type-badge{display:none;padding:3px 10px;border-radius:14px;font-size:10px;font-weight:700;font-family:'JetBrains Mono',monospace;border:1px solid var(--brd)}
+
+/* ===== SCROLLBAR ===== */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--brd);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--t3)}
+
+/* ===== HIDDEN CANVAS ===== */
+#canvas-container{display:none}
+#render-container{position:absolute;left:-9999px;top:-9999px;background:white;padding:40px;width:794px;font-family:'Nunito',Arial,sans-serif}
+
+/* ===== PAGES GRID (color analysis) ===== */
+.pages-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-top:16px}
+.page-card{background:var(--bgC);border:1px solid var(--brd);border-radius:var(--rs);padding:12px;transition:all .2s}
+.page-card:hover{border-color:var(--acc);transform:translateY(-2px)}
+.page-preview{width:100%;height:120px;border-radius:4px;margin-bottom:10px;background:var(--bg3);display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid var(--brd)}
+.page-preview canvas,.page-preview img{width:100%;height:100%;object-fit:cover}
+
+/* ===== ERROR / SUCCESS MESSAGES ===== */
+.msg-error{background:rgba(198,40,40,.12);color:#ef9a9a;padding:12px 16px;border-radius:var(--rs);font-size:11px;border:1px solid rgba(198,40,40,.3);margin-top:8px}
+.msg-success{background:rgba(46,125,50,.12);color:var(--ok);padding:12px 16px;border-radius:var(--rs);font-size:11px;border:1px solid rgba(46,125,50,.3);margin-top:8px}
+
+/* ===== ROLL SECTION ===== */
+.roll-section{margin-top:24px;padding-top:20px;border-top:1px solid var(--brd)}
+.roll-section h3{margin-bottom:16px}
+.roll-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-bottom:20px}
+.roll-card{background:var(--bgC);border:1px solid var(--brd);border-radius:var(--rs);padding:16px}
+.roll-card-header{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.roll-card-title{font-size:14px;font-weight:800;color:var(--t1)}
+.roll-card-width{font-size:11px;color:var(--acc);font-family:'JetBrains Mono',monospace;background:var(--accS);padding:2px 8px;border-radius:10px}
+.roll-card-value{font-size:2em;font-weight:800;color:var(--acc);font-family:'JetBrains Mono',monospace;line-height:1;margin-bottom:8px}
+.roll-card-label{font-size:10px;color:var(--t2);text-transform:uppercase;letter-spacing:.3px;margin-bottom:12px}
+.roll-detail-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:11px;border-bottom:1px solid rgba(45,58,92,.5)}
+.roll-detail-row:last-child{border-bottom:none}
+.roll-detail-key{color:var(--t2)}
+.roll-detail-val{color:var(--t1);font-family:'JetBrains Mono',monospace;font-weight:600}
+
+/* ===== DOCX INFO NOTE ===== */
+.docx-note{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:10px;font-size:9px;font-family:'JetBrains Mono',monospace;background:rgba(255,165,2,.1);color:var(--warn);border:1px solid rgba(255,165,2,.2)}
+
+/* ===== COLLAPSIBLE DETAIL SECTION ===== */
+.detail-collapse{margin-top:24px;border:1px solid var(--brd);border-radius:var(--rs);overflow:hidden}
+.detail-collapse-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--bgC);cursor:pointer;user-select:none;transition:background .2s}
+.detail-collapse-header:hover{background:var(--bg3)}
+.detail-collapse-title{font-size:12px;font-weight:700;color:var(--t1);display:flex;align-items:center;gap:8px}
+.detail-collapse-meta{display:flex;gap:10px;align-items:center}
+.detail-collapse-badge{padding:3px 10px;border-radius:14px;font-size:10px;font-weight:700;font-family:'JetBrains Mono',monospace}
+.detail-collapse-badge.clr{background:var(--accS);color:var(--acc);border:1px solid rgba(233,69,96,.3)}
+.detail-collapse-badge.bw{background:rgba(90,100,128,.15);color:var(--t2);border:1px solid var(--brd)}
+.detail-collapse-arrow{font-size:10px;color:var(--t3);transition:transform .3s;display:inline-block}
+.detail-collapse-header.open .detail-collapse-arrow{transform:rotate(180deg)}
+.detail-collapse-body{max-height:0;overflow:hidden;transition:max-height .4s ease}
+.detail-collapse-body.open{max-height:5000px}
+.detail-collapse-inner{padding:16px}
+.detail-group{margin-bottom:20px}
+.detail-group:last-child{margin-bottom:0}
+.detail-group-header{display:flex;align-items:center;gap:10px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--brd)}
+.detail-group-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.detail-group-title.clr{color:var(--acc)}
+.detail-group-title.bw{color:var(--t2)}
+.detail-group-stats{display:flex;gap:12px;margin-left:auto;font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--t3)}
+.detail-group-stats span{white-space:nowrap}
+.detail-items{display:flex;flex-direction:column;gap:4px}
+.detail-item{display:flex;align-items:center;gap:10px;padding:6px 12px;border-radius:var(--rs);background:var(--bg1);font-size:11px;transition:background .15s}
+.detail-item:hover{background:var(--bg3)}
+.detail-item-source{flex:1;color:var(--t1);font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.detail-item-type{flex-shrink:0}
+.detail-item-fill{flex-shrink:0;display:flex;align-items:center;gap:8px;min-width:160px}
+.detail-fill-bar{width:80px;height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;flex-shrink:0}
+.detail-fill-bar-inner{height:100%;border-radius:3px;transition:width .3s}
+.detail-fill-bar-inner.clr{background:var(--acc)}
+.detail-fill-bar-inner.bw{background:var(--t3)}
+.detail-fill-bar-inner.high{background:var(--ok)}
+.detail-fill-val{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--t2);min-width:50px;text-align:right}
+
+/* ===== PHOTO CONVERTER (from Blender) ===== */
+.photo-tile-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px;margin-top:12px}
+.photo-tile{position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;background:var(--bgC);cursor:default;transition:transform .15s;border:1px solid var(--brd)}
+.photo-tile:hover{transform:scale(1.03);border-color:var(--acc)}
+.photo-tile img{width:100%;height:100%;object-fit:cover;display:block}
+.photo-tile-overlay{position:absolute;inset:0;background:linear-gradient(transparent 50%,rgba(0,0,0,.7));display:flex;flex-direction:column;justify-content:flex-end;padding:6px 8px}
+.photo-tile-name{font-size:.6rem;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
+.photo-tile-status{font-size:.55rem;margin-top:2px}
+.photo-tile-status.pending{color:var(--t3)}.photo-tile-status.done{color:var(--ok)}
+.photo-tile-status.error{color:var(--acc)}.photo-tile-status.processing{color:var(--warn)}
+.photo-tile-status.converting{color:var(--warn)}
+.photo-tile-remove{position:absolute;top:3px;right:3px;background:rgba(0,0,0,.6);border:none;color:#fff;width:20px;height:20px;border-radius:50%;cursor:pointer;font-size:.8rem;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s;line-height:1}
+.photo-tile:hover .photo-tile-remove{opacity:1}
+.photo-tile-remove:hover{background:var(--acc)}
+.photo-tile-crop-btn{position:absolute;top:3px;left:3px;background:rgba(0,0,0,.6);border:1px solid transparent;color:#fff;padding:2px 5px;border-radius:4px;cursor:pointer;font-size:.55rem;font-family:inherit;font-weight:500;opacity:0;transition:opacity .2s}
+.photo-tile:hover .photo-tile-crop-btn{opacity:1}
+.photo-tile-crop-btn:hover{background:var(--acc)}
+.photo-tile-crop-btn.has-crop{opacity:1;background:rgba(46,204,113,.25);border-color:var(--ok);color:var(--ok)}
+
+.photo-settings{background:var(--bgC);border:1px solid var(--brd);border-radius:var(--rs);padding:14px;display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end}
+.photo-settings .sg select{min-width:140px}
+.photo-quality-wrap{display:flex;align-items:center;gap:8px}
+.photo-quality-wrap input[type="range"]{-webkit-appearance:none;width:100px;height:5px;background:var(--bg3);border-radius:3px;border:1px solid var(--brd);padding:0}
+.photo-quality-wrap input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;background:var(--acc);border-radius:50%;cursor:pointer;border:2px solid var(--bg1)}
+.photo-quality-val{font-size:11px;color:var(--acc);font-weight:700;font-family:'JetBrains Mono',monospace;min-width:30px}
+.photo-orient-row{display:flex;gap:6px}
+.photo-orient-btn{padding:5px 10px;background:var(--bg2);border:1px solid var(--brd);border-radius:var(--rs);color:var(--t3);cursor:pointer;font-size:10px;font-weight:700;font-family:'Nunito',sans-serif;transition:all .15s}
+.photo-orient-btn:hover{border-color:var(--t2);color:var(--t1)}
+.photo-orient-btn.active{border-color:var(--acc);color:var(--acc);background:var(--accS)}
+.photo-fit-row{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--t2)}
+.photo-fit-row input[type="checkbox"]{-webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:4px;background:var(--bg2);border:1px solid var(--brd);cursor:pointer;position:relative;transition:all .2s;flex-shrink:0}
+.photo-fit-row input[type="checkbox"]:checked{background:var(--acc);border-color:var(--acc)}
+.photo-fit-row input[type="checkbox"]:checked::after{content:'✓';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:.65rem;font-weight:700}
+
+.photo-convert-btn{padding:10px 24px;background:var(--acc);color:#fff;border:none;border-radius:var(--rs);font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;letter-spacing:.03em}
+.photo-convert-btn:hover:not(:disabled){background:var(--accH);transform:translateY(-1px)}
+.photo-convert-btn:disabled{opacity:.4;cursor:not-allowed}
+.photo-progress-wrap{display:none;margin-top:12px}
+.photo-progress-wrap.visible{display:block}
+.photo-progress-bar{height:6px;background:var(--bgC);border-radius:3px;overflow:hidden}
+.photo-progress-fill{height:100%;background:var(--acc);border-radius:3px;width:0%;transition:width .3s}
+.photo-progress-text{display:flex;justify-content:space-between;margin-top:6px;font-size:11px;color:var(--t2);font-family:'JetBrains Mono',monospace}
+.photo-file-count{display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--brd);font-size:11px;color:var(--t2)}
+.photo-btn-clear{background:none;border:1px solid var(--brd);color:var(--t2);padding:4px 10px;border-radius:var(--rs);cursor:pointer;font-size:10px;font-family:'Nunito',sans-serif;font-weight:600;transition:all .2s}
+.photo-btn-clear:hover{border-color:var(--acc);color:var(--acc)}
+
+/* HEIC status */
+.heic-status-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:14px;font-size:9px;font-weight:700;font-family:'JetBrains Mono',monospace;transition:all .3s}
+.heic-status-badge.loading{background:rgba(255,165,2,.1);color:var(--warn);border:1px solid rgba(255,165,2,.2)}
+.heic-status-badge.ready{background:rgba(46,204,113,.12);color:var(--ok);border:1px solid rgba(46,204,113,.3)}
+.heic-status-badge.failed{background:rgba(233,69,96,.12);color:var(--acc);border:1px solid rgba(233,69,96,.3)}
+.heic-dot{width:5px;height:5px;border-radius:50%}
+.heic-status-badge.loading .heic-dot{background:var(--warn);animation:heicPulse 1s infinite}
+.heic-status-badge.ready .heic-dot{background:var(--ok)}
+.heic-status-badge.failed .heic-dot{background:var(--acc)}
+@keyframes heicPulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ===== CROP MODAL ===== */
+.crop-modal-overlay{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.85);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;padding:20px}
+.crop-modal-overlay.open{display:flex}
+.crop-modal{background:var(--bg2);border:1px solid var(--brd);border-radius:var(--r);max-width:680px;width:100%;max-height:90vh;overflow:hidden;display:flex;flex-direction:column}
+.crop-modal-header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--brd)}
+.crop-modal-header h3{font-size:13px;font-weight:700;color:var(--t1)}
+.crop-modal-close{background:none;border:none;color:var(--t3);font-size:1.4rem;cursor:pointer;padding:4px;line-height:1;transition:color .2s}
+.crop-modal-close:hover{color:var(--acc)}
+.crop-canvas-wrap{position:relative;flex:1;overflow:hidden;display:flex;align-items:center;justify-content:center;padding:20px;background:var(--bg1);min-height:300px;max-height:60vh;cursor:grab}
+.crop-canvas-wrap:active{cursor:grabbing}
+.crop-canvas-wrap canvas{max-width:100%;max-height:100%}
+.crop-modal-footer{display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:12px 20px;border-top:1px solid var(--brd)}
+.crop-modal-footer button{padding:8px 16px;border-radius:var(--rs);font-family:'Nunito',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s}
+.btn-crop-reset{background:none;border:1px solid var(--brd);color:var(--t2)}
+.btn-crop-reset:hover{border-color:var(--acc);color:var(--acc)}
+.btn-crop-apply{background:var(--acc);border:none;color:#fff}
+.btn-crop-apply:hover{background:var(--accH)}
+
+/* Toast */
+.toast-msg{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--bg2);border:1px solid var(--ok);color:var(--ok);padding:10px 20px;border-radius:var(--rs);font-size:12px;font-family:'Nunito',sans-serif;font-weight:600;z-index:999;transition:transform .4s;box-shadow:0 8px 32px rgba(0,0,0,.4);max-width:90vw;text-align:center}
+.toast-msg.show{transform:translateX(-50%) translateY(0)}
+.toast-msg.error{border-color:var(--acc);color:var(--acc)}
+
+@media(max-width:768px){
+  .topbar{padding:0 12px;gap:8px}
+  .topbar-info{display:none}
+  .main{padding:16px 12px}
+  .converter-row{flex-direction:column;align-items:stretch}
+  .roll-cards{grid-template-columns:1fr}
+  .photo-settings{flex-direction:column;align-items:stretch}
+  .summary-grid{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <div class="topbar-logo">🔥 <span>iHatePDF</span></div>
+  <div class="topbar-div"></div>
+  <div class="topbar-info">потому что мне все равно, я просто ненавижу PDF 🔥📄🔥</div>
+  <div class="topbar-actions">
+    <a href="/crop" class="nav-link">✂️ iHateCrop</a>
+    <a href="/cards" class="nav-link">🃏 iHateCards</a>
+    <a href="/blender" class="nav-link">🖼️ PhotoBlender</a>
+    <a href="/photo" class="nav-link">📖 iHatePhoto</a>
+  </div>
+</header>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div id="logoContainer"><img src="Image.gif" alt="iHatePDF" class="hero-logo" onerror="this.style.display='none'"></div>
+    <div class="hero-badges">
+      <span class="hero-badge">📊 Анализ цветности</span>
+      <span class="hero-badge">📐 Форматы</span>
+      <span class="hero-badge">📏 Погонные метры</span>
+      <span class="hero-badge">🖼️ Конвертер</span>
+      <span class="hero-badge">📸 Фото → JPEG</span>
+      <span class="hero-badge">📑 Несколько файлов</span>
+    </div>
+  </div>
+
+  <!-- ===== DUAL DROP ZONES ===== -->
+  <div class="dual-zones">
+
+    <!-- ZONE 1: ANALYSIS -->
+    <div class="zone-wrap">
+      <div class="zone-title">
+        <span class="zone-icon">📊</span> Анализ документов
+        <span class="zone-badge analysis">ОЦЕНКА</span>
+      </div>
+      <div class="upload-area" id="uploadContainer">
+        <input type="file" id="fileInput" style="display:none" multiple accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xls,.xlsx,.csv,.ppt,.pptx,.rtf,.tiff,.tif">
+        <div class="upload-area-icon">📂</div>
+        <div class="upload-area-title"><strong>Нажмите</strong> или перетащите файлы</div>
+        <div class="upload-area-sub">Анализ цветности, форматов, заливки, конвертация</div>
+        <div class="upload-area-formats">PDF · DOC · DOCX · JPEG · PNG · XLS · XLSX · CSV · PPT · PPTX · RTF · TIFF</div>
+        <div class="files-count" id="filesCount"></div>
+      </div>
+    </div>
+
+    <!-- ZONE 2: PHOTO CONVERSION -->
+    <div class="zone-wrap">
+      <div class="zone-title">
+        <span class="zone-icon">📸</span> Конвертация фотографий
+        <span class="zone-badge convert">КОНВЕРТЕР</span>
+        <span class="heic-status-badge loading" id="heicStatus"><span class="heic-dot"></span><span id="heicStatusText">HEIC...</span></span>
+      </div>
+      <div class="upload-area" id="photoDropzone">
+        <input type="file" id="photoFileInput" style="display:none" multiple accept="image/*,.heic,.heif,.pdf">
+        <div class="upload-area-icon">🖼️</div>
+        <div class="upload-area-title"><strong>Нажмите</strong> или перетащите фото / PDF</div>
+        <div class="upload-area-sub">Конвертация в JPEG + ZIP для фотолабы</div>
+        <div class="upload-area-formats">HEIC · JPEG · PNG · TIFF · WEBP · BMP · PDF</div>
+      </div>
+
+      <!-- Photo tiles -->
+      <div class="photo-tile-grid" id="photoTileGrid"></div>
+      <div class="photo-file-count" id="photoFileCount" style="display:none">
+        <span id="photoCountText">0 файлов</span>
+        <button class="photo-btn-clear" id="photoBtnClear">Очистить</button>
+      </div>
+
+      <!-- Photo settings -->
+      <div class="photo-settings" id="photoSettingsPanel" style="display:none">
+        <div class="sg">
+          <label>Качество</label>
+          <div class="photo-quality-wrap">
+            <input type="range" id="photoQuality" min="80" max="100" value="97" step="1">
+            <span class="photo-quality-val" id="photoQualityVal">97%</span>
+          </div>
+        </div>
+        <div class="sg">
+          <label>Кадрирование</label>
+          <select id="photoCropFormat">
+            <option value="none">Без кадрирования</option>
+            <option value="A6">A6 — 105×148 мм</option>
+            <option value="A5">A5 — 148×210 мм</option>
+            <option value="A4">A4 — 210×297 мм</option>
+            <option value="A3">A3 — 297×420 мм</option>
+          </select>
+        </div>
+        <div class="sg" id="photoOrientWrap" style="display:none">
+          <label>Ориентация</label>
+          <div class="photo-orient-row">
+            <button class="photo-orient-btn active" data-orient="auto">⟳ Авто</button>
+            <button class="photo-orient-btn" data-orient="portrait">▯ Портрет</button>
+            <button class="photo-orient-btn" data-orient="landscape">▭ Альбом</button>
+          </div>
+        </div>
+        <div class="photo-fit-row" id="photoFitRow" style="display:none">
+          <input type="checkbox" id="photoFitCheck">
+          <label for="photoFitCheck">Вписать целиком</label>
+        </div>
+        <div class="sg" id="photoPdfScaleWrap" style="display:none">
+          <label>Масштаб PDF</label>
+          <select id="photoPdfScale">
+            <option value="1">1x (оригинал)</option>
+            <option value="1.5">1.5x</option>
+            <option value="2" selected>2x (высокое качество)</option>
+            <option value="3">3x (максимальное)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Convert button -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap" id="photoActionsRow">
+        <button class="photo-convert-btn" id="photoBtnConvert" disabled>📦 Скачать ZIP</button>
+      </div>
+
+      <!-- Progress -->
+      <div class="photo-progress-wrap" id="photoProgressWrap">
+        <div class="photo-progress-bar"><div class="photo-progress-fill" id="photoProgressFill"></div></div>
+        <div class="photo-progress-text"><span id="photoProgressLabel">Обработка...</span><span id="photoProgressPercent">0%</span></div>
+      </div>
+
+      <!-- Converted results grid with individual downloads -->
+      <div class="converted-grid" id="photoConvertedGrid"></div>
+    </div>
+  </div>
+
+  <!-- LOADING (analysis) -->
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <div class="loading-text" id="loadingText">Анализируем файлы...</div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-detail" id="progressDetail">
+      <div class="progress-file" id="progressFile"></div>
+      <div class="progress-stage" id="progressStage"></div>
+      <div class="progress-sub-bar"><div class="progress-sub-fill" id="progressSubFill"></div></div>
+      <div class="progress-pages" id="progressPages"></div>
+      <div class="progress-elapsed" id="progressElapsed"></div>
+    </div>
+  </div>
+
+  <!-- SUMMARY (simplified — no duplicates) -->
+  <div class="summary-panel" id="summaryPanel">
+    <div class="summary-title">📈 Сводка</div>
+    <div class="summary-grid">
+      <div class="summary-card"><div class="summary-value" id="totalFiles">0</div><div class="summary-label">Файлов</div></div>
+      <div class="summary-card"><div class="summary-value" id="totalPages">0</div><div class="summary-label">Страниц</div></div>
+      <div class="summary-card"><div class="summary-value clr-yellow" id="totalColorPages">0</div><div class="summary-label">Цветных</div></div>
+      <div class="summary-card"><div class="summary-value clr-gray" id="totalBWPages">0</div><div class="summary-label">Ч/Б</div></div>
+      <div class="summary-card"><div class="summary-value" id="totalNoFillPages">0</div><div class="summary-label">Без заливки</div></div>
+      <div class="summary-card"><div class="summary-value clr-yellow" id="totalColorFillPages">0</div><div class="summary-label">Цвет + заливка</div></div>
+      <div class="summary-card"><div class="summary-value clr-gray" id="totalBWFillPages">0</div><div class="summary-label">Ч/Б + заливка</div></div>
+      <div class="summary-card"><div class="summary-value" id="totalPogonMeters">0</div><div class="summary-label">Погонных м</div></div>
+    </div>
+  </div>
+
+  <!-- RESULTS TABS -->
+  <div id="results">
+    <div style="background:var(--bg2);border:1px solid var(--brd);border-radius:var(--r);overflow:hidden">
+      <div class="tabs-container">
+        <button class="tab-btn active" data-tab="overview">📊 Обзор</button>
+        <button class="tab-btn" data-tab="colors">🎨 Цвета</button>
+        <button class="tab-btn" data-tab="formats">📐 Форматы</button>
+        <button class="tab-btn" data-tab="pogon">📏 Погонные м</button>
+        <button class="tab-btn" data-tab="converter">🖼️ Конвертер</button>
+        <button class="tab-btn" data-tab="files">📁 Файлы</button>
+      </div>
+
+      <!-- OVERVIEW TAB -->
+      <div class="tab-content active" id="overview-tab">
+        <h3>Статистика по файлам</h3>
+        <table class="results-table" id="filesStatsTable">
+          <thead><tr><th>Файл</th><th>Тип</th><th>Страниц</th><th>Цветных</th><th>Ч/Б и серые</th><th>Заливка 50+%</th><th>Погонные (м)</th></tr></thead>
+          <tbody id="filesStatsBody"></tbody>
+          <tfoot>
+            <tr class="total-row">
+              <td colspan="2"><strong>ИТОГО:</strong></td>
+              <td id="totalPagesSum">0</td><td id="totalColorSum">0</td><td id="totalBWSum">0</td><td id="totalHighFillSum">0</td><td id="totalPogonStatsSum">0</td>
+            </tr>
+          </tfoot>
+        </table>
+
+        <!-- COLLAPSIBLE DETAILED BREAKDOWN -->
+        <div class="detail-collapse" id="detailCollapse" style="display:none">
+          <div class="detail-collapse-header" id="detailCollapseHeader">
+            <div class="detail-collapse-title">
+              📋 Подробная сводка по страницам
+              <span class="detail-collapse-arrow">▼</span>
+            </div>
+            <div class="detail-collapse-meta" id="detailCollapseMeta"></div>
+          </div>
+          <div class="detail-collapse-body" id="detailCollapseBody">
+            <div class="detail-collapse-inner" id="detailCollapseInner"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- COLORS TAB -->
+      <div class="tab-content" id="colors-tab">
+        <h3>Анализ цветности страниц</h3>
+        <div class="filter-row">
+          <label>Порог цветности (%):</label>
+          <input type="number" id="colorThreshold" min="0" max="100" value="0.3" step="0.5" style="width:80px;padding:5px 8px;border-radius:var(--rs);border:1px solid var(--brd);background:var(--bg2);color:var(--t1);font-family:'Nunito',sans-serif;font-size:12px">
+          <div style="display:flex;gap:6px;margin-left:12px">
+            <button class="filter-btn active" data-filter="all">Все</button>
+            <button class="filter-btn" data-filter="color">Цветные</button>
+            <button class="filter-btn" data-filter="bw">Ч/Б и серые</button>
+          </div>
+        </div>
+        <table class="results-table">
+          <thead><tr><th>Файл</th><th>Тип</th><th>Заливка</th></tr></thead>
+          <tbody id="colorTableBody"></tbody>
+        </table>
+        <div class="pages-grid" id="pagesGrid"></div>
+      </div>
+
+      <!-- FORMATS TAB -->
+      <div class="tab-content" id="formats-tab">
+        <h3>Анализ форматов страниц</h3>
+        <table class="results-table">
+          <thead><tr><th>Файл</th><th>Формат</th><th>Количество</th><th>Размер (мм)</th><th>Ориентация</th></tr></thead>
+          <tbody id="formatsTableBody"></tbody>
+        </table>
+      </div>
+
+      <!-- POGON TAB -->
+      <div class="tab-content" id="pogon-tab">
+        <h3>Погонные метры (длина страниц)</h3>
+        <p class="subtitle">Расчёт по длинной стороне каждой страницы</p>
+        <table class="results-table">
+          <thead><tr><th>Файл</th><th>Страниц</th><th>Формат</th><th>Длина стр. (м)</th><th>Общая длина (м)</th></tr></thead>
+          <tbody id="pogonTableBody"></tbody>
+          <tfoot>
+            <tr class="total-row">
+              <td colspan="4"><strong>ИТОГО погонных метров:</strong></td>
+              <td><strong id="totalPogonSum">0 м</strong></td>
+            </tr>
+          </tfoot>
+        </table>
+        <div class="roll-section">
+          <h3>🧻 Расчёт по рулонам</h3>
+          <p class="subtitle">Сколько погонных метров рулона потребуется для печати всех страниц</p>
+          <div class="roll-cards" id="rollCards"></div>
+          <h3 style="margin-top:20px">Детализация по форматам страниц</h3>
+          <table class="results-table" id="rollDetailTable">
+            <thead><tr><th>Формат стр.</th><th>Кол-во</th><th>Размер (мм)</th><th>Рулон 600 мм</th><th>Рулон 297 мм</th></tr></thead>
+            <tbody id="rollDetailBody"></tbody>
+            <tfoot>
+              <tr class="total-row">
+                <td colspan="3"><strong>ИТОГО:</strong></td>
+                <td><strong id="rollTotal600">0 м</strong></td>
+                <td><strong id="rollTotal297">0 м</strong></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- CONVERTER TAB (docs → images) -->
+      <div class="tab-content" id="converter-tab">
+        <h3>Конвертер документов → JPEG / PNG</h3>
+        <p class="subtitle">Конвертация страниц загруженных документов в изображения</p>
+
+        <div class="converter-panel">
+          <div class="converter-row">
+            <div class="sg">
+              <label>Выберите файл</label>
+              <select id="pdfSelector">
+                <option value="">— Выберите файл —</option>
+              </select>
+            </div>
+            <span class="file-type-badge" id="selectedFileType"></span>
+          </div>
+
+          <div class="converter-row">
+            <div class="sg">
+              <label>Формат</label>
+              <select id="outputFormat">
+                <option value="jpeg" selected>JPEG</option>
+                <option value="png">PNG</option>
+              </select>
+            </div>
+            <div class="sg" id="qualityContainer">
+              <label>Качество (%)</label>
+              <input type="number" id="jpegQuality" min="1" max="100" value="95" style="width:80px">
+            </div>
+            <div class="sg" id="scaleContainer">
+              <label>Масштаб</label>
+              <select id="scaleSelector">
+                <option value="1">1x (оригинал)</option>
+                <option value="1.5">1.5x</option>
+                <option value="2" selected>2x (высокое качество)</option>
+                <option value="3">3x (максимальное)</option>
+              </select>
+            </div>
+            <div class="sg" style="justify-content:flex-end">
+              <label>&nbsp;</label>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button id="convertBtn" class="btn btn-p">🚀 Конвертировать</button>
+                <button id="downloadAllBtn" class="btn btn-ok" style="display:none">📥 Скачать ZIP</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="format-info-box" id="formatInfo">
+            <strong>ℹ️</strong> <span id="formatInfoText"></span>
+          </div>
+        </div>
+
+        <div class="conv-progress" id="conversionProgress">
+          <div class="progress-bar"><div class="progress-fill" id="conversionProgressFill"></div></div>
+          <p>Конвертация: <span id="currentPageNum">0</span> из <span id="totalPageNum">0</span> страниц</p>
+        </div>
+
+        <div class="converted-grid" id="convertedImages"></div>
+      </div>
+
+      <!-- FILES TAB -->
+      <div class="tab-content" id="files-tab">
+        <h3>Загруженные файлы</h3>
+        <table class="results-table">
+          <thead><tr><th>Имя файла</th><th>Тип</th><th>Размер</th><th>Страниц</th><th>Статус</th></tr></thead>
+          <tbody id="filesTableBody"></tbody>
+        </table>
+      </div>
+
+    </div>
+  </div><!-- /results -->
+
+</div><!-- /main -->
+
+<!-- HIDDEN ELEMENTS -->
+<div id="canvas-container"><canvas id="canvas"></canvas></div>
+<div id="render-container"></div>
+
+<!-- CROP MODAL (photo converter) -->
+<div class="crop-modal-overlay" id="photoCropOverlay">
+  <div class="crop-modal">
+    <div class="crop-modal-header">
+      <h3 id="photoCropTitle">Кадрирование</h3>
+      <button class="crop-modal-close" id="photoCropClose">×</button>
+    </div>
+    <div class="crop-canvas-wrap" id="photoCropCanvasWrap">
+      <canvas id="photoCropCanvas"></canvas>
+    </div>
+    <div class="crop-modal-footer">
+      <button class="btn-crop-reset" id="photoCropReset">Сбросить</button>
+      <button class="btn-crop-apply" id="photoCropApply">Применить</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast-msg" id="toastMsg"></div>
+
+<!-- ===== LIBHEIF-JS for HEIC ===== -->
+<script>
+let libheifModule = null, libheifReady = false;
+const LIBHEIF_URLS = [
+  'https://cdn.jsdelivr.net/npm/libheif-js@1.19.8/libheif/libheif.js',
+  'https://unpkg.com/libheif-js@1.19.8/libheif/libheif.js'
+];
+function loadScript(u){return new Promise((r,j)=>{const s=document.createElement('script');s.src=u;s.onload=()=>r(u);s.onerror=()=>j(new Error('Load failed: '+u));document.head.appendChild(s);})}
+async function initLibheif(){
+  const el=document.getElementById('heicStatus'),tx=document.getElementById('heicStatusText');
+  for(const u of LIBHEIF_URLS){try{
+    await loadScript(u);
+    if(typeof libheif==='function'){
+      const mod=libheif();
+      if(mod&&mod.HeifDecoder){libheifModule=mod;libheifReady=true;
+        el.className='heic-status-badge ready';tx.textContent='HEIC ✓';return;}
+    }
+  }catch(e){console.warn('[libheif] Failed:',u,e.message);}}
+  el.className='heic-status-badge failed';tx.textContent='HEIC ✗';
+}
+initLibheif();
+</script>
+
+<script>
+// =============================================
+// SECTION 1: ANALYSIS ENGINE (from iHatePDF)
+// =============================================
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+let allFilesData = [];
+let currentFilter = 'all';
+let convertedImages = [];
+let pdfFilesMap = new Map();
+let docxFilesMap = new Map();
+let xlsxFilesMap = new Map();
+let imageFilesMap = new Map();
+let progressStartTime = 0;
+let progressTimerInterval = null;
+
+// Upload click
+document.getElementById('uploadContainer').addEventListener('click', () => document.getElementById('fileInput').click());
+document.getElementById('fileInput').addEventListener('change', handleFileSelect);
+document.getElementById('colorThreshold').addEventListener('change', reanalyzeColors);
+
+// Tabs
+document.querySelectorAll('.tab-btn[data-tab]').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const tab = this.dataset.tab;
+    document.querySelectorAll('.tab-btn[data-tab]').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    this.classList.add('active');
+    document.getElementById(tab + '-tab').classList.add('active');
+  });
+});
+
+// Filter buttons
+document.querySelectorAll('[data-filter]').forEach(btn => {
+  btn.addEventListener('click', function() {
+    currentFilter = this.dataset.filter;
+    document.querySelectorAll('[data-filter]').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    filterColorPages();
+  });
+});
+
+// Drag and Drop (analysis)
+const uploadContainer = document.getElementById('uploadContainer');
+uploadContainer.addEventListener('dragover', e => { e.preventDefault(); uploadContainer.classList.add('dragover'); });
+uploadContainer.addEventListener('dragleave', () => uploadContainer.classList.remove('dragover'));
+uploadContainer.addEventListener('drop', e => { e.preventDefault(); uploadContainer.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
+
+async function handleFileSelect(e) {
+  const files = e.target.files;
+  if (files.length > 0) await handleFiles(files);
+}
+
+function startProgressTimer() {
+  progressStartTime = Date.now();
+  progressTimerInterval = setInterval(() => {
+    const elapsed = Date.now() - progressStartTime;
+    const sec = Math.floor(elapsed / 1000);
+    const ms = elapsed % 1000;
+    document.getElementById('progressElapsed').textContent = `⏱ ${sec}.${String(ms).substring(0,1)}с`;
+  }, 100);
+}
+function stopProgressTimer() { if (progressTimerInterval) { clearInterval(progressTimerInterval); progressTimerInterval = null; } }
+function setProgressFile(name) { document.getElementById('progressFile').textContent = `📄 ${name}`; }
+function setProgressStage(stage) { document.getElementById('progressStage').textContent = stage; }
+function setProgressPages(current, total) {
+  if (total > 0) { document.getElementById('progressPages').textContent = `Страница ${current} из ${total}`; document.getElementById('progressSubFill').style.width = ((current / total) * 100) + '%'; }
+  else { document.getElementById('progressPages').textContent = ''; document.getElementById('progressSubFill').style.width = '0%'; }
+}
+
+async function handleFiles(files) {
+  const filesArray = Array.from(files);
+  document.getElementById('filesCount').textContent = `Выбрано файлов: ${filesArray.length}`;
+  document.getElementById('loading').classList.add('active');
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('summaryPanel').classList.remove('active');
+
+  allFilesData = [];
+  pdfFilesMap.clear(); docxFilesMap.clear(); xlsxFilesMap.clear(); imageFilesMap.clear();
+  convertedImages = [];
+  document.getElementById('convertedImages').innerHTML = '';
+  document.getElementById('downloadAllBtn').style.display = 'none';
+
+  startProgressTimer();
+  let processedFiles = 0;
+  for (const file of filesArray) {
+    setProgressFile(file.name); setProgressStage('Загрузка файла...'); setProgressPages(0, 0);
+    const fileData = await processFile(file);
+    allFilesData.push(fileData);
+    processedFiles++;
+    updateProgress(processedFiles, filesArray.length);
+  }
+  stopProgressTimer();
+  displayResults();
+  document.getElementById('loading').classList.remove('active');
+  document.getElementById('results').style.display = 'flex';
+  document.getElementById('summaryPanel').classList.add('active');
+}
+
+async function processFile(file) {
+  const fileData = { name: file.name, size: (file.size / 1024 / 1024).toFixed(2) + ' MB', type: getFileType(file), pages: [], areas: [], formats: {}, error: null, isDocxEstimated: false };
+  try {
+    if (file.type === 'application/pdf') await processPDF(file, fileData);
+    else if (file.type.startsWith('image/')) await processImage(file, fileData);
+    else if (file.name.endsWith('.docx') || file.name.endsWith('.doc')) await processWord(file, fileData);
+    else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.csv')) await processExcel(file, fileData);
+    else fileData.error = 'Формат не поддерживается для полного анализа';
+  } catch (error) { fileData.error = error.message; console.error('Error processing file:', error); }
+  return fileData;
+}
+
+async function processPDF(file, fileData) {
+  setProgressStage('Чтение PDF...'); const arrayBuffer = await file.arrayBuffer(); pdfFilesMap.set(fileData.name, arrayBuffer.slice(0));
+  setProgressStage('Парсинг структуры PDF...'); const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise; const numPages = pdf.numPages;
+  for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+    setProgressStage('Анализ цветности...'); setProgressPages(pageNum, numPages);
+    const page = await pdf.getPage(pageNum); const viewport = page.getViewport({ scale: 1 }); const format = detectPageFormat(viewport.width, viewport.height);
+    if (!fileData.formats[format.name]) fileData.formats[format.name] = { count: 0, orientation: format.orientation, width: format.width, height: format.height, areaM2: format.areaM2, pogonMeters: format.pogonMeters };
+    fileData.formats[format.name].count++; fileData.formats[format.name].areaM2 = format.areaM2; fileData.formats[format.name].pogonMeters = format.pogonMeters;
+    const colorAnalysis = await analyzePageColors(page);
+    setProgressStage('Извлечение текста...'); const textContent = await page.getTextContent(); const text = textContent.items.map(item => item.str).join(' '); const foundAreas = extractAreas(text); fileData.areas.push(...foundAreas);
+    fileData.pages.push({ pageNum, format: format.name, orientation: format.orientation, areaM2: format.areaM2, pogonMeters: format.pogonMeters, ...colorAnalysis });
+  }
+}
+
+async function processImage(file, fileData) {
+  setProgressStage('Загрузка изображения...');
+  return new Promise((resolve) => {
+    const img = new Image(); const url = URL.createObjectURL(file);
+    file.arrayBuffer().then(buffer => { imageFilesMap.set(fileData.name, { buffer, type: file.type, url }); });
+    img.onload = function() {
+      setProgressStage('Анализ цветности...'); setProgressPages(1, 1);
+      const canvas = document.getElementById('canvas'); const ctx = canvas.getContext('2d'); canvas.width = img.width; canvas.height = img.height; ctx.drawImage(img, 0, 0);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height); const colorAnalysis = analyzeImageColors(imageData);
+      const dpi = 72; const widthMm = (img.width / dpi) * 25.4; const heightMm = (img.height / dpi) * 25.4;
+      const format = detectPageFormat(widthMm * 2.83465, heightMm * 2.83465);
+      fileData.pages.push({ pageNum: 1, format: format.name, orientation: format.orientation, areaM2: format.areaM2, pogonMeters: format.pogonMeters, ...colorAnalysis, preview: url });
+      fileData.formats[format.name] = { count: 1, orientation: format.orientation, width: format.width, height: format.height, areaM2: format.areaM2, pogonMeters: format.pogonMeters };
+      resolve();
+    };
+    img.src = url;
+  });
+}
+
+async function processWord(file, fileData) {
+  setProgressStage('Чтение DOCX архива...'); const arrayBuffer = await file.arrayBuffer();
+  setProgressStage('Анализ структуры документа...'); let estimatedPages = 1; let hasExplicitPageBreaks = false;
+  try {
+    const zip = await JSZip.loadAsync(arrayBuffer); const docXml = await zip.file('word/document.xml')?.async('string');
+    if (docXml) {
+      const pageBreakMatches = docXml.match(/<w:br\s+w:type\s*=\s*["']page["']\s*\/?>/gi) || [];
+      const sectionBreaks = docXml.match(/<w:sectPr[\s>]/gi) || [];
+      const explicitBreaks = pageBreakMatches.length + Math.max(0, sectionBreaks.length - 1);
+      if (explicitBreaks > 0) { estimatedPages = explicitBreaks + 1; hasExplicitPageBreaks = true; }
+      if (!hasExplicitPageBreaks) {
+        const paragraphs = docXml.match(/<w:p[\s>]/gi) || [];
+        const textMatches = docXml.match(/<w:t[^>]*>([^<]*)<\/w:t>/gi) || [];
+        let totalChars = 0; textMatches.forEach(m => { totalChars += m.replace(/<[^>]+>/g, '').length; });
+        const charEstimate = Math.ceil(totalChars / 2500); const paraEstimate = Math.ceil(paragraphs.length / 30);
+        estimatedPages = Math.max(1, Math.max(charEstimate, paraEstimate));
+      }
+    }
+  } catch (e) { console.warn('DOCX ZIP parsing failed:', e); }
+
+  setProgressStage('Конвертация DOCX → HTML...');
+  const htmlResult = await mammoth.convertToHtml({ arrayBuffer }); const textResult = await mammoth.extractRawText({ arrayBuffer });
+  docxFilesMap.set(fileData.name, { html: htmlResult.value, text: textResult.value, messages: htmlResult.messages });
+  if (!hasExplicitPageBreaks && textResult.value.length > 0) { estimatedPages = Math.max(estimatedPages, Math.max(1, Math.ceil(textResult.value.length / 2500))); }
+  fileData.isDocxEstimated = true;
+
+  setProgressStage('Рендеринг и анализ цветности...');
+  const renderContainer = document.getElementById('render-container');
+  const a4WidthPx = 794, a4HeightPx = 1123;
+  renderContainer.innerHTML = `<div id="docx-render-content" style="width:${a4WidthPx}px;padding:40px;background:white;font-family:'Open Sans',Arial,sans-serif;font-size:12px;line-height:1.6;color:#333"><style>#docx-render-content h1{font-size:24px;margin:20px 0}#docx-render-content h2{font-size:20px;margin:16px 0}#docx-render-content p{margin:10px 0}#docx-render-content table{border-collapse:collapse;width:100%;margin:15px 0}#docx-render-content td,#docx-render-content th{border:1px solid #ddd;padding:8px}#docx-render-content ul,#docx-render-content ol{margin:10px 0;padding-left:30px}#docx-render-content img{max-width:100%;height:auto}</style>${htmlResult.value}</div>`;
+  await new Promise(r => setTimeout(r, 200));
+  const contentEl = document.getElementById('docx-render-content');
+  if (contentEl) { estimatedPages = Math.max(estimatedPages, Math.max(1, Math.ceil(contentEl.scrollHeight / a4HeightPx))); }
+
+  for (let pageIdx = 0; pageIdx < estimatedPages; pageIdx++) {
+    setProgressPages(pageIdx + 1, estimatedPages); setProgressStage(`Анализ страницы ${pageIdx + 1}/${estimatedPages}...`);
+    let colorPercentage = 0, grayPercentage = 0, fillPercentage = 0, pageType = 'bw';
+    try {
+      const canvas = document.createElement('canvas'); canvas.width = a4WidthPx; canvas.height = a4HeightPx;
+      const ctx = canvas.getContext('2d');
+      const fullCanvas = await html2canvas(renderContainer, { scale: 1, useCORS: true, backgroundColor: '#ffffff', y: pageIdx * a4HeightPx, height: a4HeightPx, windowWidth: a4WidthPx + 100, width: a4WidthPx + 80 });
+      ctx.drawImage(fullCanvas, 0, 0, a4WidthPx, a4HeightPx);
+      const imageData = ctx.getImageData(0, 0, a4WidthPx, a4HeightPx); const analysis = analyzeImageColors(imageData);
+      colorPercentage = analysis.colorPercentage; grayPercentage = analysis.grayPercentage; fillPercentage = analysis.fillPercentage; pageType = analysis.pageType;
+    } catch (e) {
+      const html = htmlResult.value;
+      if (/color\s*:\s*(?!#000|#333|black|rgb\(0)/i.test(html) || /background(?:-color)?\s*:\s*(?!#fff|white|transparent|rgb\(255)/i.test(html) || /<img\s/i.test(html)) { colorPercentage = 5; pageType = 'color'; }
+      fillPercentage = textResult.value.length > 0 ? Math.min(80, (textResult.value.length / estimatedPages / 2500) * 60) : 0;
+    }
+    fileData.pages.push({ pageNum: pageIdx + 1, format: 'A4', orientation: 'portrait', areaM2: (210 * 297) / 1000000, pogonMeters: 0.297, colorPercentage, grayPercentage: grayPercentage || 0, fillPercentage, pageType });
+  }
+  fileData.formats['A4'] = { count: estimatedPages, orientation: 'portrait', width: 210, height: 297, areaM2: (210 * 297) / 1000000, pogonMeters: 0.297 };
+  renderContainer.innerHTML = '';
+}
+
+async function processExcel(file, fileData) {
+  setProgressStage('Чтение таблицы...'); const arrayBuffer = await file.arrayBuffer();
+  const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+  xlsxFilesMap.set(fileData.name, { workbook, sheets: workbook.SheetNames.map(name => ({ name, data: XLSX.utils.sheet_to_json(workbook.Sheets[name], { header: 1 }), html: XLSX.utils.sheet_to_html(workbook.Sheets[name]) })) });
+  const a4AreaM2 = (210 * 297) / 1000000, a4PogonMeters = 0.297;
+  workbook.SheetNames.forEach((sheetName, index) => {
+    setProgressStage(`Лист: ${sheetName}`); setProgressPages(index + 1, workbook.SheetNames.length);
+    fileData.pages.push({ pageNum: index + 1, format: 'A4', orientation: 'portrait', areaM2: a4AreaM2, pogonMeters: a4PogonMeters, colorPercentage: 0, grayPercentage: 0, fillPercentage: 30, pageType: 'bw', sheetName });
+  });
+  fileData.formats['A4'] = { count: workbook.SheetNames.length, orientation: 'portrait', width: 210, height: 297, areaM2: a4AreaM2, pogonMeters: a4PogonMeters };
+}
+
+async function analyzePageColors(page) {
+  const scale = 1.5; const viewport = page.getViewport({ scale });
+  const canvas = document.getElementById('canvas'); const context = canvas.getContext('2d'); canvas.width = viewport.width; canvas.height = viewport.height;
+  await page.render({ canvasContext: context, viewport }).promise;
+  const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+  return analyzeImageColors(imageData);
+}
+
+function analyzeImageColors(imageData) {
+  const data = imageData.data; let colorPixels = 0, grayPixels = 0, nonWhitePixels = 0; const totalPixels = data.length / 4;
+  const threshold = parseFloat(document.getElementById('colorThreshold').value) / 100; const grayTolerance = 10;
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i], g = data[i+1], b = data[i+2];
+    if (!(r > 250 && g > 250 && b > 250)) { nonWhitePixels++; const maxDiff = Math.max(Math.abs(r-g), Math.abs(g-b), Math.abs(r-b)); if (maxDiff <= grayTolerance) grayPixels++; else colorPixels++; }
+  }
+  const colorPercentage = (colorPixels / totalPixels) * 100; const grayPercentage = (grayPixels / totalPixels) * 100; const fillPercentage = (nonWhitePixels / totalPixels) * 100;
+  let pageType = 'bw'; if (colorPercentage > threshold * 100) pageType = 'color'; else if (grayPercentage > 0.5) pageType = 'gray';
+  return { colorPercentage: colorPercentage.toFixed(2), grayPercentage: grayPercentage.toFixed(2), fillPercentage: fillPercentage.toFixed(2), pageType };
+}
+
+function detectPageFormat(widthPt, heightPt) {
+  const widthMm = widthPt * 0.352778; const heightMm = heightPt * 0.352778;
+  const isPortrait = heightMm > widthMm; const width = isPortrait ? widthMm : heightMm; const height = isPortrait ? heightMm : widthMm;
+  const pogonMeters = Math.max(widthMm, heightMm) / 1000;
+  const formats = { 'A0':{width:841,height:1189},'A1':{width:594,height:841},'A2':{width:420,height:594},'A3':{width:297,height:420},'A4':{width:210,height:297},'A5':{width:148,height:210},'A6':{width:105,height:148},'Letter':{width:216,height:279},'Legal':{width:216,height:356},'Tabloid':{width:279,height:432} };
+  const tolerance = 10;
+  for (const [name, size] of Object.entries(formats)) {
+    if (Math.abs(width - size.width) < tolerance && Math.abs(height - size.height) < tolerance)
+      return { name, orientation: isPortrait ? 'portrait' : 'landscape', width: Math.round(width), height: Math.round(height), areaM2: (widthMm * heightMm) / 1000000, pogonMeters };
+  }
+  return { name: 'Custom', orientation: isPortrait ? 'portrait' : 'landscape', width: Math.round(width), height: Math.round(height), areaM2: (widthMm * heightMm) / 1000000, pogonMeters };
+}
+
+function extractAreas(text) {
+  const areas = []; const patterns = [/(\d+(?:[.,]\d+)?)\s*(?:кв\.?\s*)?м(?:²|2|\s|$)/gi,/(\d+(?:[.,]\d+)?)\s*м²/gi,/(\d+(?:[.,]\d+)?)\s*square\s*meters?/gi,/(\d+(?:[.,]\d+)?)\s*sq\.?\s*m/gi,/площадь[:\s]+(\d+(?:[.,]\d+)?)/gi,/area[:\s]+(\d+(?:[.,]\d+)?)/gi,/(\d+(?:[.,]\d+)?)\s*кв\.м/gi];
+  patterns.forEach(pattern => { let match; while ((match = pattern.exec(text)) !== null) { const value = parseFloat(match[1].replace(',', '.')); if (!isNaN(value) && value > 0 && value < 100000) areas.push({ value, unit: 'м²', original: match[0] }); } });
+  return areas;
+}
+
+function getFileType(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  const typeMap = {'pdf':'PDF','doc':'Word','docx':'Word','jpg':'Image','jpeg':'Image','png':'Image','tiff':'Image','tif':'Image','xls':'Excel','xlsx':'Excel','csv':'CSV','ppt':'PowerPoint','pptx':'PowerPoint','rtf':'RTF'};
+  return typeMap[ext] || 'Unknown';
+}
+function updateProgress(current, total) { const p = Math.round((current / total) * 100); document.getElementById('progressFill').style.width = p + '%'; document.getElementById('loadingText').textContent = `Обработано файлов: ${current} из ${total}`; }
+
+function displayResults() { updateSummary(); updateFilesTable(); updateColorTable(); updateFormatsTable(); updatePogonTable(); updateFilesStatsTable(); updatePdfSelector(); updateRollCalculations(); updateDetailCollapse(); }
+
+function updateFilesStatsTable() {
+  const tbody = document.getElementById('filesStatsBody'); tbody.innerHTML = '';
+  let totalPages = 0, totalColor = 0, totalBW = 0, totalHighFill = 0, totalPogon = 0;
+  allFilesData.forEach(file => {
+    const row = tbody.insertRow(); let fc = 0, fb = 0, fh = 0, fp = 0;
+    file.pages.forEach(page => { if (page.pageType === 'color') fc++; else fb++; if (parseFloat(page.fillPercentage || 0) > 50) fh++; if (page.pogonMeters) fp += page.pogonMeters; });
+    totalPages += file.pages.length; totalColor += fc; totalBW += fb; totalHighFill += fh; totalPogon += fp;
+    const docxBadge = file.isDocxEstimated ? ' <span class="docx-note">≈ оценка</span>' : '';
+    row.innerHTML = `<td>${file.name.length > 30 ? file.name.substring(0,30)+'...' : file.name}${docxBadge}</td><td><span class="file-status ${file.type.toLowerCase()}">${file.type}</span></td><td>${file.pages.length}</td><td>${fc}</td><td>${fb}</td><td>${fh}</td><td>${fp.toFixed(3)}</td>`;
+  });
+  document.getElementById('totalPagesSum').textContent = totalPages; document.getElementById('totalColorSum').textContent = totalColor;
+  document.getElementById('totalBWSum').textContent = totalBW; document.getElementById('totalHighFillSum').textContent = totalHighFill;
+  document.getElementById('totalPogonStatsSum').textContent = (Math.ceil(totalPogon * 10) / 10).toFixed(1);
+}
+
+function updateSummary() {
+  let totalFiles = allFilesData.length, totalPages = 0, totalColorPages = 0, totalBWPages = 0, totalPogonMeters = 0;
+  let totalNoFill = 0, totalColorFill = 0, totalBWFill = 0;
+  const FILL_THRESH = 50;
+  allFilesData.forEach(file => { totalPages += file.pages.length; file.pages.forEach(page => {
+    const isColor = page.pageType === 'color';
+    const hasFill = parseFloat(page.fillPercentage || 0) >= FILL_THRESH;
+    if (isColor) totalColorPages++; else totalBWPages++;
+    if (!hasFill) totalNoFill++;
+    else if (isColor) totalColorFill++;
+    else totalBWFill++;
+    if (page.pogonMeters) totalPogonMeters += page.pogonMeters;
+  }); });
+  document.getElementById('totalFiles').textContent = totalFiles; document.getElementById('totalPages').textContent = totalPages;
+  document.getElementById('totalColorPages').textContent = totalColorPages; document.getElementById('totalBWPages').textContent = totalBWPages;
+  document.getElementById('totalNoFillPages').textContent = totalNoFill;
+  document.getElementById('totalColorFillPages').textContent = totalColorFill;
+  document.getElementById('totalBWFillPages').textContent = totalBWFill;
+  document.getElementById('totalPogonMeters').textContent = (Math.ceil(totalPogonMeters * 10) / 10).toFixed(1) + ' м';
+}
+
+function updateFilesTable() {
+  const tbody = document.getElementById('filesTableBody'); tbody.innerHTML = '';
+  allFilesData.forEach(file => { const row = tbody.insertRow(); const note = file.isDocxEstimated ? ' <span class="docx-note">≈ оценка стр.</span>' : '';
+    row.innerHTML = `<td>${file.name}</td><td><span class="file-status ${file.type.toLowerCase()}">${file.type}</span></td><td>${file.size}</td><td>${file.pages.length}${note}</td><td>${file.error ? '<span style="color:var(--acc)">⚠️ ' + file.error + '</span>' : '<span style="color:var(--ok)">✅ Обработан</span>'}</td>`; });
+}
+
+function updateColorTable() {
+  const tbody = document.getElementById('colorTableBody'); tbody.innerHTML = '';
+  allFilesData.forEach(file => { file.pages.forEach(page => {
+    let show = currentFilter === 'all' || (currentFilter === 'color' && page.pageType === 'color') || (currentFilter === 'bw' && (page.pageType === 'gray' || page.pageType === 'bw'));
+    if (show) { const row = tbody.insertRow(); const tl = page.pageType === 'color' ? 'Цветная' : page.pageType === 'gray' ? 'Ч/Б (серая)' : 'Ч/Б';
+      row.innerHTML = `<td>${file.name} (стр. ${page.pageNum})</td><td><span class="page-type ${page.pageType}">${tl}</span></td><td>${page.fillPercentage}%</td>`; }
+  }); });
+}
+
+function updateFormatsTable() {
+  const tbody = document.getElementById('formatsTableBody'); tbody.innerHTML = ''; const allFormats = {};
+  allFilesData.forEach(file => { Object.entries(file.formats).forEach(([format, data]) => { const key = `${file.name}_${format}`; if (!allFormats[key]) allFormats[key] = { fileName: file.name, format, ...data }; }); });
+  Object.values(allFormats).forEach(data => { const row = tbody.insertRow(); row.innerHTML = `<td>${data.fileName}</td><td><span class="format-badge">${data.format}</span></td><td>${data.count}</td><td>${data.width} × ${data.height}</td><td>${data.orientation === 'portrait' ? '📄 Книжная' : '📐 Альбомная'}</td>`; });
+}
+
+function updatePogonTable() {
+  const tbody = document.getElementById('pogonTableBody'); tbody.innerHTML = ''; let totalPogon = 0;
+  allFilesData.forEach(file => { const fg = {}; file.pages.forEach(page => { if (page.pogonMeters) { if (!fg[page.format]) fg[page.format] = { count: 0, pogonPerPage: page.pogonMeters, totalPogon: 0 }; fg[page.format].count++; fg[page.format].totalPogon += page.pogonMeters; } });
+    Object.entries(fg).forEach(([format, data]) => { const row = tbody.insertRow(); row.innerHTML = `<td>${file.name.length > 30 ? file.name.substring(0,30)+'...' : file.name}</td><td>${data.count}</td><td><span class="format-badge">${format}</span></td><td>${data.pogonPerPage.toFixed(3)} м</td><td>${data.totalPogon.toFixed(3)} м</td>`; totalPogon += data.totalPogon; });
+  });
+  document.getElementById('totalPogonSum').textContent = (Math.ceil(totalPogon * 10) / 10).toFixed(1) + ' м';
+}
+
+function calculateRollMeters(pw, ph, count, rollW) {
+  const w = Math.min(pw, ph), h = Math.max(pw, ph);
+  let fit1 = Math.floor(rollW / w), len1 = fit1 > 0 ? (Math.ceil(count / fit1) * h) / 1000 : Infinity;
+  let fit2 = Math.floor(rollW / h), len2 = fit2 > 0 ? (Math.ceil(count / fit2) * w) / 1000 : Infinity;
+  if (fit1 === 0 && fit2 === 0) return { fits: false, rollMeters: 0, pagesAcross: 0, feedPerRow: 0, strategy: 'none' };
+  if (len1 <= len2 && fit1 > 0) return { fits: true, rollMeters: len1, pagesAcross: fit1, feedPerRow: h, strategy: `${w}мм поперёк, ${h}мм вдоль` };
+  return { fits: true, rollMeters: len2, pagesAcross: fit2, feedPerRow: w, strategy: `${h}мм поперёк, ${w}мм вдоль` };
+}
+
+function updateRollCalculations() {
+  const rollWidths = [600, 297]; const formatMap = {};
+  allFilesData.forEach(file => { Object.entries(file.formats).forEach(([fn, data]) => { const key = `${fn}_${data.width}_${data.height}`; if (!formatMap[key]) formatMap[key] = { name: fn, width: data.width, height: data.height, count: 0 }; formatMap[key].count += data.count; }); });
+  const formats = Object.values(formatMap); const rc = document.getElementById('rollCards'); rc.innerHTML = '';
+  rollWidths.forEach(rw => { let tr = 0, tp = 0, af = true; formats.forEach(f => { const c = calculateRollMeters(f.width, f.height, f.count, rw); if (c.fits) { tr += c.rollMeters; tp += f.count; } else af = false; });
+    const rm = Math.ceil(tr * 10) / 10; const card = document.createElement('div'); card.className = 'roll-card';
+    card.innerHTML = `<div class="roll-card-header"><div class="roll-card-title">🧻 Рулон</div><div class="roll-card-width">${rw} мм</div></div><div class="roll-card-value">${rm.toFixed(1)} м</div><div class="roll-card-label">Погонных метров рулона</div><div class="roll-detail-row"><span class="roll-detail-key">Всего страниц</span><span class="roll-detail-val">${tp}</span></div><div class="roll-detail-row"><span class="roll-detail-key">Форматов</span><span class="roll-detail-val">${formats.length}</span></div>${!af ? '<div class="roll-detail-row"><span class="roll-detail-key" style="color:var(--warn)">⚠️ Не все форматы помещаются</span><span class="roll-detail-val"></span></div>' : ''}`;
+    rc.appendChild(card);
+  });
+  const tbody = document.getElementById('rollDetailBody'); tbody.innerHTML = ''; let t600 = 0, t297 = 0;
+  formats.forEach(fmt => { const c6 = calculateRollMeters(fmt.width, fmt.height, fmt.count, 600); const c2 = calculateRollMeters(fmt.width, fmt.height, fmt.count, 297);
+    let s6, s2;
+    if (c6.fits) { const r = Math.ceil(c6.rollMeters * 10) / 10; t600 += c6.rollMeters; s6 = `${r.toFixed(1)} м <span style="font-size:9px;color:var(--t3)">(${c6.pagesAcross} в ряд)</span>`; } else s6 = '<span style="color:var(--warn)">⚠️</span>';
+    if (c2.fits) { const r = Math.ceil(c2.rollMeters * 10) / 10; t297 += c2.rollMeters; s2 = `${r.toFixed(1)} м <span style="font-size:9px;color:var(--t3)">(${c2.pagesAcross} в ряд)</span>`; } else s2 = '<span style="color:var(--warn)">⚠️</span>';
+    const row = tbody.insertRow(); row.innerHTML = `<td><span class="format-badge">${fmt.name}</span></td><td>${fmt.count}</td><td>${fmt.width} × ${fmt.height} мм</td><td>${s6}</td><td>${s2}</td>`;
+  });
+  document.getElementById('rollTotal600').textContent = (Math.ceil(t600 * 10) / 10).toFixed(1) + ' м';
+  document.getElementById('rollTotal297').textContent = (Math.ceil(t297 * 10) / 10).toFixed(1) + ' м';
+}
+
+function filterColorPages() { updateColorTable(); }
+
+// Collapsible
+document.getElementById('detailCollapseHeader').addEventListener('click', function() { this.classList.toggle('open'); document.getElementById('detailCollapseBody').classList.toggle('open'); });
+
+function updateDetailCollapse() {
+  const container = document.getElementById('detailCollapseInner'); const metaEl = document.getElementById('detailCollapseMeta'); const collapseEl = document.getElementById('detailCollapse');
+  const allPages = []; allFilesData.forEach(file => { file.pages.forEach(page => { const src = file.type === 'Image' ? `Файл ${file.name}` : `${file.name} → Стр. ${page.pageNum}`;
+    allPages.push({ source: src, pageType: page.pageType, fillPercentage: parseFloat(page.fillPercentage || 0), isColor: page.pageType === 'color' }); }); });
+  if (allPages.length === 0) { collapseEl.style.display = 'none'; return; } collapseEl.style.display = 'block';
+  const colorPages = allPages.filter(p => p.isColor), bwPages = allPages.filter(p => !p.isColor);
+  metaEl.innerHTML = `<span class="detail-collapse-badge clr">🎨 Цвет: ${colorPages.length}</span><span class="detail-collapse-badge bw">⬛ Ч/Б: ${bwPages.length}</span>`;
+  let html = '';
+  if (colorPages.length > 0) { html += `<div class="detail-group"><div class="detail-group-header"><div class="detail-group-title clr">🎨 Цветные (${colorPages.length})</div></div><div class="detail-items">`;
+    colorPages.forEach(p => { const fc = p.fillPercentage >= 50 ? 'high' : 'clr'; html += `<div class="detail-item"><div class="detail-item-source">${escapeHtml(p.source)}</div><div class="detail-item-type"><span class="page-type color">Цвет</span></div><div class="detail-item-fill"><div class="detail-fill-bar"><div class="detail-fill-bar-inner ${fc}" style="width:${Math.min(p.fillPercentage,100)}%"></div></div><div class="detail-fill-val">${p.fillPercentage.toFixed(2)}%</div></div></div>`; });
+    html += `</div></div>`; }
+  if (bwPages.length > 0) { html += `<div class="detail-group"><div class="detail-group-header"><div class="detail-group-title bw">⬛ Ч/Б (${bwPages.length})</div></div><div class="detail-items">`;
+    bwPages.forEach(p => { const fc = p.fillPercentage >= 50 ? 'high' : 'bw'; html += `<div class="detail-item"><div class="detail-item-source">${escapeHtml(p.source)}</div><div class="detail-item-type"><span class="page-type bw">Ч/Б</span></div><div class="detail-item-fill"><div class="detail-fill-bar"><div class="detail-fill-bar-inner ${fc}" style="width:${Math.min(p.fillPercentage,100)}%"></div></div><div class="detail-fill-val">${p.fillPercentage.toFixed(2)}%</div></div></div>`; });
+    html += `</div></div>`; }
+  container.innerHTML = html;
+}
+
+function escapeHtml(str) { const div = document.createElement('div'); div.textContent = str; return div.innerHTML; }
+
+function reanalyzeColors() {
+  if (allFilesData.length === 0) return;
+  const threshold = parseFloat(document.getElementById('colorThreshold').value);
+  allFilesData.forEach(file => { file.pages.forEach(page => { const cp = parseFloat(page.colorPercentage), gp = parseFloat(page.grayPercentage);
+    if (cp > threshold) page.pageType = 'color'; else if (gp > 0.5) page.pageType = 'gray'; else page.pageType = 'bw'; }); });
+  displayResults();
+}
+
+// ===== DOC CONVERTER =====
+document.getElementById('convertBtn').addEventListener('click', startDocConversion);
+document.getElementById('downloadAllBtn').addEventListener('click', downloadAllAsZip);
+document.getElementById('outputFormat').addEventListener('change', function() { document.getElementById('qualityContainer').style.display = this.value === 'png' ? 'none' : 'flex'; });
+document.getElementById('pdfSelector').addEventListener('change', function() {
+  const si = this.value; const ft = document.getElementById('selectedFileType'); const fi = document.getElementById('formatInfo'); const fit = document.getElementById('formatInfoText'); const sc = document.getElementById('scaleContainer');
+  if (si === '') { ft.style.display = 'none'; fi.style.display = 'none'; return; }
+  const fd = allFilesData[si]; ft.textContent = fd.type; ft.style.display = 'inline-block'; ft.className = 'file-type-badge file-status ' + fd.type.toLowerCase();
+  const msgs = {'PDF':'PDF файлы конвертируются с точным сохранением макета.','Word':'DOCX файлы конвертируются через HTML.','Excel':'Каждый лист → отдельное изображение.','Image':'Изображение будет преобразовано в выбранный формат.'};
+  if (msgs[fd.type]) { fit.textContent = msgs[fd.type]; fi.style.display = 'block'; } else fi.style.display = 'none';
+  sc.style.display = fd.type === 'Image' ? 'none' : 'flex';
+});
+
+function updatePdfSelector() {
+  const sel = document.getElementById('pdfSelector'); sel.innerHTML = '<option value="">— Выберите файл —</option>';
+  const ok = ['PDF', 'Word', 'Excel', 'Image'];
+  allFilesData.forEach((file, i) => { if (ok.includes(file.type)) { const o = document.createElement('option'); o.value = i; o.textContent = `${file.name} (${file.type})`; sel.appendChild(o); } });
+  document.getElementById('selectedFileType').style.display = 'none'; document.getElementById('formatInfo').style.display = 'none';
+}
+
+async function startDocConversion() {
+  const si = document.getElementById('pdfSelector').value; if (si === '') { alert('Выберите файл'); return; }
+  const fd = allFilesData[si]; convertedImages = []; document.getElementById('convertedImages').innerHTML = '';
+  document.getElementById('downloadAllBtn').style.display = 'none'; document.getElementById('conversionProgress').style.display = 'block';
+  const of = document.getElementById('outputFormat').value; const q = parseFloat(document.getElementById('jpegQuality').value) / 100;
+  const s = parseFloat(document.getElementById('scaleSelector').value); const ext = of === 'png' ? 'png' : 'jpg';
+  try {
+    switch (fd.type) {
+      case 'PDF': await convertPDF(fd, of, q, s, ext); break;
+      case 'Word': await convertDOCX(fd, of, q, s, ext); break;
+      case 'Excel': await convertXLSX(fd, of, q, s, ext); break;
+      case 'Image': await convertImageDoc(fd, of, q, ext); break;
+    }
+    if (convertedImages.length > 0) document.getElementById('downloadAllBtn').style.display = 'inline-flex';
+    document.getElementById('conversionProgress').style.display = 'none';
+  } catch (error) { console.error('Ошибка:', error); alert('Ошибка: ' + error.message); document.getElementById('conversionProgress').style.display = 'none'; }
+}
+
+async function convertPDF(fd, of, q, s, ext) {
+  const d = pdfFilesMap.get(fd.name); if (!d) throw new Error('PDF не найден');
+  const pdf = await pdfjsLib.getDocument({ data: d }).promise; const n = pdf.numPages; document.getElementById('totalPageNum').textContent = n;
+  for (let p = 1; p <= n; p++) { document.getElementById('currentPageNum').textContent = p; updateConversionProgress(p, n);
+    const page = await pdf.getPage(p); const vp = page.getViewport({ scale: s }); const c = document.createElement('canvas'); const ctx = c.getContext('2d'); c.width = vp.width; c.height = vp.height;
+    await page.render({ canvasContext: ctx, viewport: vp }).promise;
+    const du = canvasToDataUrl(c, of, q); saveConvertedImage(du, p, `${fd.name.replace('.pdf','')}_page_${p}.${ext}`, of, ext); }
+}
+async function convertDOCX(fd, of, q, s, ext) {
+  const d = docxFilesMap.get(fd.name); if (!d) throw new Error('DOCX не найден');
+  document.getElementById('totalPageNum').textContent = '1'; document.getElementById('currentPageNum').textContent = '1'; updateConversionProgress(1, 1);
+  const rc = document.getElementById('render-container');
+  rc.innerHTML = `<div style="width:${Math.round(794*s)}px;min-height:${Math.round(1123*s)}px;padding:${Math.round(40*s)}px;background:white;font-family:'Open Sans',Arial,sans-serif;font-size:${Math.round(12*s)}px;line-height:1.6;color:#333">${d.html}</div>`;
+  await new Promise(r => setTimeout(r, 100));
+  const canvas = await html2canvas(rc, { scale: 1, useCORS: true, backgroundColor: '#ffffff' });
+  const du = canvasToDataUrl(canvas, of, q); saveConvertedImage(du, 1, `${fd.name.replace(/\.(docx|doc)$/i,'')}_page_1.${ext}`, of, ext); rc.innerHTML = '';
+}
+async function convertXLSX(fd, of, q, s, ext) {
+  const d = xlsxFilesMap.get(fd.name); if (!d) throw new Error('Excel не найден');
+  const sheets = d.sheets; document.getElementById('totalPageNum').textContent = sheets.length;
+  for (let i = 0; i < sheets.length; i++) { const sh = sheets[i]; document.getElementById('currentPageNum').textContent = i + 1; updateConversionProgress(i + 1, sheets.length);
+    const rc = document.getElementById('render-container');
+    rc.innerHTML = `<div style="width:${Math.round(1123*s)}px;min-height:${Math.round(794*s)}px;padding:${Math.round(30*s)}px;background:white;font-family:'Open Sans',Arial,sans-serif;font-size:${Math.round(11*s)}px"><h3 style="margin-bottom:15px;color:#333">📊 ${sh.name}</h3>${sh.html}</div>`;
+    await new Promise(r => setTimeout(r, 100));
+    const canvas = await html2canvas(rc, { scale: 1, useCORS: true, backgroundColor: '#ffffff' });
+    const du = canvasToDataUrl(canvas, of, q); const bn = fd.name.replace(/\.(xlsx|xls|csv)$/i, '');
+    saveConvertedImage(du, i + 1, `${bn}_${sh.name.replace(/[^a-zA-Z0-9а-яА-Я]/g,'_')}.${ext}`, of, ext, sh.name); rc.innerHTML = ''; }
+}
+async function convertImageDoc(fd, of, q, ext) {
+  const d = imageFilesMap.get(fd.name); if (!d) throw new Error('Изображение не найдено');
+  document.getElementById('totalPageNum').textContent = '1'; document.getElementById('currentPageNum').textContent = '1'; updateConversionProgress(1, 1);
+  return new Promise((resolve, reject) => { const img = new Image(); img.onload = function() {
+    const c = document.createElement('canvas'); const ctx = c.getContext('2d'); c.width = img.width; c.height = img.height; ctx.drawImage(img, 0, 0);
+    const du = canvasToDataUrl(c, of, q); saveConvertedImage(du, 1, `${fd.name.replace(/\.(jpg|jpeg|png|gif|webp|tiff|tif)$/i,'')}_converted.${ext}`, of, ext); resolve();
+  }; img.onerror = () => reject(new Error('Ошибка загрузки')); img.src = d.url; });
+}
+function canvasToDataUrl(c, of, q) { return of === 'png' ? c.toDataURL('image/png') : c.toDataURL('image/jpeg', q); }
+function updateConversionProgress(cur, tot) { document.getElementById('conversionProgressFill').style.width = ((cur / tot) * 100) + '%'; }
+function saveConvertedImage(du, pn, fn, fmt, ext, sn = null) { convertedImages.push({ dataUrl: du, pageNum: pn, fileName: fn, format: fmt, sheetName: sn }); displayConvertedImage(du, pn, fn, ext, sn); }
+function displayConvertedImage(du, pn, fn, ext, sn = null) {
+  const c = document.getElementById('convertedImages'); const card = document.createElement('div'); card.className = 'img-card';
+  const img = document.createElement('img'); img.src = du;
+  const lbl = document.createElement('div'); lbl.className = 'img-card-label'; lbl.textContent = sn ? `${sn} (${ext.toUpperCase()})` : `Страница ${pn} (${ext.toUpperCase()})`;
+  const btn = document.createElement('button'); btn.className = 'btn btn-s'; btn.style.cssText = 'width:100%;justify-content:center;font-size:11px'; btn.textContent = '💾 Скачать';
+  btn.onclick = () => { const a = document.createElement('a'); a.href = du; a.download = fn; a.click(); };
+  card.appendChild(img); card.appendChild(lbl); card.appendChild(btn); c.appendChild(card);
+}
+async function downloadAllAsZip() {
+  if (convertedImages.length === 0) return; const zip = new JSZip(); const fmt = convertedImages[0].format || 'jpeg';
+  const folder = zip.folder(fmt === 'png' ? 'png_pages' : 'jpeg_pages');
+  convertedImages.forEach(img => { folder.file(img.fileName, img.dataUrl.split(',')[1], { base64: true }); });
+  const blob = await zip.generateAsync({ type: 'blob' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob);
+  link.download = `converted_${fmt}.zip`; link.click(); URL.revokeObjectURL(link.href);
+}
+
+
+// =============================================
+// SECTION 2: PHOTO CONVERTER (from Blender)
+// =============================================
+const PAPER = { A6:{w:105,h:148}, A5:{w:148,h:210}, A4:{w:210,h:297}, A3:{w:297,h:420} };
+const PHOTO_DPI = 300, MM2IN = 25.4;
+function mm2px(mm) { return Math.round((mm / MM2IN) * PHOTO_DPI); }
+
+let photoFiles = [];
+let photoOrientation = 'auto';
+
+const photoDropzone = document.getElementById('photoDropzone');
+const photoFileInput = document.getElementById('photoFileInput');
+const photoTileGrid = document.getElementById('photoTileGrid');
+const photoCountText = document.getElementById('photoCountText');
+const photoFileCount = document.getElementById('photoFileCount');
+const photoBtnClear = document.getElementById('photoBtnClear');
+const photoBtnConvert = document.getElementById('photoBtnConvert');
+const photoQuality = document.getElementById('photoQuality');
+const photoQualityVal = document.getElementById('photoQualityVal');
+const photoCropFormat = document.getElementById('photoCropFormat');
+const photoOrientWrap = document.getElementById('photoOrientWrap');
+const photoFitCheck = document.getElementById('photoFitCheck');
+const photoFitRow = document.getElementById('photoFitRow');
+const photoProgressWrap = document.getElementById('photoProgressWrap');
+const photoProgressFill = document.getElementById('photoProgressFill');
+const photoProgressLabel = document.getElementById('photoProgressLabel');
+const photoProgressPercent = document.getElementById('photoProgressPercent');
+const photoSettingsPanel = document.getElementById('photoSettingsPanel');
+const photoCropOverlay = document.getElementById('photoCropOverlay');
+const photoCropCanvas = document.getElementById('photoCropCanvas');
+const photoCropCanvasWrap = document.getElementById('photoCropCanvasWrap');
+const photoCropClose = document.getElementById('photoCropClose');
+const photoCropReset = document.getElementById('photoCropReset');
+const photoCropApply = document.getElementById('photoCropApply');
+const photoCropTitle = document.getElementById('photoCropTitle');
+
+// Events
+photoDropzone.addEventListener('click', () => photoFileInput.click());
+photoDropzone.addEventListener('dragover', e => { e.preventDefault(); photoDropzone.classList.add('dragover'); });
+photoDropzone.addEventListener('dragleave', () => photoDropzone.classList.remove('dragover'));
+photoDropzone.addEventListener('drop', e => { e.preventDefault(); photoDropzone.classList.remove('dragover'); photoAddFiles(e.dataTransfer.files); });
+photoFileInput.addEventListener('change', e => { photoAddFiles(e.target.files); photoFileInput.value = ''; });
+photoBtnClear.addEventListener('click', photoClearFiles);
+photoBtnConvert.addEventListener('click', photoStartConversion);
+photoQuality.addEventListener('input', () => { photoQualityVal.textContent = photoQuality.value + '%'; });
+photoCropFormat.addEventListener('change', () => {
+  const h = photoCropFormat.value !== 'none';
+  photoOrientWrap.style.display = h ? '' : 'none';
+  photoFitRow.style.display = h ? 'flex' : 'none';
+  photoFiles.forEach(f => { f.cropOffset = null; }); photoRenderTiles();
+});
+photoFitCheck.addEventListener('change', () => { photoFiles.forEach(f => { f.cropOffset = null; }); photoRenderTiles(); });
+document.querySelectorAll('.photo-orient-btn').forEach(btn => {
+  btn.addEventListener('click', () => { document.querySelectorAll('.photo-orient-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); photoOrientation = btn.dataset.orient; photoFiles.forEach(f => { f.cropOffset = null; }); photoRenderTiles(); });
+});
+
+function isHeicFile(f) { const e = f.name.split('.').pop().toLowerCase(); return e === 'heic' || e === 'heif'; }
+async function waitForLibheif(ms = 25000) { if (libheifReady) return true; const t = Date.now(); while (Date.now() - t < ms) { if (libheifReady) return true; await new Promise(r => setTimeout(r, 200)); } return false; }
+
+async function decodeHeicToImage(file) {
+  if (!await waitForLibheif(25000)) throw new Error('HEIC декодер не загружен');
+  const buf = await file.arrayBuffer(); const u8 = new Uint8Array(buf);
+  const dec = new libheifModule.HeifDecoder(); const imgs = dec.decode(u8);
+  if (!imgs || !imgs.length) throw new Error('Нет изображений в файле');
+  const img = imgs[0], w = img.get_width(), h = img.get_height();
+  if (!w || !h) throw new Error('Нулевые размеры');
+  const rgba = await new Promise((res, rej) => { img.display({ data: new Uint8ClampedArray(w * h * 4), width: w, height: h }, d => { if (!d) { rej(new Error('display() failed')); return; } res(d); }); });
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  c.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(rgba.data.buffer, rgba.data.byteOffset, rgba.data.byteLength), w, h), 0, 0);
+  const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.97));
+  const url = URL.createObjectURL(blob);
+  return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('decode failed')); i.src = url; });
+}
+
+function photoAddFiles(nf) {
+  const validExts = ['jpg','jpeg','png','heic','heif','tiff','tif','webp','bmp','gif','pdf'];
+  for (const f of nf) { const ext = f.name.split('.').pop().toLowerCase(); if (!validExts.includes(ext)) continue; if (photoFiles.find(x => x.file.name === f.name && x.file.size === f.size)) continue;
+    photoFiles.push({ file: f, status: 'pending', thumb: null, imgEl: null, cropOffset: null, isPdf: ext === 'pdf' }); }
+  photoRenderTiles();
+  photoBtnConvert.disabled = photoFiles.length === 0;
+  photoSettingsPanel.style.display = photoFiles.length > 0 ? '' : 'none';
+  photoUpdatePdfScaleVisibility();
+}
+function photoUpdatePdfScaleVisibility() {
+  const hasPdf = photoFiles.some(f => f.isPdf);
+  document.getElementById('photoPdfScaleWrap').style.display = hasPdf ? '' : 'none';
+}
+function photoClearFiles() { photoFiles.forEach(f => { if (f.thumb) URL.revokeObjectURL(f.thumb); }); photoFiles = []; photoRenderTiles(); photoBtnConvert.disabled = true; photoSettingsPanel.style.display = 'none'; photoUpdatePdfScaleVisibility(); document.getElementById('photoConvertedGrid').innerHTML = ''; }
+function photoRemoveFile(i) { if (photoFiles[i].thumb) URL.revokeObjectURL(photoFiles[i].thumb); photoFiles.splice(i, 1); photoRenderTiles(); photoBtnConvert.disabled = photoFiles.length === 0; if (photoFiles.length === 0) photoSettingsPanel.style.display = 'none'; photoUpdatePdfScaleVisibility(); }
+
+function photoRenderTiles() {
+  photoTileGrid.innerHTML = ''; const hasCrop = photoCropFormat.value !== 'none';
+  photoFiles.forEach((f, i) => {
+    const tile = document.createElement('div'); tile.className = 'photo-tile';
+    if (f.thumb) { const img = document.createElement('img'); img.src = f.thumb; tile.appendChild(img); }
+    else if (f.isPdf) { const ph = document.createElement('div'); ph.style.cssText = 'width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:2rem;background:var(--bg3)'; ph.textContent = '📄'; tile.appendChild(ph); }
+    const ov = document.createElement('div'); ov.className = 'photo-tile-overlay';
+    const nm = document.createElement('div'); nm.className = 'photo-tile-name'; nm.textContent = f.file.name; ov.appendChild(nm);
+    const sm = { pending: 'Ожидание', done: 'Готово', error: 'Ошибка', processing: 'Обработка...', converting: 'Декодирование...' };
+    const statusTxt = f.isPdf ? (f.status === 'pending' ? 'PDF' : sm[f.status] || '') : (f.cropOffset ? '✓ кадрировано' : (sm[f.status] || ''));
+    const st = document.createElement('div'); st.className = 'photo-tile-status ' + (f.cropOffset ? 'done' : f.status); st.textContent = statusTxt; ov.appendChild(st);
+    tile.appendChild(ov);
+    const rm = document.createElement('button'); rm.className = 'photo-tile-remove'; rm.textContent = '×'; rm.onclick = e => { e.stopPropagation(); photoRemoveFile(i); }; tile.appendChild(rm);
+    if (hasCrop && !photoFitCheck.checked && !f.isPdf) { const cb = document.createElement('button'); cb.className = 'photo-tile-crop-btn' + (f.cropOffset ? ' has-crop' : ''); cb.textContent = f.cropOffset ? '✓' : '✎';
+      cb.onclick = e => { e.stopPropagation(); openPhotoCropModal(i); }; tile.appendChild(cb); tile.style.cursor = 'pointer'; tile.addEventListener('click', () => openPhotoCropModal(i)); }
+    photoTileGrid.appendChild(tile);
+    if (!f.thumb && !f.isPdf) photoGenerateThumb(f, i);
+    else if (f.isPdf && !f.thumb) photoGeneratePdfThumb(f, i);
+  });
+  const has = photoFiles.length > 0; photoFileCount.style.display = has ? 'flex' : 'none';
+  if (has) photoCountText.textContent = `${photoFiles.length} ${photoDeclension(photoFiles.length, 'файл', 'файла', 'файлов')}`;
+}
+
+function photoDeclension(n, a, b, c) { const x = Math.abs(n) % 100, y = x % 10; if (x > 10 && x < 20) return c; if (y > 1 && y < 5) return b; if (y === 1) return a; return c; }
+
+async function photoGenerateThumb(entry, index) {
+  try {
+    if (isHeicFile(entry.file)) { entry.status = 'converting'; photoUpdateTileStatus(index, 'converting', 'Декодирование...');
+      try { const img = await decodeHeicToImage(entry.file); entry.thumb = img.src; entry.imgEl = img; entry.status = 'pending'; }
+      catch (e) { entry.status = 'error'; photoUpdateTileStatus(index, 'error', e.message || 'Ошибка HEIC'); return; }
+    } else { const url = URL.createObjectURL(entry.file); entry.thumb = url; const img = new Image(); img.onload = () => { entry.imgEl = img; }; img.onerror = () => { entry.status = 'error'; photoUpdateTileStatus(index, 'error', 'Ошибка'); }; img.src = url; }
+    const tiles = photoTileGrid.querySelectorAll('.photo-tile');
+    if (tiles[index]) { let ex = tiles[index].querySelector('img'); if (!ex) { ex = document.createElement('img'); tiles[index].insertBefore(ex, tiles[index].firstChild); } ex.src = entry.thumb; photoUpdateTileStatus(index, 'pending', 'Ожидание'); }
+  } catch (e) { entry.status = 'error'; photoUpdateTileStatus(index, 'error', 'Ошибка'); }
+}
+function photoUpdateTileStatus(i, cls, txt) { const tiles = photoTileGrid.querySelectorAll('.photo-tile'); if (tiles[i]) { const el = tiles[i].querySelector('.photo-tile-status'); if (el) { el.className = 'photo-tile-status ' + cls; el.textContent = txt; } } }
+
+async function photoGeneratePdfThumb(entry, index) {
+  try {
+    const arrayBuffer = await entry.file.arrayBuffer();
+    entry.pdfData = arrayBuffer.slice(0);
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    entry.pdfPageCount = pdf.numPages;
+    const page = await pdf.getPage(1);
+    const vp = page.getViewport({ scale: 0.3 });
+    const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
+    const ctx = c.getContext('2d'); await page.render({ canvasContext: ctx, viewport: vp }).promise;
+    entry.thumb = c.toDataURL('image/jpeg', 0.6);
+    entry.status = 'pending';
+    const tiles = photoTileGrid.querySelectorAll('.photo-tile');
+    if (tiles[index]) { let ex = tiles[index].querySelector('img'); if (!ex) { ex = document.createElement('img'); const ph = tiles[index].querySelector('div[style]'); if (ph && ph.textContent === '📄') tiles[index].removeChild(ph); tiles[index].insertBefore(ex, tiles[index].firstChild); } ex.src = entry.thumb;
+      photoUpdateTileStatus(index, 'pending', `PDF · ${pdf.numPages} стр.`); }
+  } catch (e) { entry.status = 'error'; photoUpdateTileStatus(index, 'error', 'Ошибка PDF'); console.error('[PDF Thumb]', e); }
+}
+
+// CROP MODAL
+let photoCropState = { idx: -1, img: null, offsetX: 0, offsetY: 0, startX: 0, startY: 0, _scale: 1, _baseOffX: 0, _baseOffY: 0 };
+function photoGetCropTarget(iw, ih) {
+  const f = photoCropFormat.value; if (f === 'none') return null; const p = PAPER[f]; let pw = mm2px(p.w), ph = mm2px(p.h);
+  if (photoOrientation === 'landscape') [pw, ph] = [Math.max(pw, ph), Math.min(pw, ph)];
+  else if (photoOrientation === 'portrait') [pw, ph] = [Math.min(pw, ph), Math.max(pw, ph)];
+  else { if (iw > ih) [pw, ph] = [Math.max(pw, ph), Math.min(pw, ph)]; else [pw, ph] = [Math.min(pw, ph), Math.max(pw, ph)]; }
+  return { tw: pw, th: ph };
+}
+function openPhotoCropModal(idx) {
+  const e = photoFiles[idx]; if (!e.imgEl) { showToast('Изображение ещё загружается...', true); return; }
+  const t = photoGetCropTarget(e.imgEl.naturalWidth, e.imgEl.naturalHeight); if (!t) return;
+  photoCropState.idx = idx; photoCropState.img = e.imgEl;
+  photoCropState.offsetX = e.cropOffset ? e.cropOffset.x : 0; photoCropState.offsetY = e.cropOffset ? e.cropOffset.y : 0;
+  photoCropTitle.textContent = `Кадрирование — ${e.file.name}`;
+  photoCropCanvasWrap.style.cursor = photoFitCheck.checked ? 'default' : 'grab';
+  photoCropOverlay.classList.add('open'); drawPhotoCrop();
+}
+function closePhotoCropModal() { photoCropOverlay.classList.remove('open'); photoCropState.idx = -1; }
+photoCropClose.addEventListener('click', closePhotoCropModal);
+photoCropOverlay.addEventListener('click', e => { if (e.target === photoCropOverlay) closePhotoCropModal(); });
+photoCropReset.addEventListener('click', () => { photoCropState.offsetX = 0; photoCropState.offsetY = 0; if (photoCropState.idx >= 0) photoFiles[photoCropState.idx].cropOffset = null; drawPhotoCrop(); photoRenderTiles(); });
+photoCropApply.addEventListener('click', () => { if (photoCropState.idx >= 0) photoFiles[photoCropState.idx].cropOffset = { x: photoCropState.offsetX, y: photoCropState.offsetY }; closePhotoCropModal(); photoRenderTiles(); });
+
+function photoClamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+function drawPhotoCrop() {
+  const img = photoCropState.img; if (!img) return; const t = photoGetCropTarget(img.naturalWidth, img.naturalHeight); if (!t) return;
+  const isFit = photoFitCheck.checked, wW = photoCropCanvasWrap.clientWidth - 40, wH = photoCropCanvasWrap.clientHeight - 40;
+  if (isFit) { const s = Math.min(wW / t.tw, wH / t.th, 1), cw = Math.round(t.tw * s), ch = Math.round(t.th * s); photoCropCanvas.width = cw; photoCropCanvas.height = ch;
+    const ctx = photoCropCanvas.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cw, ch);
+    const fs = Math.min(cw / img.naturalWidth, ch / img.naturalHeight), dw = img.naturalWidth * fs, dh = img.naturalHeight * fs;
+    ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, (cw - dw) / 2, (ch - dh) / 2, dw, dh);
+    ctx.strokeStyle = 'rgba(233,69,96,0.6)'; ctx.lineWidth = 2; ctx.strokeRect(1, 1, cw - 2, ch - 2); return; }
+  const sc = Math.min(wW / img.naturalWidth, wH / img.naturalHeight, 1), cs = Math.max(t.tw / img.naturalWidth, t.th / img.naturalHeight), sW = t.tw / cs, sH = t.th / cs;
+  photoCropCanvas.width = Math.round(sW * sc); photoCropCanvas.height = Math.round(sH * sc);
+  const ctx = photoCropCanvas.getContext('2d');
+  const mX = (img.naturalWidth - sW) / 2, mY = (img.naturalHeight - sH) / 2;
+  photoCropState.offsetX = photoClamp(photoCropState.offsetX, -mX, mX); photoCropState.offsetY = photoClamp(photoCropState.offsetY, -mY, mY);
+  ctx.clearRect(0, 0, photoCropCanvas.width, photoCropCanvas.height);
+  ctx.drawImage(img, (img.naturalWidth - sW) / 2 + photoCropState.offsetX, (img.naturalHeight - sH) / 2 + photoCropState.offsetY, sW, sH, 0, 0, photoCropCanvas.width, photoCropCanvas.height);
+  ctx.strokeStyle = 'rgba(233,69,96,0.6)'; ctx.lineWidth = 2; ctx.strokeRect(1, 1, photoCropCanvas.width - 2, photoCropCanvas.height - 2);
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1;
+  for (let i = 1; i < 3; i++) { const x = (photoCropCanvas.width / 3) * i, y = (photoCropCanvas.height / 3) * i; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, photoCropCanvas.height); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(photoCropCanvas.width, y); ctx.stroke(); }
+  photoCropState._scale = sc;
+}
+
+let photoPointerDown = false;
+photoCropCanvasWrap.addEventListener('pointerdown', e => { if (photoCropState.idx < 0 || photoFitCheck.checked) return; photoPointerDown = true; photoCropState.startX = e.clientX; photoCropState.startY = e.clientY; photoCropState._baseOffX = photoCropState.offsetX; photoCropState._baseOffY = photoCropState.offsetY; photoCropCanvasWrap.setPointerCapture(e.pointerId); });
+photoCropCanvasWrap.addEventListener('pointermove', e => { if (!photoPointerDown || photoCropState.idx < 0) return; photoCropState.offsetX = photoCropState._baseOffX - (e.clientX - photoCropState.startX) / photoCropState._scale; photoCropState.offsetY = photoCropState._baseOffY - (e.clientY - photoCropState.startY) / photoCropState._scale; drawPhotoCrop(); });
+photoCropCanvasWrap.addEventListener('pointerup', () => { photoPointerDown = false; });
+photoCropCanvasWrap.addEventListener('pointercancel', () => { photoPointerDown = false; });
+window.addEventListener('resize', () => { if (photoCropState.idx >= 0) drawPhotoCrop(); });
+
+// PHOTO EXPORT
+async function photoLoadImage(file) {
+  if (isHeicFile(file)) return await decodeHeicToImage(file);
+  return new Promise((r, j) => { const i = new Image(); i.onload = () => r(i); i.onerror = () => j(new Error('Ошибка: ' + file.name)); i.src = URL.createObjectURL(file); });
+}
+function photoProcessImage(img, quality, cropOffset) {
+  const fmt = photoCropFormat.value, isFit = photoFitCheck.checked; let tW, tH;
+  if (fmt !== 'none') { const p = PAPER[fmt]; let pw = mm2px(p.w), ph = mm2px(p.h);
+    if (photoOrientation === 'landscape') [pw, ph] = [Math.max(pw, ph), Math.min(pw, ph)];
+    else if (photoOrientation === 'portrait') [pw, ph] = [Math.min(pw, ph), Math.max(pw, ph)];
+    else { if (img.naturalWidth > img.naturalHeight) [pw, ph] = [Math.max(pw, ph), Math.min(pw, ph)]; else [pw, ph] = [Math.min(pw, ph), Math.max(pw, ph)]; }
+    tW = pw; tH = ph;
+  } else { tW = img.naturalWidth; tH = img.naturalHeight; }
+  const c = document.createElement('canvas'); c.width = tW; c.height = tH; const ctx = c.getContext('2d', { colorSpace: 'srgb' }); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, tW, tH);
+  if (fmt !== 'none') {
+    if (isFit) { const s = Math.min(tW / img.naturalWidth, tH / img.naturalHeight), dw = img.naturalWidth * s, dh = img.naturalHeight * s; ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, (tW - dw) / 2, (tH - dh) / 2, dw, dh); }
+    else { const s = Math.max(tW / img.naturalWidth, tH / img.naturalHeight), sw = tW / s, sh = tH / s;
+      let ox = cropOffset ? cropOffset.x : 0, oy = cropOffset ? cropOffset.y : 0;
+      ox = photoClamp(ox, -(img.naturalWidth - sw) / 2, (img.naturalWidth - sw) / 2); oy = photoClamp(oy, -(img.naturalHeight - sh) / 2, (img.naturalHeight - sh) / 2);
+      ctx.drawImage(img, (img.naturalWidth - sw) / 2 + ox, (img.naturalHeight - sh) / 2 + oy, sw, sh, 0, 0, tW, tH); }
+  } else { ctx.drawImage(img, 0, 0); }
+  return new Promise(r => { c.toBlob(b => r(b), 'image/jpeg', quality / 100); });
+}
+
+async function photoStartConversion() {
+  if (!photoFiles.length) return;
+  if (photoFiles.some(f => isHeicFile(f.file)) && !libheifReady) { showToast('HEIC декодер не загружен!', true); return; }
+  photoBtnConvert.disabled = true; photoProgressWrap.classList.add('visible'); photoProgressFill.style.width = '0%'; photoProgressPercent.textContent = '0%';
+
+  const q = parseInt(photoQuality.value);
+  const pdfScale = parseFloat(document.getElementById('photoPdfScale').value);
+  const zip = new JSZip(), folder = zip.folder('photoBlender_sRGB');
+  let done = 0, errs = 0;
+  const photoConvertedResults = [];
+  const photoConvertedGrid = document.getElementById('photoConvertedGrid');
+  photoConvertedGrid.innerHTML = '';
+
+  // Count total items (PDFs may have multiple pages)
+  let totalItems = 0;
+  for (const e of photoFiles) { totalItems += (e.isPdf && e.pdfPageCount) ? e.pdfPageCount : 1; }
+  let processedItems = 0;
+
+  for (let i = 0; i < photoFiles.length; i++) {
+    const e = photoFiles[i]; e.status = 'processing'; photoRenderTiles();
+
+    if (e.isPdf) {
+      // PDF: render each page
+      photoProgressLabel.textContent = `Рендеринг PDF: ${e.file.name}`;
+      try {
+        const pdfData = e.pdfData || await e.file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
+        const numPages = pdf.numPages;
+        for (let p = 1; p <= numPages; p++) {
+          photoProgressLabel.textContent = `PDF ${e.file.name}: стр. ${p}/${numPages}`;
+          const page = await pdf.getPage(p);
+          const vp = page.getViewport({ scale: pdfScale });
+          const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
+          const ctx = c.getContext('2d'); await page.render({ canvasContext: ctx, viewport: vp }).promise;
+          const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', q / 100));
+          const fileName = `${e.file.name.replace(/\.pdf$/i, '')}_page_${p}.jpg`;
+          folder.file(fileName, blob);
+          const url = URL.createObjectURL(blob);
+          photoConvertedResults.push({ url, fileName, blob });
+          photoDisplayConvertedPhoto(url, fileName, photoConvertedGrid);
+          processedItems++;
+          photoProgressFill.style.width = Math.round((processedItems / totalItems) * 100) + '%';
+          photoProgressPercent.textContent = Math.round((processedItems / totalItems) * 100) + '%';
+        }
+        e.status = 'done'; done++;
+      } catch (err) { console.error('[PDF Export]', e.file.name, err); e.status = 'error'; errs++; showToast(`Ошибка: ${e.file.name}`, true); processedItems++; }
+    } else {
+      // Image: same as before
+      photoProgressLabel.textContent = isHeicFile(e.file) ? `Декодирование HEIC: ${e.file.name}` : `Обработка: ${e.file.name}`;
+      try {
+        const img = await photoLoadImage(e.file);
+        const blob = await photoProcessImage(img, q, e.cropOffset);
+        const fileName = e.file.name.replace(/\.[^.]+$/, '') + '.jpg';
+        folder.file(fileName, blob);
+        const url = URL.createObjectURL(blob);
+        photoConvertedResults.push({ url, fileName, blob });
+        photoDisplayConvertedPhoto(url, fileName, photoConvertedGrid);
+        e.status = 'done'; done++;
+        URL.revokeObjectURL(img.src);
+      } catch (err) { console.error('[Export]', e.file.name, err); e.status = 'error'; errs++; showToast(`Ошибка: ${e.file.name}`, true); }
+      processedItems++;
+    }
+    photoProgressFill.style.width = Math.round((processedItems / totalItems) * 100) + '%';
+    photoProgressPercent.textContent = Math.round((processedItems / totalItems) * 100) + '%';
+    photoRenderTiles();
+  }
+
+  photoProgressLabel.textContent = 'Создание ZIP-архива...';
+  try { const c = await zip.generateAsync({ type: 'blob' }, m => { photoProgressPercent.textContent = `ZIP: ${Math.round(m.percent)}%`; });
+    saveAs(c, `photoBlender_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.zip`);
+    if (errs > 0) { photoProgressLabel.textContent = `Готово: ${done} из ${photoFiles.length} (ошибок: ${errs})`; showToast(`Архив: ${done} фото, ${errs} ошибок`, true); }
+    else { photoProgressLabel.textContent = `Готово: ${done} из ${photoFiles.length}`; showToast(`✓ Архив сохранён — ${photoConvertedResults.length} файлов в sRGB`); }
+  } catch (e) { console.error('[ZIP]', e); showToast('Ошибка при создании архива', true); }
+  photoBtnConvert.disabled = false;
+}
+
+function photoDisplayConvertedPhoto(url, fileName, container) {
+  const card = document.createElement('div'); card.className = 'img-card';
+  const img = document.createElement('img'); img.src = url;
+  const lbl = document.createElement('div'); lbl.className = 'img-card-label'; lbl.textContent = fileName;
+  const btn = document.createElement('button'); btn.className = 'btn btn-s'; btn.style.cssText = 'width:100%;justify-content:center;font-size:11px'; btn.textContent = '💾 Скачать';
+  btn.onclick = () => { const a = document.createElement('a'); a.href = url; a.download = fileName; a.click(); };
+  card.appendChild(img); card.appendChild(lbl); card.appendChild(btn); container.appendChild(card);
+}
+
+// Toast
+function showToast(msg, isError = false) {
+  const el = document.getElementById('toastMsg'); el.textContent = msg; el.className = 'toast-msg' + (isError ? ' error' : '');
+  requestAnimationFrame(() => el.classList.add('show')); setTimeout(() => el.classList.remove('show'), 4500);
+}
+</script>
+
+</body>
+</html>

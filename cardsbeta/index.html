@@ -1,0 +1,2513 @@
+<!DOCTYPE html>
+
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iHateCards — Расстановка карт для печати</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+:root {
+    --bg1:#1a1a2e;--bg2:#16213e;--bg3:#0f3460;
+    --bgP:#1e2746;--bgC:#253256;
+    --acc:#e94560;--accH:#ff6b81;--accS:rgba(233,69,96,.15);
+    --accent-back:#5080d0;
+    --t1:#eef0f6;--t2:#8892b0;--t3:#5a6480;
+    --brd:#2d3a5c;
+    --ok:#2ed573;--rd:#f87171;--warn:#ffa502;
+    --r:10px;--rs:6px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: 'Nunito', sans-serif;
+    background: var(--bg1);
+    color: var(--t1);
+    min-height: 100vh;
+    line-height: 1.5;
+}
+
+.app-container {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    min-height: 100vh;
+}
+
+.sidebar {
+    background: var(--bg2);
+    border-right: 1px solid var(--brd);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    overflow-y: auto;
+}
+
+.logo {
+    font-family: 'Nunito', sans-serif;
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--acc);
+    letter-spacing: 1px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--brd);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.back-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    background: var(--bgC);
+    border: 1px solid var(--brd);
+    border-radius: var(--rs);
+    color: var(--t2);
+    text-decoration: none;
+    font-size: 16px;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.back-link:hover {
+    background: var(--accS);
+    color: var(--acc);
+    border-color: var(--acc);
+}
+
+.section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.section-title {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--t3);
+    text-transform: uppercase;
+    letter-spacing: .4px;
+}
+
+.input-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+
+.input-row-2 {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+}
+
+.input-row-4 {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+}
+
+.input-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.input-field label {
+    font-size: 10px;
+    color: var(--t3);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .3px;
+}
+
+.input-field input, .input-field select {
+    background: var(--bgC);
+    border: 1px solid var(--brd);
+    border-radius: var(--rs);
+    padding: 7px 9px;
+    color: var(--t1);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    transition: border-color 0.2s;
+    width: 100%;
+}
+
+.input-field input:focus, .input-field select:focus {
+    outline: none;
+    border-color: var(--acc);
+}
+
+.input-field select {
+    cursor: pointer;
+}
+
+.size-info {
+    font-size: 10px;
+    color: var(--t2);
+    background: var(--bgC);
+    padding: 8px 10px;
+    border-radius: var(--rs);
+    border: 1px solid var(--brd);
+    font-family: 'JetBrains Mono', monospace;
+    line-height: 1.5;
+}
+
+.size-info span { color: var(--acc); font-weight: 600; }
+
+.toggle-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.toggle-item input { display: none; }
+
+.toggle-switch {
+    width: 36px;
+    height: 20px;
+    background: var(--bgC);
+    border-radius: 10px;
+    position: relative;
+    transition: background 0.2s;
+    flex-shrink: 0;
+}
+
+.toggle-switch::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    background: var(--t3);
+    border-radius: 50%;
+    top: 2px;
+    left: 2px;
+    transition: all 0.2s;
+}
+
+.toggle-item input:checked + .toggle-switch {
+    background: var(--bg3);
+}
+
+.toggle-item input:checked + .toggle-switch::after {
+    left: 18px;
+    background: var(--acc);
+}
+
+.toggle-label {
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.duplex-options {
+    display: none;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+    background: var(--bgC);
+    border-radius: var(--rs);
+    border-left: 3px solid var(--accent-back);
+}
+
+.duplex-options.visible { display: flex; }
+
+.duplex-title {
+    font-size: 10px;
+    color: var(--accent-back);
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    font-weight: 700;
+}
+
+.side-tabs {
+    display: none;
+    gap: 4px;
+}
+
+.side-tabs.visible { display: flex; }
+
+.side-tab {
+    flex: 1;
+    padding: 7px;
+    border: 1px solid var(--brd);
+    border-radius: var(--rs);
+    font-family: 'Nunito', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--bgC);
+    color: var(--t2);
+}
+
+.side-tab.active { color: #fff; }
+.side-tab.front.active { background: var(--acc); border-color: var(--acc); }
+.side-tab.back.active { background: var(--accent-back); border-color: var(--accent-back); }
+
+.dropzone-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.dropzone-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .3px;
+}
+
+.dropzone-label.front { color: var(--acc); }
+.dropzone-label.back { color: var(--accent-back); }
+
+.dropzone {
+    border: 2px dashed var(--brd);
+    border-radius: var(--rs);
+    padding: 14px 10px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.dropzone:hover, .dropzone.dragover {
+    border-color: var(--acc);
+    background: var(--accS);
+}
+
+.dropzone.back-zone:hover, .dropzone.back-zone.dragover {
+    border-color: var(--accent-back);
+    background: rgba(80,128,208,.1);
+}
+
+.dropzone-icon {
+    font-size: 20px;
+    margin-bottom: 2px;
+    opacity: 0.7;
+}
+
+.dropzone-text {
+    font-size: 11px;
+    color: var(--t2);
+}
+
+.dropzone-text strong { color: var(--acc); }
+.dropzone.back-zone .dropzone-text strong { color: var(--accent-back); }
+
+.file-input { display: none; }
+
+.back-preview {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    background: var(--bgC);
+    border: 1px solid var(--brd);
+    border-radius: var(--rs);
+}
+
+.back-preview img {
+    width: 36px;
+    height: 50px;
+    object-fit: cover;
+    border-radius: 3px;
+}
+
+.back-preview-info {
+    flex: 1;
+    font-size: 11px;
+    color: var(--t2);
+    overflow: hidden;
+}
+
+.back-preview-info .name {
+    color: var(--t1);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: 600;
+    font-size: 11px;
+}
+
+.back-preview .remove {
+    background: none;
+    border: none;
+    color: var(--t3);
+    cursor: pointer;
+    font-size: 16px;
+    padding: 4px;
+    transition: color .15s;
+}
+
+.back-preview .remove:hover { color: var(--acc); }
+
+.image-list {
+    max-height: 180px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.image-item {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 5px 6px;
+    background: var(--bgC);
+    border: 1px solid var(--brd);
+    border-radius: 4px;
+    font-size: 10px;
+}
+
+.image-item img {
+    width: 28px;
+    height: 28px;
+    object-fit: cover;
+    border-radius: 3px;
+}
+
+.image-item .name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--t2);
+}
+
+.image-item .qty-control {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.image-item .qty-btn {
+    width: 20px;
+    height: 20px;
+    border: 1px solid var(--brd);
+    border-radius: 3px;
+    background: var(--bg2);
+    color: var(--t1);
+    cursor: pointer;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all .15s;
+}
+
+.image-item .qty-btn:hover {
+    background: var(--accS);
+    border-color: var(--acc);
+    color: var(--acc);
+}
+
+.image-item .qty-value {
+    width: 24px;
+    text-align: center;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--acc);
+    font-weight: 600;
+}
+
+.image-item .remove {
+    background: none;
+    border: none;
+    color: var(--t3);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0 2px;
+    transition: color .15s;
+}
+
+.image-item .remove:hover { color: var(--acc); }
+
+.stats {
+    background: var(--bgC);
+    border: 1px solid var(--brd);
+    border-radius: var(--rs);
+    padding: 10px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.stat-label {
+    font-size: 9px;
+    color: var(--t3);
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    font-weight: 700;
+}
+
+.stat-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--acc);
+}
+
+.btn {
+    background: var(--acc);
+    color: #fff;
+    border: none;
+    border-radius: var(--rs);
+    padding: 10px 14px;
+    font-family: 'Nunito', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.btn:hover {
+    background: var(--accH);
+    transform: translateY(-1px);
+}
+
+.btn:disabled {
+    background: var(--bgC);
+    color: var(--t3);
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-secondary {
+    background: var(--bgC);
+    border: 1px solid var(--brd);
+    color: var(--t1);
+}
+
+.btn-secondary:hover {
+    border-color: var(--acc);
+    background: var(--accS);
+}
+
+.actions {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: auto;
+}
+
+.main {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow: auto;
+    background: var(--bg1);
+}
+
+.page-container {
+    position: relative;
+    background: white;
+    box-shadow: 0 8px 40px rgba(0,0,0,.5);
+}
+
+.page-label {
+    position: absolute;
+    top: -28px;
+    left: 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--t2);
+    letter-spacing: 1px;
+}
+
+.page-type {
+    position: absolute;
+    top: -28px;
+    right: 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 2px 8px;
+    border-radius: 3px;
+}
+
+.page-type.front {
+    background: var(--acc);
+    color: #fff;
+}
+
+.page-type.back {
+    background: var(--accent-back);
+    color: white;
+}
+
+.page {
+    position: relative;
+    background: white;
+    overflow: visible;
+}
+
+.card-slot {
+    position: absolute;
+    background: #f8f8f8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.card-slot.empty {
+    border: 1px dashed #ddd;
+}
+
+.card-slot img {
+    width: 100%;
+    height: 100%;
+}
+
+.card-slot img.cover {
+    object-fit: cover;
+}
+
+.card-slot img.contain {
+    object-fit: contain;
+    background: white;
+}
+
+.card-slot .placeholder {
+    font-size: 9px;
+    color: #bbb;
+}
+
+.polaroid-frame {
+    position: absolute;
+    background: white;
+    box-shadow: 0 1px 3px rgba(0,0,0,.12);
+}
+
+.polaroid-image {
+    position: absolute;
+    overflow: hidden;
+}
+
+.polaroid-options {
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px;
+    background: var(--bgC);
+    border-radius: var(--rs);
+    border-left: 3px solid var(--warn);
+}
+
+.polaroid-options.visible { display: flex; }
+
+.polaroid-title {
+    font-size: 10px;
+    color: var(--warn);
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    font-weight: 700;
+}
+
+.polaroid-info {
+    font-size: 10px;
+    color: var(--t2);
+    background: rgba(255,165,2,.08);
+    padding: 6px 8px;
+    border-radius: 4px;
+    border: 1px solid rgba(255,165,2,.2);
+    font-family: 'JetBrains Mono', monospace;
+    line-height: 1.5;
+}
+
+.polaroid-info span { color: var(--warn); font-weight: 600; }
+
+.cut-line {
+    position: absolute;
+    border: 1px dashed rgba(255, 0, 0, 0.3);
+    pointer-events: none;
+}
+
+.crop-mark {
+    position: absolute;
+    pointer-events: none;
+}
+
+.page-nav {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-top: 20px;
+}
+
+.page-nav-btn {
+    background: var(--bg2);
+    border: 1px solid var(--brd);
+    color: var(--t1);
+    width: 34px;
+    height: 34px;
+    border-radius: var(--rs);
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.page-nav-btn:hover:not(:disabled) {
+    border-color: var(--acc);
+    color: var(--acc);
+    background: var(--accS);
+}
+
+.page-nav-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.page-indicator {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--t2);
+}
+
+.page-indicator span { color: var(--t1); font-weight: 600; }
+
+.loading-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+}
+
+.loading-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.loading-spinner {
+    width: 44px;
+    height: 44px;
+    border: 3px solid var(--brd);
+    border-top-color: var(--acc);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 14px;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 900px) {
+    .app-container { grid-template-columns: 1fr; }
+    .sidebar { border-right: none; border-bottom: 1px solid var(--brd); }
+}
+
+@media print {
+    @page { margin: 0; }
+    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    body { background: white !important; margin: 0; padding: 0; }
+    .app-container { display: block !important; }
+    .sidebar, .page-nav, .page-label, .page-type, .loading-overlay { display: none !important; }
+    .main { padding: 0 !important; background: white !important; display: block !important; }
+    .page-container { box-shadow: none !important; margin: 0 !important; page-break-after: always; }
+    .cut-line { display: none !important; }
+}
+
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--brd);border-radius:3px}::-webkit-scrollbar-thumb:hover{background:var(--t3)}
+</style>
+
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="logo">
+                <a href="https://iHatePDF.ru" class="back-link" title="Вернуться на iHatePDF.ru">←</a>
+                iHateCards
+            </div>
+
+        <div class="section">
+            <div class="section-title">Формат бумаги</div>
+            <div class="input-field">
+                <select id="paperSize">
+                    <option value="a6">A6 (105 × 148 мм)</option>
+                    <option value="a5">A5 (148 × 210 мм)</option>
+                    <option value="a4">A4 (210 × 297 мм)</option>
+                    <option value="a3">A3 (297 × 420 мм)</option>
+                    <option value="sra3">SRA3 (320 × 450 мм)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="section" id="photoLayoutSection" style="display:none">
+            <div class="section-title">Раскладка фото на листе</div>
+            <div class="input-field">
+                <select id="photoLayout">
+                    <option value="0">Ручная (карты)</option>
+                    <option value="2">2 фото на листе</option>
+                    <option value="4">4 фото на листе</option>
+                </select>
+            </div>
+            <div class="size-info" id="photoLayoutInfo" style="display:none">
+                Размер фото: <span id="photoLayoutSize">—</span> мм · без полей
+            </div>
+        </div>
+
+        <div class="section" id="cardSizeSection">
+            <div class="section-title">Размер карты с блидом (мм)</div>
+            <div class="input-row-4">
+                <div class="input-field">
+                    <label>Ширина</label>
+                    <input type="number" id="cardWidth" value="65" min="10" max="420" step="0.5">
+                </div>
+                <div class="input-field">
+                    <label>Высота</label>
+                    <input type="number" id="cardHeight" value="90" min="10" max="420" step="0.5">
+                </div>
+                <div class="input-field">
+                    <label>Блид</label>
+                    <input type="number" id="bleed" value="1" min="0" max="10" step="0.5">
+                </div>
+                <div class="input-field">
+                    <label>Поворот</label>
+                    <select id="rotation">
+                        <option value="0">0°</option>
+                        <option value="90">90°</option>
+                        <option value="180">180°</option>
+                        <option value="270">270°</option>
+                    </select>
+                </div>
+            </div>
+            <div class="size-info">
+                Размер реза: <span id="cutSizeDisplay">63 × 88</span> мм
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Режим печати</div>
+            <label class="toggle-item">
+                <input type="checkbox" id="duplexMode">
+                <span class="toggle-switch"></span>
+                <span class="toggle-label">Двухсторонняя печать</span>
+            </label>
+            <label class="toggle-item">
+                <input type="checkbox" id="showCropMarks" checked>
+                <span class="toggle-switch"></span>
+                <span class="toggle-label">Метки для резки</span>
+            </label>
+            <label class="toggle-item">
+                <input type="checkbox" id="fitImage">
+                <span class="toggle-switch"></span>
+                <span class="toggle-label">Вписать изображение</span>
+            </label>
+            <label class="toggle-item">
+                <input type="checkbox" id="autoRotate">
+                <span class="toggle-switch"></span>
+                <span class="toggle-label">Авто-разворот</span>
+            </label>
+            <label class="toggle-item">
+                <input type="checkbox" id="polaroidMode">
+                <span class="toggle-switch"></span>
+                <span class="toggle-label">Рамка Полароид</span>
+            </label>
+        </div>
+
+        <div class="polaroid-options" id="polaroidOptions">
+            <div class="polaroid-title">Настройки Полароид</div>
+            <div class="input-row">
+                <div class="input-field">
+                    <label>Бок (мм)</label>
+                    <input type="number" id="polaroidSide" value="3" min="1" max="20" step="0.5">
+                </div>
+                <div class="input-field">
+                    <label>Верх (мм)</label>
+                    <input type="number" id="polaroidTop" value="3" min="1" max="20" step="0.5">
+                </div>
+                <div class="input-field">
+                    <label>Низ (мм)</label>
+                    <input type="number" id="polaroidBottom" value="15" min="2" max="40" step="0.5">
+                </div>
+            </div>
+            <div class="polaroid-info" id="polaroidInfo">
+                Фото: <span id="polaroidPhotoSize">—</span> мм<br>
+                Карточка: <span id="polaroidCardSize">—</span> мм
+            </div>
+        </div>
+
+        <div class="duplex-options" id="duplexOptions">
+            <div class="duplex-title">Смещение оборота (мм)</div>
+            <div class="input-row-2">
+                <div class="input-field">
+                    <label>По X</label>
+                    <input type="number" id="offsetX" value="0" step="0.1">
+                </div>
+                <div class="input-field">
+                    <label>По Y</label>
+                    <input type="number" id="offsetY" value="0" step="0.1">
+                </div>
+            </div>
+        </div>
+
+        <div class="side-tabs" id="sideTabs">
+            <button class="side-tab front active" data-side="front">Лицо</button>
+            <button class="side-tab back" data-side="back">Оборот</button>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Изображения</div>
+            
+            <div class="dropzone-wrapper">
+                <div class="dropzone-label front">● Лицевые стороны</div>
+                <div class="dropzone" id="dropzoneFront">
+                    <div class="dropzone-icon">📁</div>
+                    <div class="dropzone-text">Перетащите или <strong>выберите</strong></div>
+                </div>
+                <input type="file" id="fileInputFront" class="file-input" multiple accept="image/*">
+                <div class="image-list" id="imageList"></div>
+            </div>
+
+            <div class="dropzone-wrapper" id="backSection">
+                <div class="dropzone-label back">● Рубашка</div>
+                <label class="toggle-item" style="margin:6px 0 8px">
+                    <input type="checkbox" id="individualBacks">
+                    <span class="toggle-switch"></span>
+                    <span class="toggle-label">Разные рубашки для каждой карты</span>
+                </label>
+                <div id="singleBackArea">
+                    <div class="dropzone back-zone" id="dropzoneBack">
+                        <div class="dropzone-icon">🂠</div>
+                        <div class="dropzone-text">Перетащите или <strong>выберите</strong></div>
+                    </div>
+                    <input type="file" id="fileInputBack" class="file-input" accept="image/*">
+                    <div id="backPreview"></div>
+                </div>
+                <div id="individualBackArea" style="display:none">
+                    <div style="font-size:12px;color:var(--t2);margin-bottom:6px">Назначьте рубашку каждой карте через список лицевых сторон</div>
+                </div>
+                <input type="file" id="fileInputCardBack" class="file-input" accept="image/*">
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Информация</div>
+            <div class="stats">
+                <div class="stat-item">
+                    <div class="stat-label">Карт/лист</div>
+                    <div class="stat-value" id="cardsPerPage">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Листов</div>
+                    <div class="stat-value" id="totalPages">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Всего карт</div>
+                    <div class="stat-value" id="totalCards">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Формат</div>
+                    <div class="stat-value" id="paperFormat">A4</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="actions">
+            <button class="btn" id="exportBtn" disabled>Экспорт PDF</button>
+            <button class="btn btn-secondary" id="printBtn" disabled>Печать</button>
+            <button class="btn btn-secondary" id="clearBtn">Очистить</button>
+        </div>
+    </aside>
+
+    <main class="main">
+        <div class="page-container" id="pageContainer">
+            <div class="page-label" id="pageLabel">A4 — 210 × 297 мм</div>
+            <div class="page-type front" id="pageType">ЛИЦО</div>
+            <div class="page" id="page"></div>
+        </div>
+
+        <div class="page-nav">
+            <button class="page-nav-btn" id="prevPage" disabled>←</button>
+            <div class="page-indicator">
+                Лист <span id="currentPageNum">1</span> из <span id="totalPagesNav">1</span>
+            </div>
+            <button class="page-nav-btn" id="nextPage" disabled>→</button>
+        </div>
+    </main>
+</div>
+
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-content">
+        <div class="loading-spinner"></div>
+        <div>Экспорт...</div>
+    </div>
+</div>
+
+<script>
+    const PAPER_SIZES = {
+        a6: { width: 105, height: 148, label: 'A6 — 105 × 148 мм' },
+        a5: { width: 148, height: 210, label: 'A5 — 148 × 210 мм' },
+        a4: { width: 210, height: 297, label: 'A4 — 210 × 297 мм' },
+        a3: { width: 297, height: 420, label: 'A3 — 297 × 420 мм' },
+        sra3: { width: 320, height: 450, label: 'SRA3 — 320 × 450 мм' }
+    };
+
+    const CONFIG = {
+        margin: 4.5,
+        cropMarkLength: 3,
+        cropMarkOffset: 1,
+        previewScaleA6: 3.8,
+        previewScaleA5: 3.2,
+        previewScaleA4: 2.5,
+        previewScaleA3: 1.8,
+        previewScaleSRA3: 1.6
+    };
+
+    let state = {
+        paperSize: 'a4',
+        cardWidth: 65,
+        cardHeight: 90,
+        bleed: 1,
+        rotation: 0,
+        photoLayout: 0,
+        duplexMode: false,
+        showCropMarks: true,
+        fitImage: false,
+        autoRotate: false,
+        offsetX: 0,
+        offsetY: 0,
+        currentSide: 'front',
+        polaroidMode: false,
+        polaroidSide: 3,
+        polaroidTop: 3,
+        polaroidBottom: 15,
+        prePolaroidWidth: 65,
+        prePolaroidHeight: 90,
+        images: [], // {name, dataUrl, quantity, backImage?}
+        backImage: null,
+        individualBacks: false,
+        currentPage: 0,
+        cardsPerRow: 0,
+        cardsPerCol: 0,
+        cardsPerPage: 0,
+        totalPages: 0
+    };
+
+    const elements = {
+        paperSize: document.getElementById('paperSize'),
+        cardWidth: document.getElementById('cardWidth'),
+        cardHeight: document.getElementById('cardHeight'),
+        bleed: document.getElementById('bleed'),
+        rotation: document.getElementById('rotation'),
+        cutSizeDisplay: document.getElementById('cutSizeDisplay'),
+        duplexMode: document.getElementById('duplexMode'),
+        showCropMarks: document.getElementById('showCropMarks'),
+        fitImage: document.getElementById('fitImage'),
+        autoRotate: document.getElementById('autoRotate'),
+        polaroidMode: document.getElementById('polaroidMode'),
+        polaroidOptions: document.getElementById('polaroidOptions'),
+        polaroidSide: document.getElementById('polaroidSide'),
+        polaroidTop: document.getElementById('polaroidTop'),
+        polaroidBottom: document.getElementById('polaroidBottom'),
+        polaroidInfo: document.getElementById('polaroidInfo'),
+        polaroidPhotoSize: document.getElementById('polaroidPhotoSize'),
+        polaroidCardSize: document.getElementById('polaroidCardSize'),
+        duplexOptions: document.getElementById('duplexOptions'),
+        sideTabs: document.getElementById('sideTabs'),
+        offsetX: document.getElementById('offsetX'),
+        offsetY: document.getElementById('offsetY'),
+        dropzoneFront: document.getElementById('dropzoneFront'),
+        fileInputFront: document.getElementById('fileInputFront'),
+        dropzoneBack: document.getElementById('dropzoneBack'),
+        fileInputBack: document.getElementById('fileInputBack'),
+        backPreview: document.getElementById('backPreview'),
+        imageList: document.getElementById('imageList'),
+        page: document.getElementById('page'),
+        pageLabel: document.getElementById('pageLabel'),
+        pageType: document.getElementById('pageType'),
+        cardsPerPage: document.getElementById('cardsPerPage'),
+        totalPages: document.getElementById('totalPages'),
+        totalCards: document.getElementById('totalCards'),
+        paperFormat: document.getElementById('paperFormat'),
+        exportBtn: document.getElementById('exportBtn'),
+        printBtn: document.getElementById('printBtn'),
+        clearBtn: document.getElementById('clearBtn'),
+        prevPage: document.getElementById('prevPage'),
+        nextPage: document.getElementById('nextPage'),
+        currentPageNum: document.getElementById('currentPageNum'),
+        totalPagesNav: document.getElementById('totalPagesNav'),
+        loadingOverlay: document.getElementById('loadingOverlay')
+    };
+
+    function getPaper() {
+        return PAPER_SIZES[state.paperSize];
+    }
+
+    function getPreviewScale() {
+        if (state.paperSize === 'sra3') return CONFIG.previewScaleSRA3;
+        if (state.paperSize === 'a3') return CONFIG.previewScaleA3;
+        if (state.paperSize === 'a5') return CONFIG.previewScaleA5;
+        if (state.paperSize === 'a6') return CONFIG.previewScaleA6;
+        return CONFIG.previewScaleA4;
+    }
+
+    function getCutWidth() {
+        return state.cardWidth - (state.bleed * 2);
+    }
+
+    function getCutHeight() {
+        return state.cardHeight - (state.bleed * 2);
+    }
+
+    function getTotalCardCount() {
+        return state.images.reduce((sum, img) => sum + img.quantity, 0);
+    }
+
+    // Expand images by quantity
+    function getExpandedImages() {
+        const expanded = [];
+        state.images.forEach(img => {
+            for (let i = 0; i < img.quantity; i++) {
+                expanded.push(img);
+            }
+        });
+        return expanded;
+    }
+
+    function updateCutSizeDisplay() {
+        elements.cutSizeDisplay.textContent = `${getCutWidth()} × ${getCutHeight()}`;
+    }
+
+    // Polaroid: aspect ratio = (photoW + 2*side) / (photoH + top + bottom)
+    // Classic default: side=3, top=3, bottom=15 => for 59×59 photo => card 65×77
+    const POLAROID_RATIO = 88 / 107; // classic Polaroid width:height
+
+    function getPolaroidPhotoArea() {
+        // Photo area is card minus borders
+        const photoW = state.cardWidth - 2 * state.polaroidSide;
+        const photoH = state.cardHeight - state.polaroidTop - state.polaroidBottom;
+        return { w: Math.max(10, photoW), h: Math.max(10, photoH) };
+    }
+
+    function updatePolaroidInfo() {
+        const photo = getPolaroidPhotoArea();
+        elements.polaroidPhotoSize.textContent = `${photo.w.toFixed(1)} × ${photo.h.toFixed(1)}`;
+        elements.polaroidCardSize.textContent = `${state.cardWidth.toFixed(1)} × ${state.cardHeight.toFixed(1)}`;
+    }
+
+    function recalcPolaroidCardFromWidth(w) {
+        // Given card width, compute card height to maintain fixed ratio
+        // photo is square => photoW = w - 2*side, photoH = photoW => cardH = photoW + top + bottom
+        const photoSide = w - 2 * state.polaroidSide;
+        const h = photoSide + state.polaroidTop + state.polaroidBottom;
+        return { w, h: Math.max(20, h) };
+    }
+
+    function recalcPolaroidCardFromHeight(h) {
+        // Given card height, compute card width
+        // photoH = h - top - bottom, photoW = photoH (square) => cardW = photoW + 2*side
+        const photoH = h - state.polaroidTop - state.polaroidBottom;
+        const w = photoH + 2 * state.polaroidSide;
+        return { w: Math.max(20, w), h };
+    }
+
+    function applyPolaroidDefaults() {
+        // Save current dimensions before Polaroid
+        state.prePolaroidWidth = state.cardWidth;
+        state.prePolaroidHeight = state.cardHeight;
+        // 33% smaller than original => 67% of saved dimensions
+        const scaledW = Math.round(state.prePolaroidWidth * 0.67 * 2) / 2;
+        // Recalculate height to make photo area square
+        const dims = recalcPolaroidCardFromWidth(scaledW);
+        state.cardWidth = dims.w;
+        state.cardHeight = Math.round(dims.h * 2) / 2;
+        elements.cardWidth.value = state.cardWidth;
+        elements.cardHeight.value = state.cardHeight;
+        updateCutSizeDisplay();
+        updatePolaroidInfo();
+    }
+
+    function restorePrePolaroidDimensions() {
+        state.cardWidth = state.prePolaroidWidth;
+        state.cardHeight = state.prePolaroidHeight;
+        elements.cardWidth.value = state.cardWidth;
+        elements.cardHeight.value = state.cardHeight;
+        updateCutSizeDisplay();
+    }
+
+    function getEffectiveMargin() {
+        if (state.paperSize === 'a5' || state.paperSize === 'a6') return 0;
+        return CONFIG.margin;
+    }
+
+    function getInstructionHeight() {
+        if (state.paperSize === 'a3' || state.paperSize === 'sra3') return 8;
+        return 0;
+    }
+
+    function getInstructionText() {
+        if (state.paperSize === 'a3') return '70%';
+        if (state.paperSize === 'sra3') return '66%';
+        return null;
+    }
+
+    function hasAnyBack() {
+        if (state.individualBacks) {
+            return state.images.some(img => img.backImage);
+        }
+        return !!state.backImage;
+    }
+
+    function calculateLayout() {
+        const paper = getPaper();
+        const margin = getEffectiveMargin();
+        const instrH = getInstructionHeight();
+        const workWidth = paper.width - (margin * 2);
+        const workHeight = paper.height - (margin * 2) - instrH;
+
+        // Photo layout mode: override card dimensions
+        if (state.photoLayout > 0 && (state.paperSize === 'a5' || state.paperSize === 'a6')) {
+            if (state.photoLayout === 2) {
+                // 2 photos: 1 col × 2 rows
+                state.cardsPerRow = 1;
+                state.cardsPerCol = 2;
+                state.cardWidth = workWidth;
+                state.cardHeight = workHeight / 2;
+            } else if (state.photoLayout === 4) {
+                // 4 photos: 2 col × 2 rows
+                state.cardsPerRow = 2;
+                state.cardsPerCol = 2;
+                state.cardWidth = workWidth / 2;
+                state.cardHeight = workHeight / 2;
+            }
+            state.bleed = 0;
+            // Sync UI inputs
+            elements.cardWidth.value = state.cardWidth;
+            elements.cardHeight.value = state.cardHeight;
+            elements.bleed.value = 0;
+            updateCutSizeDisplay();
+            updatePhotoLayoutInfo();
+        } else {
+            state.cardsPerRow = Math.floor(workWidth / state.cardWidth);
+            state.cardsPerCol = Math.floor(workHeight / state.cardHeight);
+        }
+
+        state.cardsPerPage = state.cardsPerRow * state.cardsPerCol;
+        
+        const totalCards = getTotalCardCount();
+        state.totalPages = Math.max(1, Math.ceil(totalCards / state.cardsPerPage));
+
+        if (state.currentPage >= state.totalPages) {
+            state.currentPage = Math.max(0, state.totalPages - 1);
+        }
+
+        updateStats();
+        updateNavigation();
+    }
+
+    function updatePhotoLayoutInfo() {
+        const infoEl = document.getElementById('photoLayoutInfo');
+        const sizeEl = document.getElementById('photoLayoutSize');
+        if (state.photoLayout > 0 && (state.paperSize === 'a5' || state.paperSize === 'a6')) {
+            infoEl.style.display = 'block';
+            sizeEl.textContent = `${state.cardWidth.toFixed(1)} × ${state.cardHeight.toFixed(1)}`;
+        } else {
+            infoEl.style.display = 'none';
+        }
+    }
+
+    function updateStats() {
+        const totalCards = getTotalCardCount();
+        elements.cardsPerPage.textContent = state.cardsPerPage;
+        elements.totalPages.textContent = state.duplexMode ? state.totalPages * 2 : state.totalPages;
+        elements.totalCards.textContent = totalCards;
+        elements.currentPageNum.textContent = state.currentPage + 1;
+        elements.totalPagesNav.textContent = state.totalPages;
+        elements.paperFormat.textContent = state.paperSize.toUpperCase();
+        elements.exportBtn.disabled = totalCards === 0;
+        elements.printBtn.disabled = totalCards === 0;
+    }
+
+    function updateNavigation() {
+        elements.prevPage.disabled = state.currentPage === 0;
+        elements.nextPage.disabled = state.currentPage >= state.totalPages - 1;
+    }
+
+    function updatePageTypeIndicator() {
+        const isBack = state.duplexMode && state.currentSide === 'back';
+        elements.pageType.textContent = isBack ? 'ОБОРОТ' : 'ЛИЦО';
+        elements.pageType.className = 'page-type ' + (isBack ? 'back' : 'front');
+    }
+
+    // Auto-rotate: returns true if rotating 90° would improve coverage
+    function needsAutoRotate(imgW, imgH, cellW, cellH) {
+        if (!state.autoRotate) return false;
+        if (!imgW || !imgH) return false;
+        const imgIsLandscape = imgW > imgH;
+        const cellIsLandscape = cellW > cellH;
+        // Rotate when orientations don't match
+        return imgIsLandscape !== cellIsLandscape;
+    }
+
+    function renderPage() {
+        const page = elements.page;
+        const paper = getPaper();
+        const scale = getPreviewScale();
+        const isBack = state.duplexMode && state.currentSide === 'back';
+
+        elements.pageLabel.textContent = paper.label;
+        page.style.width = `${paper.width * scale}px`;
+        page.style.height = `${paper.height * scale}px`;
+        page.innerHTML = '';
+
+        updatePageTypeIndicator();
+
+        const margin = getEffectiveMargin();
+        const instrH = getInstructionHeight();
+        const workWidth = paper.width - (margin * 2);
+        const workHeight = paper.height - (margin * 2) - instrH;
+        const usedWidth = state.cardsPerRow * state.cardWidth;
+        const usedHeight = state.cardsPerCol * state.cardHeight;
+        let baseOffsetX = margin + (workWidth - usedWidth) / 2;
+        let baseOffsetY = margin + instrH + (workHeight - usedHeight) / 2;
+
+        // Instruction text for A3/SRA3
+        const instrText = getInstructionText();
+        if (instrText) {
+            const instrDiv = document.createElement('div');
+            instrDiv.style.cssText = `position:absolute;top:${margin * scale}px;left:0;right:0;height:${instrH * scale}px;display:flex;align-items:center;justify-content:center;font-size:${3.5 * scale}px;font-family:'JetBrains Mono',monospace;color:#888;`;
+            instrDiv.textContent = instrText;
+            page.appendChild(instrDiv);
+        }
+
+        if (isBack) {
+            baseOffsetX += state.offsetX;
+            baseOffsetY += state.offsetY;
+        }
+
+        const expandedImages = getExpandedImages();
+        const startIdx = state.currentPage * state.cardsPerPage;
+        const pageImages = expandedImages.slice(startIdx, startIdx + state.cardsPerPage);
+
+        const cutW = getCutWidth();
+        const cutH = getCutHeight();
+
+        for (let row = 0; row < state.cardsPerCol; row++) {
+            for (let col = 0; col < state.cardsPerRow; col++) {
+                const idx = row * state.cardsPerRow + col;
+                const displayCol = isBack ? (state.cardsPerRow - 1 - col) : col;
+
+                const x = baseOffsetX + displayCol * state.cardWidth;
+                const y = baseOffsetY + row * state.cardHeight;
+
+                const slot = document.createElement('div');
+                slot.className = 'card-slot';
+                slot.style.left = `${x * scale}px`;
+                slot.style.top = `${y * scale}px`;
+                slot.style.width = `${state.cardWidth * scale}px`;
+                slot.style.height = `${state.cardHeight * scale}px`;
+
+                let hasImage = false;
+                let currentBrightness = 200; // default light
+                if (isBack && idx < pageImages.length) {
+                    // Determine back image: individual or global
+                    let backData = null;
+                    if (state.individualBacks) {
+                        backData = pageImages[idx].backImage || null;
+                    } else {
+                        backData = state.backImage;
+                    }
+                    if (backData) {
+                        hasImage = true;
+                        currentBrightness = backData.brightness != null ? backData.brightness : 200;
+                        if (state.polaroidMode) {
+                            renderPolaroidSlot(slot, backData, scale);
+                        } else {
+                            const img = document.createElement('img');
+                            img.src = backData.dataUrl;
+                            img.className = state.fitImage ? 'contain' : 'cover';
+                            const autoRot = needsAutoRotate(backData.naturalWidth, backData.naturalHeight, state.cardWidth, state.cardHeight);
+                            const totalRot = state.rotation + (autoRot ? 90 : 0);
+                            if (totalRot !== 0) {
+                                if (autoRot) {
+                                    const sw = state.cardWidth * scale, sh = state.cardHeight * scale;
+                                    img.style.cssText = `position:absolute;top:50%;left:50%;width:${sh}px;height:${sw}px;object-fit:${state.fitImage?'contain':'cover'};transform:translate(-50%,-50%) rotate(${totalRot}deg);${state.fitImage?'background:white;':''}`;
+                                } else {
+                                    img.style.transform = `rotate(${state.rotation}deg)`;
+                                }
+                            }
+                            slot.appendChild(img);
+                        }
+                    }
+                } else if (!isBack && idx < pageImages.length) {
+                    hasImage = true;
+                    currentBrightness = pageImages[idx].brightness != null ? pageImages[idx].brightness : 200;
+                    if (state.polaroidMode) {
+                        renderPolaroidSlot(slot, pageImages[idx], scale);
+                    } else {
+                        const img = document.createElement('img');
+                        img.src = pageImages[idx].dataUrl;
+                        img.className = state.fitImage ? 'contain' : 'cover';
+                        const autoRot = needsAutoRotate(pageImages[idx].naturalWidth, pageImages[idx].naturalHeight, state.cardWidth, state.cardHeight);
+                        const totalRot = state.rotation + (autoRot ? 90 : 0);
+                        if (totalRot !== 0) {
+                            if (autoRot) {
+                                const sw = state.cardWidth * scale, sh = state.cardHeight * scale;
+                                img.style.cssText = `position:absolute;top:50%;left:50%;width:${sh}px;height:${sw}px;object-fit:${state.fitImage?'contain':'cover'};transform:translate(-50%,-50%) rotate(${totalRot}deg);${state.fitImage?'background:white;':''}`;
+                            } else {
+                                img.style.transform = `rotate(${state.rotation}deg)`;
+                            }
+                        }
+                        slot.appendChild(img);
+                    }
+                }
+
+                if (!hasImage) {
+                    slot.classList.add('empty');
+                    const placeholder = document.createElement('div');
+                    placeholder.className = 'placeholder';
+                    placeholder.textContent = idx + 1;
+                    slot.appendChild(placeholder);
+                }
+
+                page.appendChild(slot);
+
+                if (state.bleed > 0) {
+                    const cutLine = document.createElement('div');
+                    cutLine.className = 'cut-line';
+                    cutLine.style.left = `${(x + state.bleed) * scale}px`;
+                    cutLine.style.top = `${(y + state.bleed) * scale}px`;
+                    cutLine.style.width = `${cutW * scale}px`;
+                    cutLine.style.height = `${cutH * scale}px`;
+                    page.appendChild(cutLine);
+                }
+
+                if (state.showCropMarks && hasImage) {
+                    renderCropMarks(page, x + state.bleed, y + state.bleed, cutW, cutH, scale);
+                }
+            }
+        }
+    }
+
+    function renderCropMarks(container, x, y, w, h, scale) {
+        const offset = CONFIG.cropMarkOffset;
+        const len = CONFIG.cropMarkLength;
+
+        const marks = [
+            { dir: 'h', x: x - offset - len, y: y, w: len },
+            { dir: 'v', x: x, y: y - offset - len, h: len },
+            { dir: 'h', x: x + w + offset, y: y, w: len },
+            { dir: 'v', x: x + w, y: y - offset - len, h: len },
+            { dir: 'h', x: x - offset - len, y: y + h, w: len },
+            { dir: 'v', x: x, y: y + h + offset, h: len },
+            { dir: 'h', x: x + w + offset, y: y + h, w: len },
+            { dir: 'v', x: x + w, y: y + h + offset, h: len }
+        ];
+
+        // Two layers: white backing (thicker) + black line on top
+        marks.forEach(m => {
+            const backing = document.createElement('div');
+            backing.className = 'crop-mark';
+            backing.style.background = '#fff';
+            backing.style.left = `${m.x * scale}px`;
+            backing.style.top = `${m.y * scale}px`;
+            if (m.dir === 'h') {
+                backing.style.width = `${m.w * scale}px`;
+                backing.style.height = `${1.2 * scale}px`;
+                backing.style.marginTop = `${-0.35 * scale}px`;
+            } else {
+                backing.style.width = `${1.2 * scale}px`;
+                backing.style.height = `${m.h * scale}px`;
+                backing.style.marginLeft = `${-0.35 * scale}px`;
+            }
+            container.appendChild(backing);
+        });
+        marks.forEach(m => {
+            const el = document.createElement('div');
+            el.className = 'crop-mark';
+            el.style.background = '#000';
+            el.style.left = `${m.x * scale}px`;
+            el.style.top = `${m.y * scale}px`;
+            if (m.dir === 'h') {
+                el.style.width = `${m.w * scale}px`;
+                el.style.height = '0.5px';
+            } else {
+                el.style.width = '0.5px';
+                el.style.height = `${m.h * scale}px`;
+            }
+            container.appendChild(el);
+        });
+    }
+
+    function renderPolaroidSlot(slot, imgData, scale) {
+        const side = state.polaroidSide;
+        const top = state.polaroidTop;
+        const bottom = state.polaroidBottom;
+        const photo = getPolaroidPhotoArea();
+
+        // White background for the entire Polaroid card
+        slot.style.background = 'white';
+        slot.style.boxShadow = '0 1px 4px rgba(0,0,0,.15)';
+
+        // Photo area container
+        const photoArea = document.createElement('div');
+        photoArea.style.cssText = `
+            position: absolute;
+            left: ${side * scale}px;
+            top: ${top * scale}px;
+            width: ${photo.w * scale}px;
+            height: ${photo.h * scale}px;
+            overflow: hidden;
+            background: #f0f0f0;
+        `;
+
+        const img = document.createElement('img');
+        img.src = imgData.dataUrl;
+
+        const autoRot = needsAutoRotate(imgData.naturalWidth, imgData.naturalHeight, photo.w, photo.h);
+        const totalRot = state.rotation + (autoRot ? 90 : 0);
+
+        if (autoRot) {
+            img.style.cssText = `
+                position: absolute;
+                top: 50%; left: 50%;
+                width: ${photo.h * scale}px;
+                height: ${photo.w * scale}px;
+                object-fit: ${state.fitImage ? 'contain' : 'cover'};
+                transform: translate(-50%,-50%) rotate(${totalRot}deg);
+                ${state.fitImage ? 'background:white;' : ''}
+            `;
+        } else {
+            img.style.cssText = `
+                width: 100%;
+                height: 100%;
+                object-fit: ${state.fitImage ? 'contain' : 'cover'};
+                ${state.fitImage ? 'background:white;' : ''}
+                ${totalRot !== 0 ? `transform: rotate(${totalRot}deg);` : ''}
+            `;
+        }
+
+        photoArea.appendChild(img);
+        slot.appendChild(photoArea);
+    }
+
+    function renderImageList() {
+        elements.imageList.innerHTML = '';
+        state.images.forEach((img, idx) => {
+            const item = document.createElement('div');
+            item.className = 'image-item';
+
+            const thumb = document.createElement('img');
+            thumb.src = img.dataUrl;
+
+            const name = document.createElement('div');
+            name.className = 'name';
+            name.textContent = img.name;
+
+            const qtyControl = document.createElement('div');
+            qtyControl.className = 'qty-control';
+
+            const minusBtn = document.createElement('button');
+            minusBtn.className = 'qty-btn';
+            minusBtn.textContent = '−';
+            minusBtn.onclick = () => changeQuantity(idx, -1);
+
+            const qtyValue = document.createElement('span');
+            qtyValue.className = 'qty-value';
+            qtyValue.textContent = img.quantity;
+
+            const plusBtn = document.createElement('button');
+            plusBtn.className = 'qty-btn';
+            plusBtn.textContent = '+';
+            plusBtn.onclick = () => changeQuantity(idx, 1);
+
+            qtyControl.appendChild(minusBtn);
+            qtyControl.appendChild(qtyValue);
+            qtyControl.appendChild(plusBtn);
+
+            const remove = document.createElement('button');
+            remove.className = 'remove';
+            remove.textContent = '×';
+            remove.onclick = () => removeImage(idx);
+
+            item.appendChild(thumb);
+            item.appendChild(name);
+            item.appendChild(qtyControl);
+            item.appendChild(remove);
+
+            // Individual back button
+            if (state.individualBacks) {
+                const backRow = document.createElement('div');
+                backRow.style.cssText = 'flex-basis:100%;display:flex;align-items:center;gap:6px;padding:2px 0 4px;border-top:1px solid var(--brd);margin-top:2px;';
+                if (img.backImage) {
+                    const backThumb = document.createElement('img');
+                    backThumb.src = img.backImage.dataUrl;
+                    backThumb.style.cssText = 'width:28px;height:28px;object-fit:cover;border-radius:3px;border:1px solid var(--brd);cursor:pointer;';
+                    backThumb.title = 'Сменить рубашку';
+                    backThumb.onclick = () => pickCardBack(idx);
+                    backRow.appendChild(backThumb);
+                    const backName = document.createElement('span');
+                    backName.style.cssText = 'font-size:11px;color:var(--t2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+                    backName.textContent = img.backImage.name;
+                    backRow.appendChild(backName);
+                    const backRm = document.createElement('button');
+                    backRm.className = 'remove';
+                    backRm.textContent = '×';
+                    backRm.onclick = () => { img.backImage = null; renderImageList(); renderPage(); };
+                    backRow.appendChild(backRm);
+                } else {
+                    const addBack = document.createElement('button');
+                    addBack.style.cssText = 'font-size:11px;padding:2px 8px;background:var(--bg2);border:1px solid var(--brd);border-radius:var(--rs);color:var(--t2);cursor:pointer;';
+                    addBack.textContent = '+ Рубашка';
+                    addBack.onclick = () => pickCardBack(idx);
+                    backRow.appendChild(addBack);
+                }
+                item.appendChild(backRow);
+            }
+
+            elements.imageList.appendChild(item);
+        });
+    }
+
+    function changeQuantity(idx, delta) {
+        const newQty = state.images[idx].quantity + delta;
+        if (newQty >= 1 && newQty <= 99) {
+            state.images[idx].quantity = newQty;
+            calculateLayout();
+            renderPage();
+            renderImageList();
+        }
+    }
+
+    function renderBackPreview() {
+        elements.backPreview.innerHTML = '';
+        if (state.backImage) {
+            const preview = document.createElement('div');
+            preview.className = 'back-preview';
+
+            const img = document.createElement('img');
+            img.src = state.backImage.dataUrl;
+
+            const info = document.createElement('div');
+            info.className = 'back-preview-info';
+            info.innerHTML = `<div class="name">${state.backImage.name}</div>`;
+
+            const remove = document.createElement('button');
+            remove.className = 'remove';
+            remove.textContent = '×';
+            remove.onclick = () => {
+                state.backImage = null;
+                renderBackPreview();
+                renderPage();
+            };
+
+            preview.appendChild(img);
+            preview.appendChild(info);
+            preview.appendChild(remove);
+            elements.backPreview.appendChild(preview);
+        }
+    }
+
+    function computeBrightness(imgEl) {
+        const c = document.createElement('canvas');
+        c.width = 32; c.height = 32;
+        const ctx = c.getContext('2d');
+        ctx.drawImage(imgEl, 0, 0, 32, 32);
+        const d = ctx.getImageData(0, 0, 32, 32).data;
+        let sum = 0;
+        for (let i = 0; i < d.length; i += 4) {
+            sum += d[i] * 0.299 + d[i+1] * 0.587 + d[i+2] * 0.114;
+        }
+        return sum / (32 * 32);
+    }
+
+    function addImages(files) {
+        Array.from(files).forEach(file => {
+            if (!file.type.startsWith('image/')) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const imgEl = new Image();
+                imgEl.onload = () => {
+                    state.images.push({
+                        name: file.name,
+                        dataUrl: e.target.result,
+                        quantity: 1,
+                        naturalWidth: imgEl.naturalWidth,
+                        naturalHeight: imgEl.naturalHeight,
+                        brightness: computeBrightness(imgEl)
+                    });
+                    calculateLayout();
+                    renderPage();
+                    renderImageList();
+                };
+                imgEl.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function setBackImage(file) {
+        if (!file.type.startsWith('image/')) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const imgEl = new Image();
+            imgEl.onload = () => {
+                state.backImage = {
+                    name: file.name,
+                    dataUrl: e.target.result,
+                    naturalWidth: imgEl.naturalWidth,
+                    naturalHeight: imgEl.naturalHeight,
+                    brightness: computeBrightness(imgEl)
+                };
+                renderBackPreview();
+                renderPage();
+            };
+            imgEl.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function removeImage(idx) {
+        state.images.splice(idx, 1);
+        calculateLayout();
+        renderPage();
+        renderImageList();
+    }
+
+    let pendingBackIdx = -1;
+
+    function pickCardBack(idx) {
+        pendingBackIdx = idx;
+        document.getElementById('fileInputCardBack').click();
+    }
+
+    function clearAll() {
+        state.images = [];
+        state.backImage = null;
+        state.currentPage = 0;
+        calculateLayout();
+        renderPage();
+        renderImageList();
+        renderBackPreview();
+    }
+
+    // Rotate image on canvas
+    function getRotatedImage(dataUrl, rotation) {
+        return new Promise((resolve) => {
+            if (rotation === 0) {
+                resolve(dataUrl);
+                return;
+            }
+            
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                if (rotation === 90 || rotation === 270) {
+                    canvas.width = img.height;
+                    canvas.height = img.width;
+                } else {
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                }
+                
+                ctx.translate(canvas.width / 2, canvas.height / 2);
+                ctx.rotate(rotation * Math.PI / 180);
+                ctx.drawImage(img, -img.width / 2, -img.height / 2);
+                
+                resolve(canvas.toDataURL('image/jpeg', 0.95));
+            };
+            img.src = dataUrl;
+        });
+    }
+
+    // Fit image to card dimensions (contain mode)
+    function getFittedImage(dataUrl, targetW, targetH) {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Use higher resolution for quality
+                const scale = 10; // 10 pixels per mm
+                canvas.width = targetW * scale;
+                canvas.height = targetH * scale;
+                
+                // White background
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Calculate fit dimensions
+                const imgRatio = img.width / img.height;
+                const targetRatio = canvas.width / canvas.height;
+                
+                let drawW, drawH, drawX, drawY;
+                
+                if (imgRatio > targetRatio) {
+                    // Image is wider - fit to width
+                    drawW = canvas.width;
+                    drawH = canvas.width / imgRatio;
+                    drawX = 0;
+                    drawY = (canvas.height - drawH) / 2;
+                } else {
+                    // Image is taller - fit to height
+                    drawH = canvas.height;
+                    drawW = canvas.height * imgRatio;
+                    drawX = (canvas.width - drawW) / 2;
+                    drawY = 0;
+                }
+                
+                ctx.drawImage(img, drawX, drawY, drawW, drawH);
+                
+                resolve(canvas.toDataURL('image/jpeg', 0.95));
+            };
+            img.src = dataUrl;
+        });
+    }
+
+    // Cover image to card dimensions (object-fit: cover — crop & center)
+    function getCoverImage(dataUrl, targetW, targetH) {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+
+                const scale = 10;
+                canvas.width = targetW * scale;
+                canvas.height = targetH * scale;
+
+                const imgRatio = img.width / img.height;
+                const targetRatio = canvas.width / canvas.height;
+
+                let drawW, drawH, drawX, drawY;
+
+                if (imgRatio > targetRatio) {
+                    // Image is wider — fit to height, crop sides
+                    drawH = canvas.height;
+                    drawW = canvas.height * imgRatio;
+                    drawX = (canvas.width - drawW) / 2;
+                    drawY = 0;
+                } else {
+                    // Image is taller — fit to width, crop top/bottom
+                    drawW = canvas.width;
+                    drawH = canvas.width / imgRatio;
+                    drawX = 0;
+                    drawY = (canvas.height - drawH) / 2;
+                }
+
+                ctx.drawImage(img, drawX, drawY, drawW, drawH);
+
+                resolve(canvas.toDataURL('image/jpeg', 0.95));
+            };
+            img.src = dataUrl;
+        });
+    }
+
+    async function exportPage(pageIndex, pdf, side) {
+        const { jsPDF } = window.jspdf;
+        const paper = getPaper();
+        const isFirst = !pdf;
+        const isBack = side === 'back';
+
+        if (isFirst) {
+            pdf = new jsPDF({ 
+                orientation: 'portrait', 
+                unit: 'mm', 
+                format: [paper.width, paper.height] 
+            });
+        } else {
+            pdf.addPage([paper.width, paper.height], 'portrait');
+        }
+
+        const margin = getEffectiveMargin();
+        const instrH = getInstructionHeight();
+        const workWidth = paper.width - (margin * 2);
+        const workHeight = paper.height - (margin * 2) - instrH;
+        const usedWidth = state.cardsPerRow * state.cardWidth;
+        const usedHeight = state.cardsPerCol * state.cardHeight;
+        let baseOffsetX = margin + (workWidth - usedWidth) / 2;
+        let baseOffsetY = margin + instrH + (workHeight - usedHeight) / 2;
+
+        // Instruction text for A3/SRA3
+        const instrText = getInstructionText();
+        if (instrText) {
+            pdf.setFontSize(10);
+            pdf.setTextColor(100, 100, 100);
+            pdf.text(instrText, paper.width / 2, margin + 5, { align: 'center' });
+            pdf.setTextColor(0, 0, 0);
+        }
+
+        if (isBack) {
+            baseOffsetX += state.offsetX;
+            baseOffsetY += state.offsetY;
+        }
+
+        const expandedImages = getExpandedImages();
+        const startIdx = pageIndex * state.cardsPerPage;
+        const pageImages = expandedImages.slice(startIdx, startIdx + state.cardsPerPage);
+
+        const cutW = getCutWidth();
+        const cutH = getCutHeight();
+
+        // Track which slots have images for crop marks (with brightness)
+        const filledSlots = [];
+
+        // Draw cards
+        for (let row = 0; row < state.cardsPerCol; row++) {
+            for (let col = 0; col < state.cardsPerRow; col++) {
+                const idx = row * state.cardsPerRow + col;
+                const displayCol = isBack ? (state.cardsPerRow - 1 - col) : col;
+
+                let imageData = null;
+                let imgNatW = 0, imgNatH = 0;
+                let slotBrightness = 200;
+                if (isBack && idx < pageImages.length) {
+                    let backData = state.individualBacks ? (pageImages[idx].backImage || null) : state.backImage;
+                    if (backData) {
+                        imageData = backData.dataUrl;
+                        imgNatW = backData.naturalWidth || 0;
+                        imgNatH = backData.naturalHeight || 0;
+                        slotBrightness = backData.brightness != null ? backData.brightness : 200;
+                    }
+                } else if (!isBack && idx < pageImages.length) {
+                    imageData = pageImages[idx].dataUrl;
+                    imgNatW = pageImages[idx].naturalWidth || 0;
+                    imgNatH = pageImages[idx].naturalHeight || 0;
+                    slotBrightness = pageImages[idx].brightness != null ? pageImages[idx].brightness : 200;
+                }
+
+                if (!imageData) continue;
+
+                // For Polaroid, use photo area dimensions for auto-rotate check
+                const checkW = state.polaroidMode ? getPolaroidPhotoArea().w : state.cardWidth;
+                const checkH = state.polaroidMode ? getPolaroidPhotoArea().h : state.cardHeight;
+
+                // Auto-rotate if orientations don't match
+                const autoRot = needsAutoRotate(imgNatW, imgNatH, checkW, checkH);
+                const totalRotation = state.rotation + (autoRot ? 90 : 0);
+
+                if (totalRotation !== 0) {
+                    imageData = await getRotatedImage(imageData, totalRotation);
+                }
+                
+                const x = baseOffsetX + displayCol * state.cardWidth;
+                const y = baseOffsetY + row * state.cardHeight;
+
+                try {
+                    if (state.polaroidMode) {
+                        // Draw white Polaroid frame
+                        pdf.setFillColor(255, 255, 255);
+                        pdf.rect(x, y, state.cardWidth, state.cardHeight, 'F');
+                        // Draw image in photo area only
+                        const photo = getPolaroidPhotoArea();
+                        const photoX = x + state.polaroidSide;
+                        const photoY = y + state.polaroidTop;
+                        let polaroidImg;
+                        if (state.fitImage) {
+                            polaroidImg = await getFittedImage(imageData, photo.w, photo.h);
+                        } else {
+                            polaroidImg = await getCoverImage(imageData, photo.w, photo.h);
+                        }
+                        pdf.addImage(polaroidImg, 'JPEG', photoX, photoY, photo.w, photo.h);
+                    } else {
+                        // Pre-render image to match browser display (cover or contain)
+                        if (state.fitImage) {
+                            imageData = await getFittedImage(imageData, state.cardWidth, state.cardHeight);
+                        } else {
+                            imageData = await getCoverImage(imageData, state.cardWidth, state.cardHeight);
+                        }
+                        pdf.addImage(imageData, 'JPEG', x, y, state.cardWidth, state.cardHeight);
+                    }
+                } catch (e) {
+                    console.error('Image error:', e);
+                }
+                filledSlots.push({ displayCol, row, brightness: slotBrightness });
+            }
+        }
+
+        // Draw crop marks — only on filled slots, color by brightness
+        if (state.showCropMarks && filledSlots.length > 0) {
+            const markLen = CONFIG.cropMarkLength;
+            const offset = CONFIG.cropMarkOffset;
+
+            filledSlots.forEach(slot => {
+                const x = baseOffsetX + slot.displayCol * state.cardWidth + state.bleed;
+                const y = baseOffsetY + slot.row * state.cardHeight + state.bleed;
+
+                // White backing (thicker)
+                pdf.setDrawColor(255, 255, 255);
+                pdf.setLineWidth(0.6);
+                pdf.line(x - offset - markLen, y, x - offset, y);
+                pdf.line(x, y - offset - markLen, x, y - offset);
+                pdf.line(x + cutW + offset, y, x + cutW + offset + markLen, y);
+                pdf.line(x + cutW, y - offset - markLen, x + cutW, y - offset);
+                pdf.line(x - offset - markLen, y + cutH, x - offset, y + cutH);
+                pdf.line(x, y + cutH + offset, x, y + cutH + offset + markLen);
+                pdf.line(x + cutW + offset, y + cutH, x + cutW + offset + markLen, y + cutH);
+                pdf.line(x + cutW, y + cutH + offset, x + cutW, y + cutH + offset + markLen);
+
+                // Black line on top (thinner)
+                pdf.setDrawColor(0, 0, 0);
+                pdf.setLineWidth(0.2);
+                pdf.line(x - offset - markLen, y, x - offset, y);
+                pdf.line(x, y - offset - markLen, x, y - offset);
+                pdf.line(x + cutW + offset, y, x + cutW + offset + markLen, y);
+                pdf.line(x + cutW, y - offset - markLen, x + cutW, y - offset);
+                pdf.line(x - offset - markLen, y + cutH, x - offset, y + cutH);
+                pdf.line(x, y + cutH + offset, x, y + cutH + offset + markLen);
+                pdf.line(x + cutW + offset, y + cutH, x + cutW + offset + markLen, y + cutH);
+                pdf.line(x + cutW, y + cutH + offset, x + cutW, y + cutH + offset + markLen);
+            });
+        }
+
+        return pdf;
+    }
+
+    async function exportPDF() {
+        elements.loadingOverlay.classList.add('active');
+
+        try {
+            let pdf = null;
+
+            if (state.duplexMode && hasAnyBack()) {
+                for (let i = 0; i < state.totalPages; i++) {
+                    pdf = await exportPage(i, pdf, 'front');
+                    pdf = await exportPage(i, pdf, 'back');
+                }
+                pdf.save('cards-duplex.pdf');
+            } else {
+                for (let i = 0; i < state.totalPages; i++) {
+                    pdf = await exportPage(i, pdf, 'front');
+                }
+                pdf.save('cards.pdf');
+            }
+        } finally {
+            elements.loadingOverlay.classList.remove('active');
+        }
+    }
+
+    function preparePrintPage(container, pageIndex, side) {
+        const paper = getPaper();
+        const isBack = side === 'back';
+
+        const pageDiv = document.createElement('div');
+        pageDiv.className = 'print-page';
+        pageDiv.style.cssText = `
+            width: ${paper.width}mm;
+            height: ${paper.height}mm;
+            position: relative;
+            background: white;
+            page-break-after: always;
+            overflow: hidden;
+        `;
+
+        const margin = getEffectiveMargin();
+        const instrH = getInstructionHeight();
+        const workWidth = paper.width - (margin * 2);
+        const workHeight = paper.height - (margin * 2) - instrH;
+        const usedWidth = state.cardsPerRow * state.cardWidth;
+        const usedHeight = state.cardsPerCol * state.cardHeight;
+        let baseOffsetX = margin + (workWidth - usedWidth) / 2;
+        let baseOffsetY = margin + instrH + (workHeight - usedHeight) / 2;
+
+        // Instruction text for A3/SRA3
+        const instrText = getInstructionText();
+        if (instrText) {
+            const instrDiv = document.createElement('div');
+            instrDiv.style.cssText = `position:absolute;top:${margin}mm;left:0;right:0;height:${instrH}mm;display:flex;align-items:center;justify-content:center;font-size:10px;font-family:sans-serif;color:#666;`;
+            instrDiv.textContent = instrText;
+            pageDiv.appendChild(instrDiv);
+        }
+
+        if (isBack) {
+            baseOffsetX += state.offsetX;
+            baseOffsetY += state.offsetY;
+        }
+
+        const expandedImages = getExpandedImages();
+        const startIdx = pageIndex * state.cardsPerPage;
+        const pageImages = expandedImages.slice(startIdx, startIdx + state.cardsPerPage);
+
+        const cutW = getCutWidth();
+        const cutH = getCutHeight();
+
+        for (let row = 0; row < state.cardsPerCol; row++) {
+            for (let col = 0; col < state.cardsPerRow; col++) {
+                const idx = row * state.cardsPerRow + col;
+                const displayCol = isBack ? (state.cardsPerRow - 1 - col) : col;
+
+                let imageData = null;
+                let imgNatW = 0, imgNatH = 0;
+                let slotBrightness = 200;
+                if (isBack && idx < pageImages.length) {
+                    let backData = state.individualBacks ? (pageImages[idx].backImage || null) : state.backImage;
+                    if (backData) {
+                        imageData = backData.dataUrl;
+                        imgNatW = backData.naturalWidth || 0;
+                        imgNatH = backData.naturalHeight || 0;
+                        slotBrightness = backData.brightness != null ? backData.brightness : 200;
+                    }
+                } else if (!isBack && idx < pageImages.length) {
+                    imageData = pageImages[idx].dataUrl;
+                    imgNatW = pageImages[idx].naturalWidth || 0;
+                    imgNatH = pageImages[idx].naturalHeight || 0;
+                    slotBrightness = pageImages[idx].brightness != null ? pageImages[idx].brightness : 200;
+                }
+
+                if (imageData) {
+                    const x = baseOffsetX + displayCol * state.cardWidth;
+                    const y = baseOffsetY + row * state.cardHeight;
+                    const autoRot = needsAutoRotate(imgNatW, imgNatH, state.cardWidth, state.cardHeight);
+                    const totalRot = state.rotation + (autoRot ? 90 : 0);
+
+                    if (state.polaroidMode) {
+                        // White Polaroid frame
+                        const frame = document.createElement('div');
+                        frame.style.cssText = `
+                            position: absolute;
+                            left: ${x}mm; top: ${y}mm;
+                            width: ${state.cardWidth}mm; height: ${state.cardHeight}mm;
+                            background: white;
+                        `;
+                        pageDiv.appendChild(frame);
+
+                        const photo = getPolaroidPhotoArea();
+                        const photoX = x + state.polaroidSide;
+                        const photoY = y + state.polaroidTop;
+
+                        const photoContainer = document.createElement('div');
+                        photoContainer.style.cssText = `
+                            position: absolute;
+                            left: ${photoX}mm; top: ${photoY}mm;
+                            width: ${photo.w}mm; height: ${photo.h}mm;
+                            overflow: hidden;
+                        `;
+
+                        const img = document.createElement('img');
+                        img.src = imageData;
+                        if (autoRot) {
+                            img.style.cssText = `
+                                position: absolute;
+                                top: 50%; left: 50%;
+                                width: ${photo.h}mm; height: ${photo.w}mm;
+                                object-fit: ${state.fitImage ? 'contain' : 'cover'};
+                                transform: translate(-50%,-50%) rotate(${totalRot}deg);
+                            `;
+                        } else {
+                            img.style.cssText = `
+                                width: ${photo.w}mm; height: ${photo.h}mm;
+                                object-fit: ${state.fitImage ? 'contain' : 'cover'};
+                                ${totalRot !== 0 ? `transform: rotate(${totalRot}deg);` : ''}
+                            `;
+                        }
+                        photoContainer.appendChild(img);
+                        pageDiv.appendChild(photoContainer);
+                    } else {
+                        const img = document.createElement('img');
+                        img.src = imageData;
+                        if (autoRot) {
+                            img.style.cssText = `
+                                position: absolute;
+                                left: ${x}mm;
+                                top: ${y}mm;
+                                width: ${state.cardHeight}mm;
+                                height: ${state.cardWidth}mm;
+                                object-fit: ${state.fitImage ? 'contain' : 'cover'};
+                                ${state.fitImage ? 'background: white;' : ''}
+                                transform-origin: center center;
+                                transform: translate(${(state.cardWidth - state.cardHeight) / 2}mm, ${(state.cardHeight - state.cardWidth) / 2}mm) rotate(${totalRot}deg);
+                            `;
+                        } else {
+                            img.style.cssText = `
+                                position: absolute;
+                                left: ${x}mm;
+                                top: ${y}mm;
+                                width: ${state.cardWidth}mm;
+                                height: ${state.cardHeight}mm;
+                                object-fit: ${state.fitImage ? 'contain' : 'cover'};
+                                ${state.fitImage ? 'background: white;' : ''}
+                                ${totalRot !== 0 ? `transform: rotate(${totalRot}deg);` : ''}
+                            `;
+                        }
+                        pageDiv.appendChild(img);
+                    }
+                }
+
+                if (state.showCropMarks && imageData) {
+                    const cropX = baseOffsetX + displayCol * state.cardWidth + state.bleed;
+                    const cropY = baseOffsetY + row * state.cardHeight + state.bleed;
+                    const markLen = CONFIG.cropMarkLength;
+                    const offset = CONFIG.cropMarkOffset;
+
+                    const marks = [
+                        { x: cropX - offset - markLen, y: cropY, w: markLen, h: 0.2 },
+                        { x: cropX, y: cropY - offset - markLen, w: 0.2, h: markLen },
+                        { x: cropX + cutW + offset, y: cropY, w: markLen, h: 0.2 },
+                        { x: cropX + cutW, y: cropY - offset - markLen, w: 0.2, h: markLen },
+                        { x: cropX - offset - markLen, y: cropY + cutH, w: markLen, h: 0.2 },
+                        { x: cropX, y: cropY + cutH + offset, w: 0.2, h: markLen },
+                        { x: cropX + cutW + offset, y: cropY + cutH, w: markLen, h: 0.2 },
+                        { x: cropX + cutW, y: cropY + cutH + offset, w: 0.2, h: markLen }
+                    ];
+
+                    // White backing (thicker)
+                    marks.forEach(m => {
+                        const backing = document.createElement('div');
+                        backing.style.cssText = `position:absolute;left:${m.x}mm;top:${m.y}mm;width:${Math.max(m.w, 0.6)}mm;height:${Math.max(m.h, 0.6)}mm;background:white;`;
+                        pageDiv.appendChild(backing);
+                    });
+                    // Black line on top (thinner)
+                    marks.forEach(m => {
+                        const mark = document.createElement('div');
+                        mark.style.cssText = `position:absolute;left:${m.x}mm;top:${m.y}mm;width:${m.w}mm;height:${m.h}mm;background:black;`;
+                        pageDiv.appendChild(mark);
+                    });
+                }
+            }
+        }
+
+        container.appendChild(pageDiv);
+    }
+
+    function printCards() {
+        const paper = getPaper();
+        const printContainer = document.createElement('div');
+        printContainer.id = 'printContainer';
+        printContainer.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            background: white;
+            z-index: 10000;
+        `;
+
+        // Inject dynamic @page style
+        const pageStyle = document.createElement('style');
+        pageStyle.id = 'dynamicPageStyle';
+        pageStyle.textContent = `@page { size: ${paper.width}mm ${paper.height}mm; margin: 0; }`;
+        document.head.appendChild(pageStyle);
+
+        if (state.duplexMode && hasAnyBack()) {
+            for (let i = 0; i < state.totalPages; i++) {
+                preparePrintPage(printContainer, i, 'front');
+                preparePrintPage(printContainer, i, 'back');
+            }
+        } else {
+            for (let i = 0; i < state.totalPages; i++) {
+                preparePrintPage(printContainer, i, 'front');
+            }
+        }
+
+        document.body.appendChild(printContainer);
+        const appContainer = document.querySelector('.app-container');
+        appContainer.style.display = 'none';
+
+        window.print();
+
+        setTimeout(() => {
+            printContainer.remove();
+            const dynStyle = document.getElementById('dynamicPageStyle');
+            if (dynStyle) dynStyle.remove();
+            appContainer.style.display = 'grid';
+        }, 100);
+    }
+
+    // Event listeners
+    elements.paperSize.addEventListener('change', () => {
+        state.paperSize = elements.paperSize.value;
+        const isSmall = (state.paperSize === 'a5' || state.paperSize === 'a6');
+        document.getElementById('photoLayoutSection').style.display = isSmall ? 'flex' : 'none';
+        if (!isSmall) {
+            state.photoLayout = 0;
+            document.getElementById('photoLayout').value = '0';
+            document.getElementById('cardSizeSection').style.display = 'flex';
+        }
+        calculateLayout();
+        renderPage();
+    });
+
+    document.getElementById('photoLayout').addEventListener('change', () => {
+        state.photoLayout = parseInt(document.getElementById('photoLayout').value);
+        const isPhotoMode = state.photoLayout > 0;
+        document.getElementById('cardSizeSection').style.display = isPhotoMode ? 'none' : 'flex';
+        if (isPhotoMode) {
+            state.bleed = 0;
+            state.showCropMarks = false;
+            elements.showCropMarks.checked = false;
+        }
+        calculateLayout();
+        renderPage();
+    });
+
+    elements.cardWidth.addEventListener('change', () => {
+        state.cardWidth = Math.max(10, Math.min(420, parseFloat(elements.cardWidth.value) || 65));
+        elements.cardWidth.value = state.cardWidth;
+        if (state.polaroidMode) {
+            const dims = recalcPolaroidCardFromWidth(state.cardWidth);
+            state.cardHeight = Math.round(dims.h * 2) / 2;
+            elements.cardHeight.value = state.cardHeight;
+            updatePolaroidInfo();
+        }
+        updateCutSizeDisplay();
+        calculateLayout();
+        renderPage();
+    });
+
+    elements.cardHeight.addEventListener('change', () => {
+        state.cardHeight = Math.max(10, Math.min(420, parseFloat(elements.cardHeight.value) || 90));
+        elements.cardHeight.value = state.cardHeight;
+        if (state.polaroidMode) {
+            const dims = recalcPolaroidCardFromHeight(state.cardHeight);
+            state.cardWidth = Math.round(dims.w * 2) / 2;
+            elements.cardWidth.value = state.cardWidth;
+            updatePolaroidInfo();
+        }
+        updateCutSizeDisplay();
+        calculateLayout();
+        renderPage();
+    });
+
+    elements.bleed.addEventListener('change', () => {
+        state.bleed = Math.max(0, Math.min(10, parseFloat(elements.bleed.value) || 0));
+        elements.bleed.value = state.bleed;
+        updateCutSizeDisplay();
+        renderPage();
+    });
+
+    elements.rotation.addEventListener('change', () => {
+        state.rotation = parseInt(elements.rotation.value);
+        renderPage();
+    });
+
+    elements.duplexMode.addEventListener('change', () => {
+        state.duplexMode = elements.duplexMode.checked;
+        elements.duplexOptions.classList.toggle('visible', state.duplexMode);
+        elements.sideTabs.classList.toggle('visible', state.duplexMode);
+        updateStats();
+        renderPage();
+    });
+
+    elements.showCropMarks.addEventListener('change', () => {
+        state.showCropMarks = elements.showCropMarks.checked;
+        renderPage();
+    });
+
+    elements.fitImage.addEventListener('change', () => {
+        state.fitImage = elements.fitImage.checked;
+        renderPage();
+    });
+
+    elements.autoRotate.addEventListener('change', () => {
+        state.autoRotate = elements.autoRotate.checked;
+        renderPage();
+    });
+
+    elements.polaroidMode.addEventListener('change', () => {
+        state.polaroidMode = elements.polaroidMode.checked;
+        elements.polaroidOptions.classList.toggle('visible', state.polaroidMode);
+        if (state.polaroidMode) {
+            applyPolaroidDefaults();
+        } else {
+            restorePrePolaroidDimensions();
+        }
+        calculateLayout();
+        renderPage();
+    });
+
+    elements.polaroidSide.addEventListener('change', () => {
+        state.polaroidSide = Math.max(1, Math.min(20, parseFloat(elements.polaroidSide.value) || 3));
+        elements.polaroidSide.value = state.polaroidSide;
+        if (state.polaroidMode) {
+            const dims = recalcPolaroidCardFromWidth(state.cardWidth);
+            state.cardHeight = Math.round(dims.h * 2) / 2;
+            elements.cardHeight.value = state.cardHeight;
+            updateCutSizeDisplay();
+            updatePolaroidInfo();
+            calculateLayout();
+            renderPage();
+        }
+    });
+
+    elements.polaroidTop.addEventListener('change', () => {
+        state.polaroidTop = Math.max(1, Math.min(20, parseFloat(elements.polaroidTop.value) || 3));
+        elements.polaroidTop.value = state.polaroidTop;
+        if (state.polaroidMode) {
+            const dims = recalcPolaroidCardFromWidth(state.cardWidth);
+            state.cardHeight = Math.round(dims.h * 2) / 2;
+            elements.cardHeight.value = state.cardHeight;
+            updateCutSizeDisplay();
+            updatePolaroidInfo();
+            calculateLayout();
+            renderPage();
+        }
+    });
+
+    elements.polaroidBottom.addEventListener('change', () => {
+        state.polaroidBottom = Math.max(2, Math.min(40, parseFloat(elements.polaroidBottom.value) || 15));
+        elements.polaroidBottom.value = state.polaroidBottom;
+        if (state.polaroidMode) {
+            const dims = recalcPolaroidCardFromWidth(state.cardWidth);
+            state.cardHeight = Math.round(dims.h * 2) / 2;
+            elements.cardHeight.value = state.cardHeight;
+            updateCutSizeDisplay();
+            updatePolaroidInfo();
+            calculateLayout();
+            renderPage();
+        }
+    });
+
+    elements.offsetX.addEventListener('change', () => {
+        state.offsetX = parseFloat(elements.offsetX.value) || 0;
+        if (state.currentSide === 'back') renderPage();
+    });
+
+    elements.offsetY.addEventListener('change', () => {
+        state.offsetY = parseFloat(elements.offsetY.value) || 0;
+        if (state.currentSide === 'back') renderPage();
+    });
+
+    document.querySelectorAll('.side-tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+            state.currentSide = btn.dataset.side;
+            document.querySelectorAll('.side-tab').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderPage();
+        });
+    });
+
+    elements.dropzoneFront.addEventListener('click', () => elements.fileInputFront.click());
+    elements.dropzoneFront.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        elements.dropzoneFront.classList.add('dragover');
+    });
+    elements.dropzoneFront.addEventListener('dragleave', () => {
+        elements.dropzoneFront.classList.remove('dragover');
+    });
+    elements.dropzoneFront.addEventListener('drop', (e) => {
+        e.preventDefault();
+        elements.dropzoneFront.classList.remove('dragover');
+        addImages(e.dataTransfer.files);
+    });
+    elements.fileInputFront.addEventListener('change', (e) => {
+        addImages(e.target.files);
+        e.target.value = '';
+    });
+
+    elements.dropzoneBack.addEventListener('click', () => elements.fileInputBack.click());
+    elements.dropzoneBack.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        elements.dropzoneBack.classList.add('dragover');
+    });
+    elements.dropzoneBack.addEventListener('dragleave', () => {
+        elements.dropzoneBack.classList.remove('dragover');
+    });
+    elements.dropzoneBack.addEventListener('drop', (e) => {
+        e.preventDefault();
+        elements.dropzoneBack.classList.remove('dragover');
+        if (e.dataTransfer.files.length > 0) {
+            setBackImage(e.dataTransfer.files[0]);
+        }
+    });
+    elements.fileInputBack.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            setBackImage(e.target.files[0]);
+        }
+        e.target.value = '';
+    });
+
+    // Individual backs toggle
+    document.getElementById('individualBacks').addEventListener('change', (e) => {
+        state.individualBacks = e.target.checked;
+        document.getElementById('singleBackArea').style.display = state.individualBacks ? 'none' : '';
+        document.getElementById('individualBackArea').style.display = state.individualBacks ? '' : 'none';
+        // Auto-enable duplex when individual backs is on
+        if (state.individualBacks && !state.duplexMode) {
+            state.duplexMode = true;
+            elements.duplexMode.checked = true;
+            elements.duplexOptions.classList.add('visible');
+            elements.sideTabs.classList.add('visible');
+            updateStats();
+        }
+        renderImageList();
+        renderPage();
+    });
+
+    // Per-card back file input
+    document.getElementById('fileInputCardBack').addEventListener('change', (e) => {
+        if (e.target.files.length > 0 && pendingBackIdx >= 0 && pendingBackIdx < state.images.length) {
+            const file = e.target.files[0];
+            if (!file.type.startsWith('image/')) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const imgEl = new Image();
+                imgEl.onload = () => {
+                    state.images[pendingBackIdx].backImage = {
+                        name: file.name,
+                        dataUrl: ev.target.result,
+                        naturalWidth: imgEl.naturalWidth,
+                        naturalHeight: imgEl.naturalHeight,
+                        brightness: computeBrightness(imgEl)
+                    };
+                    pendingBackIdx = -1;
+                    renderImageList();
+                    renderPage();
+                };
+                imgEl.src = ev.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+        e.target.value = '';
+    });
+
+    elements.prevPage.addEventListener('click', () => {
+        if (state.currentPage > 0) {
+            state.currentPage--;
+            updateStats();
+            updateNavigation();
+            renderPage();
+        }
+    });
+
+    elements.nextPage.addEventListener('click', () => {
+        if (state.currentPage < state.totalPages - 1) {
+            state.currentPage++;
+            updateStats();
+            updateNavigation();
+            renderPage();
+        }
+    });
+
+    elements.exportBtn.addEventListener('click', exportPDF);
+    elements.printBtn.addEventListener('click', printCards);
+    elements.clearBtn.addEventListener('click', clearAll);
+
+    // Initialize
+    updateCutSizeDisplay();
+    calculateLayout();
+    renderPage();
+</script>
+
+</body>
+</html>

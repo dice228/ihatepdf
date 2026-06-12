@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chibi Poser</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Nunito',sans-serif;background:#1a1a2e;color:#e0e0e0;overflow:hidden;height:100vh;display:flex}
+  #canvas-container{flex:1;position:relative}
+  canvas{display:block;width:100%;height:100%;cursor:grab;touch-action:none}
+  canvas.dragging{cursor:grabbing}
+  #sidebar{width:280px;background:#16213e;border-left:2px solid #0f3460;padding:14px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;flex-shrink:0}
+  #sidebar h2{font-size:17px;font-weight:900;color:#e94560;text-transform:uppercase;letter-spacing:2px}
+  .joint-group{background:#1a1a2e;border-radius:10px;padding:10px 12px;border:1px solid #0f3460}
+  .joint-group-title{font-weight:700;font-size:13px;color:#e94560;cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px}
+  .joint-group-title::before{content:'▸';transition:transform .2s;display:inline-block;font-size:10px}
+  .joint-group.open .joint-group-title::before{transform:rotate(90deg)}
+  .joint-group-content{display:none;padding-top:6px}
+  .joint-group.open .joint-group-content{display:block}
+  .jlabel{font-size:11px;color:#ccc;margin:6px 0 2px;font-weight:700;cursor:pointer;padding:2px 4px;border-radius:4px;transition:background .15s}
+  .jlabel:hover{background:#0f3460}
+  .jlabel.active{background:#e94560;color:#fff}
+  .slider-row{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+  .slider-row label{font-size:11px;color:#a0a0b0;width:20px;text-align:right;flex-shrink:0}
+  .slider-row input[type="range"]{flex:1;height:4px;-webkit-appearance:none;appearance:none;background:#0f3460;border-radius:2px;outline:none}
+  .slider-row input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#e94560;cursor:pointer;border:2px solid #fff}
+  .slider-row .val{font-size:10px;color:#888;width:34px}
+  .btn-row{display:flex;gap:8px;flex-wrap:wrap}
+  .btn{padding:8px 14px;border:none;border-radius:8px;font-family:'Nunito',sans-serif;font-weight:700;font-size:12px;cursor:pointer;transition:all .15s;flex:1;min-width:70px;text-align:center}
+  .btn-primary{background:#e94560;color:#fff}
+  .btn-primary:hover{background:#ff6b81}
+  .btn-secondary{background:#0f3460;color:#e0e0e0}
+  .btn-secondary:hover{background:#1a4a8a}
+  .hint{font-size:11px;color:#666;text-align:center;padding:6px;line-height:1.5}
+  .view-btns{display:flex;gap:4px;flex-wrap:wrap}
+  .view-btn{padding:4px 8px;border:1px solid #0f3460;background:transparent;color:#a0a0b0;border-radius:6px;font-family:'Nunito',sans-serif;font-size:11px;cursor:pointer;transition:all .15s}
+  .view-btn:hover{background:#0f3460;color:#fff}
+  #loading{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:16px;color:#e94560;font-weight:900;text-align:center}
+  #model-path-row{display:flex;gap:4px;align-items:center}
+  #model-path-row input{flex:1;background:#1a1a2e;border:1px solid #0f3460;color:#e0e0e0;padding:5px 8px;border-radius:6px;font-family:'Nunito',sans-serif;font-size:11px}
+  #selected-joint{font-size:12px;color:#e94560;font-weight:700;text-align:center;min-height:18px}
+</style>
+</head>
+<body>
+<div id="canvas-container">
+  <canvas id="c"></canvas>
+  <div id="loading">Загрузка модели...</div>
+</div>
+<div id="sidebar">
+  <h2>Chibi Poser</h2>
+  <div id="model-path-row">
+    <input type="text" id="modelPath" value="Untitled.glb" placeholder="путь к .glb">
+    <button class="btn btn-secondary" style="padding:5px 10px;min-width:auto;flex:0" onclick="loadModelFromPath()">⟳</button>
+  </div>
+  <div id="selected-joint">Клик по модели — выбрать сустав</div>
+  <div id="joint-controls"></div>
+  <div class="view-btns">
+    <button class="view-btn" onclick="setView('front')">Фронт</button>
+    <button class="view-btn" onclick="setView('side')">Бок</button>
+    <button class="view-btn" onclick="setView('back')">Спина</button>
+    <button class="view-btn" onclick="setView('top')">Верх</button>
+    <button class="view-btn" onclick="setView('3/4')">3/4</button>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-primary" onclick="exportPNG()">📸 PNG</button>
+    <button class="btn btn-secondary" onclick="resetPose()">↺ Сброс</button>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-secondary" onclick="mirrorPose()">⇄ Зеркало</button>
+  </div>
+  <div class="hint">Клик по модели → ближайший сустав → гизмо<br>Тянуть кольцо гизмо → вращение<br>ЛКМ — камера · Shift+ЛКМ — пан · Колёсико — зум<br>Тач: 1 палец — камера · 2 пальца — пан+зум<br>Esc — убрать гизмо</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* =================================================================
+   CHIBI POSER v6 — Fixed gizmo + screen-space bone picking
+   ================================================================= */
+const canvas = document.getElementById('c');
+const container = document.getElementById('canvas-container');
+const loadingEl = document.getElementById('loading');
+
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true, preserveDrawingBuffer:true, alpha:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setClearColor(0x1a1a2e, 1);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 500);
+const raycaster = new THREE.Raycaster();
+
+// Lights
+scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+const mainLight = new THREE.DirectionalLight(0xffffff, 0.75);
+mainLight.position.set(5, 15, 8); mainLight.castShadow = true;
+mainLight.shadow.mapSize.set(1024,1024);
+mainLight.shadow.camera.left=-8;mainLight.shadow.camera.right=8;
+mainLight.shadow.camera.top=8;mainLight.shadow.camera.bottom=-2;
+scene.add(mainLight);
+scene.add(new THREE.DirectionalLight(0x6688cc, 0.3).translateX(-5));
+const rim = new THREE.DirectionalLight(0xe94560, 0.15);
+rim.position.set(0, 5, -10); scene.add(rim);
+
+// Ground
+const groundGroup = new THREE.Group();
+const gnd = new THREE.Mesh(new THREE.CircleGeometry(10,64), new THREE.MeshStandardMaterial({color:0x0f3460,roughness:0.9}));
+gnd.rotation.x = -Math.PI/2; gnd.receiveShadow = true; groundGroup.add(gnd);
+const grid = new THREE.GridHelper(20, 16, 0x1a3a6a, 0x142850);
+grid.position.y = 0.01; groundGroup.add(grid);
+scene.add(groundGroup);
+
+/* ================================================================= */
+const BONE_DISPLAY = {
+  'spine':'Таз','spine001':'Позвоночник 1','spine002':'Позвоночник 2',
+  'spine003':'Грудь','spine005':'Шея','spine006':'Голова',
+  'shoulderL':'Ключица Л','upper_armL':'Плечо Л','forearmL':'Предплечье Л','handL':'Кисть Л',
+  'shoulderR':'Ключица П','upper_armR':'Плечо П','forearmR':'Предплечье П','handR':'Кисть П',
+  'thighL':'Бедро Л','shinL':'Голень Л','footL':'Стопа Л',
+  'thighR':'Бедро П','shinR':'Голень П','footR':'Стопа П',
+  'pelvisL':'Таз Л','pelvisR':'Таз П',
+};
+const UI_BONE_GROUPS = [
+  {group:'Голова / Торс', bones:['spine006','spine005','spine003','spine002','spine001','spine']},
+  {group:'Левая рука', bones:['shoulderL','upper_armL','forearmL','handL']},
+  {group:'Правая рука', bones:['shoulderR','upper_armR','forearmR','handR']},
+  {group:'Левая нога', bones:['pelvisL','thighL','shinL','footL']},
+  {group:'Правая нога', bones:['pelvisR','thighR','shinR','footR']},
+];
+const MIRROR_PAIRS = [
+  ['shoulderL','shoulderR'],['upper_armL','upper_armR'],
+  ['forearmL','forearmR'],['handL','handR'],
+  ['thighL','thighR'],['shinL','shinR'],['footL','footR'],
+  ['pelvisL','pelvisR'],
+];
+
+/* ================================================================= */
+let loadedModel = null;
+let skinnedMeshes = [];
+let allBones = {};
+let defaultRotations = {};
+const sliderMap = {};
+let pickableBones = new Set();
+
+/* =================================================================
+   GIZMO — 3 rotation rings per axis
+   ================================================================= */
+const gizmoGroup = new THREE.Group();
+gizmoGroup.visible = false;
+scene.add(gizmoGroup);
+
+const GC = {x:0xff4444, y:0x44cc44, z:0x4488ff};
+const GHL = 0xffff00;
+const gRings = {};
+
+(function createGizmo() {
+  // Torus default: lies in XY plane
+  // X-ring (rotate around X) → YZ plane → mesh.rotation.y = PI/2
+  // Y-ring (rotate around Y) → XZ plane → mesh.rotation.x = PI/2
+  // Z-ring (rotate around Z) → XY plane → no rotation
+  const ORIENT = {x:{ry:Math.PI/2}, y:{rx:Math.PI/2}, z:{}};
+
+  ['x','y','z'].forEach(axis => {
+    // Single thick ring — serves as both visual and hitbox
+    const geo = new THREE.TorusGeometry(1.0, 0.09, 16, 64);
+    const mat = new THREE.MeshBasicMaterial({
+      color:GC[axis], transparent:true, opacity:0.75,
+      depthTest:false, depthWrite:false, side:THREE.DoubleSide
+    });
+    const ring = new THREE.Mesh(geo, mat);
+    ring.renderOrder = 1000;
+    ring.userData = {axis, gizmo:true};
+
+    const o = ORIENT[axis];
+    if (o.rx) ring.rotation.x = o.rx;
+    if (o.ry) ring.rotation.y = o.ry;
+
+    gizmoGroup.add(ring);
+    gRings[axis] = ring;
+  });
+  // Center dot
+  const d = new THREE.Mesh(new THREE.SphereGeometry(0.15,12,12),
+    new THREE.MeshBasicMaterial({color:0xffffff, transparent:true, opacity:0.6, depthTest:false}));
+  d.renderOrder = 1000;
+  gizmoGroup.add(d);
+})();
+
+let selectedBone = null;
+
+function selectBone(name) {
+  if (!allBones[name]) return;
+  selectedBone = name;
+  gizmoGroup.visible = true;
+  document.getElementById('selected-joint').textContent = BONE_DISPLAY[name] || name;
+  syncGizmoPos();
+  // Highlight label
+  document.querySelectorAll('.jlabel').forEach(el => el.classList.toggle('active', el.dataset.bone === name));
+  // Open group
+  UI_BONE_GROUPS.forEach((g,i) => {
+    if (g.bones.includes(name)) {
+      const grps = document.querySelectorAll('.joint-group');
+      if (grps[i]) grps[i].classList.add('open');
+    }
+  });
+}
+
+function deselectBone() {
+  gizmoGroup.visible = false;
+  selectedBone = null;
+  const cnt = Object.keys(sliderMap).length;
+  document.getElementById('selected-joint').textContent = cnt + ' суставов · Клик по модели → выбрать';
+  document.querySelectorAll('.jlabel.active').forEach(el => el.classList.remove('active'));
+}
+
+function syncGizmoPos() {
+  if (!selectedBone || !allBones[selectedBone]) return;
+  const wp = new THREE.Vector3();
+  allBones[selectedBone].getWorldPosition(wp);
+  gizmoGroup.position.copy(wp);
+  const dist = camera.position.distanceTo(wp);
+  gizmoGroup.scale.setScalar(Math.max(0.2, Math.min(2.5, dist * 0.055)));
+  gizmoGroup.updateMatrixWorld(true); // CRITICAL for raycaster
+}
+
+/* =================================================================
+   SCREEN-SPACE BONE PICKING
+   ================================================================= */
+function findBoneAtNDC(nx, ny) {
+  let best = Infinity, found = null;
+  const wp = new THREE.Vector3(), pr = new THREE.Vector3();
+  for (const name of pickableBones) {
+    const bone = allBones[name]; if (!bone) continue;
+    bone.getWorldPosition(wp);
+    pr.copy(wp).project(camera);
+    if (pr.z > 1) continue; // behind camera
+    const d = Math.hypot(pr.x - nx, pr.y - ny);
+    if (d < best) { best = d; found = name; }
+  }
+  return best < 0.25 ? found : null;
+}
+
+/* =================================================================
+   GIZMO RAYCAST — against ring meshes
+   ================================================================= */
+function hitGizmoAxis(nx, ny) {
+  if (!gizmoGroup.visible) return null;
+  gizmoGroup.updateMatrixWorld(true);
+  raycaster.setFromCamera(new THREE.Vector2(nx, ny), camera);
+  // intersectObjects checks Object3D.visible (true for all children), not Material.visible
+  const hits = raycaster.intersectObjects(gizmoGroup.children, false);
+  for (const h of hits) {
+    if (h.object.userData.gizmo && h.object.userData.axis) return h.object.userData.axis;
+  }
+  return null;
+}
+
+/* =================================================================
+   UNIFIED POINTER HANDLING — mouse + touch via Pointer Events
+   
+   PC:   LMB = orbit | Shift+LMB = pan | Wheel = zoom
+   Touch: 1 finger = orbit | 2 fingers = pan + pinch-zoom
+   Gizmo/bone pick always takes priority over camera
+   ================================================================= */
+let gDrag = false, gAxis = null, gStartAngle = 0, gStartQuat = null;
+
+const pointers = new Map();   // pointerId → {x, y}
+let camAction = null;         // 'orbit' | 'pan' | null
+let camPointerId = null;      // which pointer drives orbit/pan
+let pinchPrev = null;         // {dist, cx, cy} for 2-finger gestures
+let shiftHeld = false;
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Shift') shiftHeld = true;
+  if (e.key === 'Escape') deselectBone();
+});
+document.addEventListener('keyup', e => { if (e.key === 'Shift') shiftHeld = false; });
+
+function ndc(e) {
+  const r = canvas.getBoundingClientRect();
+  return { x: ((e.clientX-r.left)/r.width)*2-1, y: -((e.clientY-r.top)/r.height)*2+1 };
+}
+function pxy(e) { return {x:e.clientX, y:e.clientY}; }
+
+function doPan(dx, dy) {
+  const right = new THREE.Vector3();
+  camera.getWorldDirection(right);
+  right.cross(new THREE.Vector3(0,1,0)).normalize();
+  cTarget.add(right.multiplyScalar(-dx * 0.02));
+  cTarget.y += dy * 0.02;
+  updateCam();
+}
+
+// --- POINTER DOWN ---
+canvas.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  canvas.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId, pxy(e));
+
+  // 2 pointers → switch to 2-finger mode (pan + pinch)
+  if (pointers.size === 2) {
+    camAction = null; camPointerId = null; gDrag = false;
+    const pts = [...pointers.values()];
+    pinchPrev = {
+      dist: Math.hypot(pts[1].x-pts[0].x, pts[1].y-pts[0].y),
+      cx: (pts[0].x+pts[1].x)/2,
+      cy: (pts[0].y+pts[1].y)/2
+    };
+    return;
+  }
+
+  // Only LMB (or touch) for interaction
+  if (e.button !== 0 && e.pointerType === 'mouse') return;
+
+  const p = ndc(e);
+
+  // 1) Gizmo ring grab
+  if (gizmoGroup.visible && selectedBone) {
+    const axis = hitGizmoAxis(p.x, p.y);
+    if (axis) {
+      gDrag = true; gAxis = axis;
+      gStartQuat = allBones[selectedBone].quaternion.clone();
+      gStartAngle = Math.atan2(p.y, p.x);
+      canvas.classList.add('dragging');
+      Object.entries(gRings).forEach(([a,m]) => {
+        if (a===axis) { m.material.color.setHex(GHL); m.material.opacity=1; }
+        else m.material.opacity = 0.15;
+      });
+      return;
+    }
+  }
+
+  // 2) Bone pick
+  const bone = findBoneAtNDC(p.x, p.y);
+  if (bone) { selectBone(bone); return; }
+
+  // 3) Empty space → camera: Shift+LMB = pan, LMB = orbit
+  deselectBone();
+  camPointerId = e.pointerId;
+  camAction = shiftHeld ? 'pan' : 'orbit';
+}, true);
+
+// --- POINTER MOVE ---
+canvas.addEventListener('pointermove', e => {
+  e.preventDefault();
+  const prev = pointers.get(e.pointerId);
+  const cur = pxy(e);
+  pointers.set(e.pointerId, cur);
+
+  // 2-finger: simultaneous pan + pinch-zoom
+  if (pointers.size === 2 && pinchPrev) {
+    const pts = [...pointers.values()];
+    const dist = Math.hypot(pts[1].x-pts[0].x, pts[1].y-pts[0].y);
+    const cx = (pts[0].x+pts[1].x)/2;
+    const cy = (pts[0].y+pts[1].y)/2;
+
+    // Pinch zoom
+    if (pinchPrev.dist > 0) {
+      cDist *= pinchPrev.dist / dist;
+      cDist = Math.max(3, Math.min(60, cDist));
+    }
+    // Pan from midpoint movement
+    doPan(cx - pinchPrev.cx, cy - pinchPrev.cy);
+
+    pinchPrev = {dist, cx, cy};
+    return;
+  }
+
+  // Gizmo dragging
+  if (gDrag && selectedBone && gAxis) {
+    const p = ndc(e);
+    const angle = Math.atan2(p.y, p.x);
+    const delta = angle - gStartAngle;
+    const av = new THREE.Vector3(gAxis==='x'?1:0, gAxis==='y'?1:0, gAxis==='z'?1:0);
+    const dq = new THREE.Quaternion().setFromAxisAngle(av, delta);
+    allBones[selectedBone].quaternion.copy(gStartQuat).premultiply(dq);
+    syncSlidersFromBone(selectedBone);
+    return;
+  }
+
+  if (!prev) return;
+  const dx = cur.x - prev.x;
+  const dy = cur.y - prev.y;
+
+  // Camera orbit or pan
+  if (camPointerId === e.pointerId && camAction) {
+    if (camAction === 'orbit') {
+      cTheta -= dx * 0.008;
+      cPhi += dy * 0.008;
+      cPhi = Math.max(-1.2, Math.min(1.2, cPhi));
+      updateCam();
+    } else if (camAction === 'pan') {
+      doPan(dx, dy);
+    }
+    return;
+  }
+
+  // Hover effects (no button held)
+  if (gizmoGroup.visible) {
+    const p = ndc(e);
+    const axis = hitGizmoAxis(p.x, p.y);
+    Object.entries(gRings).forEach(([a,m]) => {
+      m.material.opacity = (axis && axis===a) ? 0.95 : 0.75;
+      m.material.color.setHex(GC[a]);
+    });
+    if (axis) { canvas.style.cursor = 'pointer'; return; }
+  }
+  const p = ndc(e);
+  const bone = findBoneAtNDC(p.x, p.y);
+  canvas.style.cursor = bone ? 'pointer' : 'grab';
+}, true);
+
+// --- POINTER UP ---
+canvas.addEventListener('pointerup', e => {
+  pointers.delete(e.pointerId);
+  try { canvas.releasePointerCapture(e.pointerId); } catch(_){}
+
+  if (gDrag) {
+    gDrag = false; gAxis = null;
+    canvas.classList.remove('dragging');
+    Object.entries(gRings).forEach(([a,m]) => { m.material.color.setHex(GC[a]); m.material.opacity=0.75; });
+  }
+  if (camPointerId === e.pointerId) { camAction = null; camPointerId = null; }
+  if (pointers.size < 2) pinchPrev = null;
+}, true);
+
+canvas.addEventListener('pointercancel', e => {
+  pointers.delete(e.pointerId);
+  if (camPointerId === e.pointerId) { camAction = null; camPointerId = null; }
+  if (pointers.size < 2) pinchPrev = null;
+  gDrag = false;
+}, true);
+
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+canvas.addEventListener('wheel', e => { cDist += e.deltaY*0.02; cDist = Math.max(3, Math.min(60, cDist)); updateCam(); });
+canvas.addEventListener('touchmove', e => e.preventDefault(), {passive:false});
+
+/* =================================================================
+   SLIDER ↔ BONE SYNC
+   ================================================================= */
+function syncSlidersFromBone(bn) {
+  if (!sliderMap[bn]) return;
+  const bone = allBones[bn];
+  const cur = new THREE.Euler().setFromQuaternion(bone.quaternion, 'XYZ');
+  const def = new THREE.Euler().setFromQuaternion(defaultRotations[bn], 'XYZ');
+  ['x','y','z'].forEach(a => {
+    if (!sliderMap[bn][a]) return;
+    const {sl,vs} = sliderMap[bn][a];
+    const deg = Math.round(THREE.MathUtils.radToDeg(cur[a] - def[a]));
+    sl.value = Math.max(-180, Math.min(180, deg));
+    vs.textContent = deg + '°';
+  });
+}
+
+/* =================================================================
+   GLB LOADER
+   ================================================================= */
+function loadGLTFLoader() {
+  return new Promise((res,rej) => {
+    if (THREE.GLTFLoader) {res(); return;}
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js';
+    s.onload = res; s.onerror = rej; document.head.appendChild(s);
+  });
+}
+
+async function loadModel(url) {
+  loadingEl.style.display = 'block';
+  loadingEl.textContent = 'Загрузка модели...';
+  await loadGLTFLoader();
+  return new Promise((resolve, reject) => {
+    new THREE.GLTFLoader().load(url, gltf => {
+      loadingEl.style.display = 'none';
+      if (loadedModel) scene.remove(loadedModel);
+      skinnedMeshes = []; allBones = {}; defaultRotations = {}; pickableBones = new Set();
+
+      const model = gltf.scene;
+
+      // Step 1: Add to scene FIRST (skeleton may need this)
+      scene.add(model);
+      loadedModel = model;
+
+      // Step 2: Find SkinnedMeshes and apply material
+      model.traverse(child => {
+        if (child.isSkinnedMesh) {
+          skinnedMeshes.push(child);
+          child.castShadow = true; child.receiveShadow = true;
+          child.material = new THREE.MeshStandardMaterial({
+            color:0xf5e6d3, roughness:0.65, metalness:0, skinning:true, side:THREE.DoubleSide
+          });
+        }
+      });
+
+      // Step 3: Discover bones — THREE methods, most→least reliable
+      // Method A: skeleton.bones from SkinnedMesh
+      skinnedMeshes.forEach(sm => {
+        if (sm.skeleton && sm.skeleton.bones) {
+          console.log('Method A: skeleton.bones count =', sm.skeleton.bones.length);
+          sm.skeleton.bones.forEach(b => {
+            if (b && b.name && b.name !== 'neutral_bone') {
+              allBones[b.name] = b;
+              defaultRotations[b.name] = b.quaternion.clone();
+            }
+          });
+        }
+      });
+
+      // Method B: traverse for isBone
+      model.traverse(child => {
+        if (child.isBone && child.name && child.name !== 'neutral_bone' && !allBones[child.name]) {
+          allBones[child.name] = child;
+          defaultRotations[child.name] = child.quaternion.clone();
+        }
+      });
+
+      // Method C: explicit name lookup for every expected bone
+      const allExpected = new Set();
+      UI_BONE_GROUPS.forEach(g => g.bones.forEach(b => allExpected.add(b)));
+      allExpected.forEach(name => {
+        if (allBones[name]) return;
+        let found = model.getObjectByName(name);
+        if (!found) found = scene.getObjectByName(name);
+        if (found) {
+          allBones[name] = found;
+          defaultRotations[name] = found.quaternion.clone();
+          console.log('Method C found:', name);
+        }
+      });
+
+      // Method D: brute-force traverse — match by name regardless of type
+      model.traverse(child => {
+        if (child.name && allExpected.has(child.name) && !allBones[child.name]) {
+          allBones[child.name] = child;
+          defaultRotations[child.name] = child.quaternion.clone();
+          console.log('Method D found:', child.name, 'type:', child.type);
+        }
+      });
+      // Also traverse entire scene in case bones are outside model
+      scene.traverse(child => {
+        if (child.name && allExpected.has(child.name) && !allBones[child.name]) {
+          allBones[child.name] = child;
+          defaultRotations[child.name] = child.quaternion.clone();
+          console.log('Method D (scene) found:', child.name, 'type:', child.type);
+        }
+      });
+
+      // Build pickable set
+      UI_BONE_GROUPS.forEach(g => g.bones.forEach(b => { if(allBones[b]) pickableBones.add(b); }));
+
+      // Auto-fit camera
+      const box = new THREE.Box3().setFromObject(model);
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+      cTarget.copy(center);
+      cDist = Math.max(size.x, size.y, size.z) * 2.5;
+      updateCam();
+
+      console.log('=== MODEL LOADED ===');
+      console.log('SkinnedMeshes:', skinnedMeshes.length);
+      console.log('Bones found:', Object.keys(allBones).length, Object.keys(allBones));
+      console.log('Pickable:', pickableBones.size, [...pickableBones]);
+      // Warn about missing bones
+      allExpected.forEach(name => { if (!allBones[name]) console.warn('MISSING bone:', name); });
+      resolve();
+    }, undefined, err => {
+      loadingEl.textContent = 'Ошибка: ' + (err.message||'проверь путь');
+      reject(err);
+    });
+  });
+}
+
+/* =================================================================
+   UI — sidebar sliders
+   ================================================================= */
+function buildUI() {
+  const root = document.getElementById('joint-controls');
+  root.innerHTML = '';
+  Object.keys(sliderMap).forEach(k => delete sliderMap[k]);
+
+  UI_BONE_GROUPS.forEach((g,gi) => {
+    const existing = g.bones.filter(b => allBones[b]);
+    if (!existing.length) return;
+
+    const div = document.createElement('div');
+    div.className = 'joint-group open';
+    const title = document.createElement('div');
+    title.className = 'joint-group-title';
+    title.textContent = g.group;
+    title.onclick = () => div.classList.toggle('open');
+    div.appendChild(title);
+
+    const content = document.createElement('div');
+    content.className = 'joint-group-content';
+
+    existing.forEach(bn => {
+      const bone = allBones[bn];
+      const defQuat = defaultRotations[bn];
+      const defEuler = new THREE.Euler().setFromQuaternion(defQuat, 'XYZ');
+
+      const lbl = document.createElement('div');
+      lbl.className = 'jlabel';
+      lbl.textContent = BONE_DISPLAY[bn] || bn;
+      lbl.dataset.bone = bn;
+      lbl.onclick = () => selectBone(bn);
+      content.appendChild(lbl);
+
+      sliderMap[bn] = {};
+      ['x','y','z'].forEach(axis => {
+        const row = document.createElement('div');
+        row.className = 'slider-row';
+        const al = document.createElement('label');
+        al.textContent = axis.toUpperCase();
+        row.appendChild(al);
+
+        const sl = document.createElement('input');
+        sl.type='range'; sl.min=-180; sl.max=180; sl.value=0; sl.step=1;
+        const vs = document.createElement('span');
+        vs.className='val'; vs.textContent='0°';
+
+        sl.oninput = () => {
+          vs.textContent = Math.round(parseFloat(sl.value)) + '°';
+          const euler = new THREE.Euler(
+            defEuler.x + THREE.MathUtils.degToRad(parseFloat(sliderMap[bn].x.sl.value)),
+            defEuler.y + THREE.MathUtils.degToRad(parseFloat(sliderMap[bn].y.sl.value)),
+            defEuler.z + THREE.MathUtils.degToRad(parseFloat(sliderMap[bn].z.sl.value)),
+            'XYZ'
+          );
+          bone.quaternion.setFromEuler(euler);
+        };
+        sliderMap[bn][axis] = {sl,vs};
+        row.appendChild(sl); row.appendChild(vs);
+        content.appendChild(row);
+      });
+    });
+    div.appendChild(content); root.appendChild(div);
+  });
+  console.log('UI groups built:', document.querySelectorAll('.joint-group').length,
+    'Total bone sliders:', Object.keys(sliderMap).length);
+  // Show count in selected-joint area
+  const cnt = Object.keys(sliderMap).length;
+  document.getElementById('selected-joint').textContent = cnt + ' суставов · Клик по модели → выбрать';
+}
+
+/* =================================================================
+   ACTIONS
+   ================================================================= */
+function resetPose() {
+  Object.entries(defaultRotations).forEach(([n,q]) => { if(allBones[n]) allBones[n].quaternion.copy(q); });
+  Object.values(sliderMap).forEach(axes => Object.values(axes).forEach(({sl,vs}) => {sl.value=0;vs.textContent='0°';}));
+}
+function mirrorPose() {
+  MIRROR_PAIRS.forEach(([l,r]) => {
+    const bl=allBones[l],br=allBones[r]; if(!bl||!br) return;
+    const ql=bl.quaternion.clone(),qr=br.quaternion.clone();
+    bl.quaternion.set(qr.x,-qr.y,-qr.z,qr.w);
+    br.quaternion.set(ql.x,-ql.y,-ql.z,ql.w);
+    syncSlidersFromBone(l); syncSlidersFromBone(r);
+  });
+}
+
+/* =================================================================
+   CAMERA
+   ================================================================= */
+let cTheta=Math.PI/6, cPhi=Math.PI/10, cDist=18;
+let cTarget = new THREE.Vector3(0, 5, 0);
+
+function updateCam() {
+  camera.position.set(
+    cTarget.x + cDist*Math.sin(cTheta)*Math.cos(cPhi),
+    cTarget.y + cDist*Math.sin(cPhi),
+    cTarget.z + cDist*Math.cos(cTheta)*Math.cos(cPhi)
+  );
+  camera.lookAt(cTarget);
+}
+
+function setView(v) {
+  switch(v){case'front':cTheta=0;cPhi=0.05;break;case'side':cTheta=Math.PI/2;cPhi=0.05;break;case'back':cTheta=Math.PI;cPhi=0.05;break;case'top':cTheta=0;cPhi=1.2;break;case'3/4':cTheta=Math.PI/5;cPhi=Math.PI/8;break;}
+  updateCam();
+}
+
+/* =================================================================
+   PNG EXPORT
+   ================================================================= */
+function exportPNG() {
+  const w=1920,h=1920;
+  const sv = {ca:renderer.getClearAlpha(), cc:renderer.getClearColor(new THREE.Color()), sh:renderer.shadowMap.enabled, gr:groundGroup.visible, gz:gizmoGroup.visible};
+  renderer.setClearColor(0x000000,0);renderer.shadowMap.enabled=false;
+  groundGroup.visible=false;gizmoGroup.visible=false;
+  skinnedMeshes.forEach(m=>m.castShadow=false);
+  renderer.setSize(w,h);camera.aspect=1;camera.updateProjectionMatrix();
+  renderer.render(scene,camera);
+  canvas.toBlob(b=>{
+    const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='chibi_pose.png';a.click();URL.revokeObjectURL(a.href);
+    renderer.setClearColor(sv.cc,sv.ca);renderer.shadowMap.enabled=sv.sh;
+    groundGroup.visible=sv.gr;gizmoGroup.visible=sv.gz;
+    skinnedMeshes.forEach(m=>m.castShadow=true);resize();
+  },'image/png');
+}
+
+/* =================================================================
+   INIT
+   ================================================================= */
+function resize(){const r=container.getBoundingClientRect();renderer.setSize(r.width,r.height);camera.aspect=r.width/r.height;camera.updateProjectionMatrix();}
+window.onresize = resize;
+function loadModelFromPath(){const p=document.getElementById('modelPath').value.trim();if(p)loadModel(p).then(buildUI).catch(e=>console.error(e));}
+
+resize(); updateCam();
+loadModel('Untitled.glb').then(buildUI).catch(()=>{
+  loadModel('chibi_rigged.glb').then(buildUI).catch(()=>{
+    loadModel('/mnt/user-data/uploads/Untitled.glb').then(buildUI).catch(()=>{
+      loadingEl.textContent='Положи .glb рядом с HTML';
+      loadingEl.style.display='block';
+    });
+  });
+});
+(function loop(){requestAnimationFrame(loop);syncGizmoPos();renderer.render(scene,camera);})();
+</script>
+</body>
+</html>
