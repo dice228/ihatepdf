@@ -1,0 +1,1647 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>iHatePDF — Universal Document Analyzer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.20.1/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="/favicon.ico" type="image/x-icon">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg1:#1a1a2e;--bg2:#16213e;--bg3:#0f3460;--bgP:#1e2746;--bgC:#253256;
+  --acc:#e94560;--accH:#ff6b81;--accS:rgba(233,69,96,0.15);
+  --t1:#eef0f6;--t2:#8892b0;--t3:#5a6480;
+  --brd:#2d3a5c;--ok:#2ed573;--warn:#ffa502;
+  --r:10px;--rs:6px
+}
+html,body{min-height:100%;font-family:'Nunito',sans-serif;background:var(--bg1);color:var(--t1)}
+body{padding-bottom:40px}
+
+/* ===== TOPBAR ===== */
+.topbar{background:var(--bg2);border-bottom:1px solid var(--brd);display:flex;align-items:center;padding:0 20px;gap:12px;height:52px;position:sticky;top:0;z-index:100}
+.topbar-logo{font-weight:800;font-size:15px;color:var(--acc);white-space:nowrap;display:flex;align-items:center;gap:6px}
+.topbar-logo span{color:var(--t1)}
+.topbar-div{width:1px;height:28px;background:var(--brd);flex-shrink:0}
+.topbar-info{font-size:11px;color:var(--t2);font-family:'JetBrains Mono',monospace}
+.topbar-actions{margin-left:auto;display:flex;gap:8px;align-items:center}
+
+/* ===== NAV LINKS ===== */
+.nav-link{padding:5px 14px;border:1px solid var(--brd);border-radius:20px;font-size:11px;font-weight:600;color:var(--t2);text-decoration:none;transition:all .2s;font-family:'Nunito',sans-serif}
+.nav-link:hover{border-color:var(--acc);color:var(--acc);background:var(--accS)}
+
+/* ===== BUTTONS ===== */
+.btn{padding:6px 14px;border:none;border-radius:var(--rs);font-family:'Nunito',sans-serif;font-weight:600;font-size:12px;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.btn-p{background:var(--acc);color:#fff}.btn-p:hover{background:var(--accH);transform:translateY(-1px)}
+.btn-s{background:var(--bgC);color:var(--t1);border:1px solid var(--brd)}.btn-s:hover{background:var(--bg3)}
+.btn-g{background:transparent;color:var(--t2);border:1px solid var(--brd)}.btn-g:hover{color:var(--t1);background:var(--bgC)}
+.btn-ok{background:#1a4a2e;color:var(--ok);border:1px solid #2d6b42}.btn-ok:hover{background:#235c38}
+
+/* ===== MAIN CONTENT ===== */
+.main{max-width:1300px;margin:0 auto;padding:24px 20px;display:flex;flex-direction:column;gap:24px}
+
+/* ===== HERO HEADER ===== */
+.hero{background:var(--bg2);border:1px solid var(--brd);border-radius:var(--r);padding:28px 32px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px}
+.hero-logo{max-height:80px}
+.hero-subtitle{font-size:12px;color:var(--t2);font-style:italic}
+.hero-badges{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin-top:4px}
+.hero-badge{padding:3px 10px;border-radius:14px;font-size:10px;font-weight:700;background:var(--bgC);border:1px solid var(--brd);color:var(--t2)}
+
+/* ===== UPLOAD ===== */
+.upload-area{border:2px dashed var(--brd);border-radius:var(--r);padding:32px 20px;text-align:center;cursor:pointer;transition:all .3s;background:var(--bg2)}
+.upload-area:hover,.upload-area.dragover{border-color:var(--acc);background:var(--accS)}
+.upload-area-icon{font-size:32px;margin-bottom:8px}
+.upload-area-title{font-size:14px;font-weight:700;color:var(--t1);margin-bottom:4px}
+.upload-area-sub{font-size:11px;color:var(--t2)}
+.upload-area-formats{font-size:10px;color:var(--t3);margin-top:6px;font-family:'JetBrains Mono',monospace}
+.files-count{font-size:11px;color:var(--ok);font-family:'JetBrains Mono',monospace;margin-top:8px;font-weight:600}
+
+/* ===== SUMMARY CARDS ===== */
+.summary-panel{display:none}
+.summary-panel.active{display:block}
+.summary-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--t3);margin-bottom:12px}
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+.summary-card{background:var(--bg2);border:1px solid var(--brd);border-radius:var(--r);padding:18px 16px;text-align:center}
+.summary-value{font-size:1.8em;font-weight:800;color:var(--acc);font-family:'JetBrains Mono',monospace;line-height:1}
+.summary-label{font-size:10px;color:var(--t2);margin-top:6px;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+
+/* ===== LOADING ===== */
+.loading{display:none;text-align:center;padding:32px;background:var(--bg2);border:1px solid var(--brd);border-radius:var(--r)}
+.loading.active{display:block}
+.spinner{display:inline-block;width:40px;height:40px;border:4px solid var(--brd);border-top:4px solid var(--acc);border-radius:50%;animation:spin 1s linear infinite;margin-bottom:12px}
+@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+.loading-text{font-size:12px;color:var(--t2);font-family:'JetBrains Mono',monospace;margin-bottom:10px}
+
+/* ===== PROGRESS BAR ===== */
+.progress-bar{width:100%;height:8px;background:var(--bgC);border-radius:4px;overflow:hidden;margin-top:10px}
+.progress-fill{height:100%;background:var(--acc);border-radius:4px;transition:width .3s;display:flex;align-items:center;justify-content:center;color:transparent;font-size:0}
+
+/* ===== DETAILED PROGRESS ===== */
+.progress-detail{margin-top:12px;font-size:11px;color:var(--t3);font-family:'JetBrains Mono',monospace;display:flex;flex-direction:column;gap:6px;align-items:center}
+.progress-file{color:var(--t1);font-weight:600;font-size:12px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.progress-stage{color:var(--warn);font-size:10px;text-transform:uppercase;letter-spacing:.5px}
+.progress-pages{color:var(--t2);font-size:10px}
+.progress-elapsed{color:var(--t3);font-size:10px}
+.progress-sub-bar{width:80%;max-width:400px;height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;margin-top:4px}
+.progress-sub-fill{height:100%;background:var(--warn);border-radius:2px;transition:width .2s;width:0%}
+
+/* ===== RESULTS SECTION ===== */
+#results{display:none;flex-direction:column;gap:20px}
+#results.visible{display:flex}
+
+/* ===== TABS ===== */
+.tabs-container{display:flex;gap:0;border-bottom:1px solid var(--brd);flex-wrap:wrap;background:var(--bg2);border-radius:var(--r) var(--r) 0 0;border:1px solid var(--brd);border-bottom:none}
+.tab-btn{padding:10px 18px;background:transparent;border:none;color:var(--t3);cursor:pointer;font-size:11px;font-weight:700;font-family:'Nunito',sans-serif;text-transform:uppercase;letter-spacing:.4px;border-bottom:2px solid transparent;transition:all .2s;margin-bottom:-1px}
+.tab-btn:hover{color:var(--t2)}
+.tab-btn.active{color:var(--acc);border-bottom-color:var(--acc)}
+.tab-content{display:none;background:var(--bg2);border:1px solid var(--brd);border-top:none;border-radius:0 0 var(--r) var(--r);padding:20px}
+.tab-content.active{display:block}
+.tab-content h3{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--t3);margin-bottom:16px}
+.tab-content p.subtitle{font-size:11px;color:var(--t3);margin-top:-10px;margin-bottom:14px;font-family:'JetBrains Mono',monospace}
+
+/* ===== TABLES ===== */
+.results-table{width:100%;border-collapse:collapse;font-size:12px}
+.results-table thead{background:var(--bg3)}
+.results-table th{padding:10px 14px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--t2);border-bottom:1px solid var(--brd)}
+.results-table td{padding:10px 14px;border-bottom:1px solid var(--brd);color:var(--t1)}
+.results-table tbody tr:hover{background:var(--bgC)}
+.results-table tbody tr:last-child td{border-bottom:none}
+.results-table tfoot td{padding:10px 14px;font-weight:700;color:var(--t1);background:var(--bgC);border-top:1px solid var(--brd)}
+
+/* ===== FILE STATUS BADGES ===== */
+.file-status,.page-type,.format-badge{display:inline-block;padding:3px 10px;border-radius:14px;font-size:10px;font-weight:700;font-family:'JetBrains Mono',monospace}
+.file-status.pdf{background:rgba(25,118,210,.15);color:#64b5f6;border:1px solid rgba(25,118,210,.3)}
+.file-status.image{background:rgba(123,31,162,.15);color:#ce93d8;border:1px solid rgba(123,31,162,.3)}
+.file-status.word{background:rgba(56,142,60,.15);color:#81c784;border:1px solid rgba(56,142,60,.3)}
+.file-status.excel{background:rgba(46,125,50,.15);color:#a5d6a7;border:1px solid rgba(46,125,50,.3)}
+.file-status.csv{background:rgba(0,131,143,.15);color:#80cbc4;border:1px solid rgba(0,131,143,.3)}
+.file-status.powerpoint{background:rgba(198,40,40,.15);color:#ef9a9a;border:1px solid rgba(198,40,40,.3)}
+.file-status.rtf{background:rgba(255,143,0,.15);color:#ffcc80;border:1px solid rgba(255,143,0,.3)}
+.page-type.color{background:var(--accS);color:var(--acc);border:1px solid rgba(233,69,96,.3)}
+.page-type.bw{background:rgba(90,100,128,.15);color:var(--t2);border:1px solid var(--brd)}
+.page-type.gray{background:rgba(90,100,128,.1);color:var(--t3);border:1px solid var(--brd)}
+.format-badge{background:rgba(25,118,210,.12);color:#64b5f6;border:1px solid rgba(25,118,210,.25)}
+
+/* ===== TOTAL ROW ===== */
+.total-row td{background:var(--bgC)!important;color:var(--t1)!important;font-weight:700}
+
+/* ===== CONVERTER PANEL ===== */
+.converter-panel{background:var(--bgC);border:1px solid var(--brd);border-radius:var(--rs);padding:16px;display:flex;flex-direction:column;gap:14px}
+.converter-row{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end}
+.sg{display:flex;flex-direction:column;gap:5px}
+.sg label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--t3)}
+.sg select,.sg input[type="number"],.sg input[type="text"]{padding:6px 10px;border-radius:var(--rs);border:1px solid var(--brd);background:var(--bg2);color:var(--t1);font-family:'Nunito',sans-serif;font-size:12px;min-width:120px}
+.sg select{cursor:pointer}
+.sg select option{background:var(--bg2);color:var(--t1)}
+
+/* ===== FORMAT INFO BOX ===== */
+.format-info-box{display:none;padding:10px 14px;background:var(--bgC);border:1px solid var(--brd);border-radius:var(--rs);font-size:11px;color:var(--t2);font-family:'JetBrains Mono',monospace}
+.format-info-box strong{color:var(--t1)}
+
+/* ===== CONVERSION PROGRESS ===== */
+.conv-progress{display:none;padding:10px 0}
+.conv-progress p{font-size:11px;color:var(--t2);font-family:'JetBrains Mono',monospace;margin-top:8px;text-align:center}
+
+/* ===== CONVERTED IMAGES GRID ===== */
+.converted-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-top:16px}
+.img-card{background:var(--bgC);border:1px solid var(--brd);border-radius:var(--rs);padding:12px;text-align:center}
+.img-card img{width:100%;height:auto;border-radius:4px;margin-bottom:8px;border:1px solid var(--brd);transition:transform .2s}
+.img-card img:hover{transform:scale(1.02)}
+.img-card-label{font-size:10px;color:var(--t2);font-family:'JetBrains Mono',monospace;margin-bottom:8px}
+
+/* ===== COLOR ANALYSIS CONTROLS ===== */
+.filter-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.filter-row label{font-size:11px;color:var(--t2);font-weight:600}
+.filter-btn{padding:5px 14px;border:1px solid var(--brd);border-radius:var(--rs);font-size:10px;font-weight:700;font-family:'Nunito',sans-serif;cursor:pointer;background:var(--bgC);color:var(--t2);transition:all .15s;text-transform:uppercase;letter-spacing:.3px}
+.filter-btn:hover{border-color:var(--t2);color:var(--t1)}
+.filter-btn.active{border-color:var(--acc);background:var(--accS);color:var(--acc)}
+
+/* ===== SELECTED FILE TYPE BADGE ===== */
+.file-type-badge{display:none;padding:3px 10px;border-radius:14px;font-size:10px;font-weight:700;font-family:'JetBrains Mono',monospace;border:1px solid var(--brd)}
+
+/* ===== SCROLLBAR ===== */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--brd);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--t3)}
+
+/* ===== HIDDEN CANVAS ===== */
+#canvas-container{display:none}
+#render-container{position:absolute;left:-9999px;top:-9999px;background:white;padding:40px;width:794px;font-family:'Nunito',Arial,sans-serif}
+
+/* ===== PAGES GRID (color analysis) ===== */
+.pages-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-top:16px}
+.page-card{background:var(--bgC);border:1px solid var(--brd);border-radius:var(--rs);padding:12px;transition:all .2s}
+.page-card:hover{border-color:var(--acc);transform:translateY(-2px)}
+.page-preview{width:100%;height:120px;border-radius:4px;margin-bottom:10px;background:var(--bg3);display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid var(--brd)}
+.page-preview canvas,.page-preview img{width:100%;height:100%;object-fit:cover}
+
+/* ===== ERROR / SUCCESS MESSAGES ===== */
+.msg-error{background:rgba(198,40,40,.12);color:#ef9a9a;padding:12px 16px;border-radius:var(--rs);font-size:11px;border:1px solid rgba(198,40,40,.3);margin-top:8px}
+.msg-success{background:rgba(46,125,50,.12);color:var(--ok);padding:12px 16px;border-radius:var(--rs);font-size:11px;border:1px solid rgba(46,125,50,.3);margin-top:8px}
+
+/* ===== ROLL SECTION ===== */
+.roll-section{margin-top:24px;padding-top:20px;border-top:1px solid var(--brd)}
+.roll-section h3{margin-bottom:16px}
+.roll-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-bottom:20px}
+.roll-card{background:var(--bgC);border:1px solid var(--brd);border-radius:var(--rs);padding:16px}
+.roll-card-header{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.roll-card-title{font-size:14px;font-weight:800;color:var(--t1)}
+.roll-card-width{font-size:11px;color:var(--acc);font-family:'JetBrains Mono',monospace;background:var(--accS);padding:2px 8px;border-radius:10px}
+.roll-card-value{font-size:2em;font-weight:800;color:var(--acc);font-family:'JetBrains Mono',monospace;line-height:1;margin-bottom:8px}
+.roll-card-label{font-size:10px;color:var(--t2);text-transform:uppercase;letter-spacing:.3px;margin-bottom:12px}
+.roll-detail-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:11px;border-bottom:1px solid rgba(45,58,92,.5)}
+.roll-detail-row:last-child{border-bottom:none}
+.roll-detail-key{color:var(--t2)}
+.roll-detail-val{color:var(--t1);font-family:'JetBrains Mono',monospace;font-weight:600}
+
+/* ===== DOCX INFO NOTE ===== */
+.docx-note{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:10px;font-size:9px;font-family:'JetBrains Mono',monospace;background:rgba(255,165,2,.1);color:var(--warn);border:1px solid rgba(255,165,2,.2)}
+
+/* ===== COLLAPSIBLE DETAIL SECTION ===== */
+.detail-collapse{margin-top:24px;border:1px solid var(--brd);border-radius:var(--rs);overflow:hidden}
+.detail-collapse-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--bgC);cursor:pointer;user-select:none;transition:background .2s}
+.detail-collapse-header:hover{background:var(--bg3)}
+.detail-collapse-title{font-size:12px;font-weight:700;color:var(--t1);display:flex;align-items:center;gap:8px}
+.detail-collapse-meta{display:flex;gap:10px;align-items:center}
+.detail-collapse-badge{padding:3px 10px;border-radius:14px;font-size:10px;font-weight:700;font-family:'JetBrains Mono',monospace}
+.detail-collapse-badge.clr{background:var(--accS);color:var(--acc);border:1px solid rgba(233,69,96,.3)}
+.detail-collapse-badge.bw{background:rgba(90,100,128,.15);color:var(--t2);border:1px solid var(--brd)}
+.detail-collapse-arrow{font-size:10px;color:var(--t3);transition:transform .3s;display:inline-block}
+.detail-collapse-header.open .detail-collapse-arrow{transform:rotate(180deg)}
+.detail-collapse-body{max-height:0;overflow:hidden;transition:max-height .4s ease}
+.detail-collapse-body.open{max-height:5000px}
+.detail-collapse-inner{padding:16px}
+.detail-group{margin-bottom:20px}
+.detail-group:last-child{margin-bottom:0}
+.detail-group-header{display:flex;align-items:center;gap:10px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--brd)}
+.detail-group-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.detail-group-title.clr{color:var(--acc)}
+.detail-group-title.bw{color:var(--t2)}
+.detail-group-stats{display:flex;gap:12px;margin-left:auto;font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--t3)}
+.detail-group-stats span{white-space:nowrap}
+.detail-items{display:flex;flex-direction:column;gap:4px}
+.detail-item{display:flex;align-items:center;gap:10px;padding:6px 12px;border-radius:var(--rs);background:var(--bg1);font-size:11px;transition:background .15s}
+.detail-item:hover{background:var(--bg3)}
+.detail-item-source{flex:1;color:var(--t1);font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.detail-item-type{flex-shrink:0}
+.detail-item-fill{flex-shrink:0;display:flex;align-items:center;gap:8px;min-width:160px}
+.detail-fill-bar{width:80px;height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;flex-shrink:0}
+.detail-fill-bar-inner{height:100%;border-radius:3px;transition:width .3s}
+.detail-fill-bar-inner.clr{background:var(--acc)}
+.detail-fill-bar-inner.bw{background:var(--t3)}
+.detail-fill-bar-inner.high{background:var(--ok)}
+.detail-fill-val{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--t2);min-width:50px;text-align:right}
+
+@media(max-width:768px){
+  .topbar{padding:0 12px;gap:8px}
+  .topbar-info{display:none}
+  .main{padding:16px 12px}
+  .converter-row{flex-direction:column;align-items:stretch}
+  .roll-cards{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <div class="topbar-logo">🔥 <span>iHatePDF</span></div>
+  <div class="topbar-div"></div>
+  <div class="topbar-info">потому что мне все равно, я просто ненавижу PDF 🔥📄🔥</div>
+  <div class="topbar-actions">
+    <a href="/crop" class="nav-link">✂️ iHateCrop</a>
+    <a href="/cards" class="nav-link">🃏 iHateCards</a>
+    <a href="/blender" class="nav-link">🖼️ PhotoBlender</a>
+    <a href="/photo" class="nav-link">📖 iHatePhoto</a>
+  </div>
+</header>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div id="logoContainer"><img src="Image.gif" alt="iHatePDF" class="hero-logo" onerror="this.style.display='none'"></div>
+    <div class="hero-badges">
+      <span class="hero-badge">📊 Анализ цветности</span>
+      <span class="hero-badge">📐 Форматы</span>
+      <span class="hero-badge">📏 Погонные метры</span>
+      <span class="hero-badge">🖼️ Конвертер</span>
+      <span class="hero-badge">📑 Несколько файлов</span>
+      <span class="hero-badge">🎨 10+ форматов</span>
+    </div>
+  </div>
+
+  <!-- UPLOAD -->
+  <div class="upload-area" id="uploadContainer">
+    <input type="file" id="fileInput" style="display:none" multiple accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xls,.xlsx,.csv,.ppt,.pptx,.rtf,.tiff,.tif">
+    <div class="upload-area-icon">📂</div>
+    <div class="upload-area-title"><strong>Нажмите</strong> или перетащите файлы сюда</div>
+    <div class="upload-area-sub">Выберите один или несколько документов для анализа</div>
+    <div class="upload-area-formats">PDF · DOC · DOCX · JPEG · PNG · XLS · XLSX · CSV · PPT · PPTX · RTF · TIFF</div>
+    <div class="files-count" id="filesCount"></div>
+  </div>
+
+  <!-- LOADING -->
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <div class="loading-text" id="loadingText">Анализируем файлы...</div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-detail" id="progressDetail">
+      <div class="progress-file" id="progressFile"></div>
+      <div class="progress-stage" id="progressStage"></div>
+      <div class="progress-sub-bar"><div class="progress-sub-fill" id="progressSubFill"></div></div>
+      <div class="progress-pages" id="progressPages"></div>
+      <div class="progress-elapsed" id="progressElapsed"></div>
+    </div>
+  </div>
+
+  <!-- SUMMARY -->
+  <div class="summary-panel" id="summaryPanel">
+    <div class="summary-title">📈 Сводная информация по всем файлам</div>
+    <div class="summary-grid">
+      <div class="summary-card"><div class="summary-value" id="totalFiles">0</div><div class="summary-label">Файлов</div></div>
+      <div class="summary-card"><div class="summary-value" id="totalPages">0</div><div class="summary-label">Страниц</div></div>
+      <div class="summary-card"><div class="summary-value" id="totalColorPages">0</div><div class="summary-label">Цветных</div></div>
+      <div class="summary-card"><div class="summary-value" id="totalBWPages">0</div><div class="summary-label">Ч/Б страниц</div></div>
+      <div class="summary-card"><div class="summary-value" id="totalPogonMeters">0</div><div class="summary-label">Погонных м</div></div>
+      <div class="summary-card"><div class="summary-value" id="lowFillPages">0</div><div class="summary-label">Без заливки</div></div>
+      <div class="summary-card"><div class="summary-value" id="highFillPages">0</div><div class="summary-label">Заливка 50+%</div></div>
+    </div>
+  </div>
+
+  <!-- RESULTS TABS -->
+  <div id="results">
+
+    <div style="background:var(--bg2);border:1px solid var(--brd);border-radius:var(--r);overflow:hidden">
+      <div class="tabs-container">
+        <button class="tab-btn active" data-tab="overview">📊 Обзор</button>
+        <button class="tab-btn" data-tab="colors">🎨 Цвета</button>
+        <button class="tab-btn" data-tab="formats">📐 Форматы</button>
+        <button class="tab-btn" data-tab="pogon">📏 Погонные м</button>
+        <button class="tab-btn" data-tab="converter">🖼️ Конвертер</button>
+        <button class="tab-btn" data-tab="files">📁 Файлы</button>
+      </div>
+
+      <!-- OVERVIEW TAB -->
+      <div class="tab-content active" id="overview-tab">
+        <h3>Сводная таблица по всем документам</h3>
+        <table class="results-table">
+          <thead><tr><th>Параметр</th><th>Значение</th><th>Детали</th></tr></thead>
+          <tbody>
+            <tr><td>Распределение по цветам</td><td id="colorDistribution">—</td><td id="colorDetails">—</td></tr>
+            <tr><td>Распределение по форматам</td><td id="formatDistribution">—</td><td id="formatDetails">—</td></tr>
+            <tr><td>Статистика заливки</td><td id="fillDistribution">—</td><td id="fillDetails">—</td></tr>
+            <tr><td>Погонные метры</td><td id="pogonDistribution">—</td><td id="pogonDetails">—</td></tr>
+          </tbody>
+        </table>
+
+        <h3 style="margin-top:24px">Статистика по файлам</h3>
+        <table class="results-table" id="filesStatsTable">
+          <thead><tr><th>Файл</th><th>Тип</th><th>Страниц</th><th>Цветных</th><th>Ч/Б и серые</th><th>Заливка 50+%</th><th>Погонные (м)</th></tr></thead>
+          <tbody id="filesStatsBody"></tbody>
+          <tfoot>
+            <tr class="total-row">
+              <td colspan="2"><strong>ИТОГО:</strong></td>
+              <td id="totalPagesSum">0</td><td id="totalColorSum">0</td><td id="totalBWSum">0</td><td id="totalHighFillSum">0</td><td id="totalPogonStatsSum">0</td>
+            </tr>
+          </tfoot>
+        </table>
+
+        <!-- COLLAPSIBLE DETAILED BREAKDOWN -->
+        <div class="detail-collapse" id="detailCollapse" style="display:none">
+          <div class="detail-collapse-header" id="detailCollapseHeader">
+            <div class="detail-collapse-title">
+              📋 Подробная сводка по страницам
+              <span class="detail-collapse-arrow">▼</span>
+            </div>
+            <div class="detail-collapse-meta" id="detailCollapseMeta"></div>
+          </div>
+          <div class="detail-collapse-body" id="detailCollapseBody">
+            <div class="detail-collapse-inner" id="detailCollapseInner"></div>
+          </div>
+        </div>
+      </div>
+      <div class="tab-content" id="colors-tab">
+        <h3>Анализ цветности страниц</h3>
+        <div class="filter-row">
+          <label>Порог цветности (%):</label>
+          <input type="number" id="colorThreshold" min="0" max="100" value="0.3" step="0.5" style="width:80px;padding:5px 8px;border-radius:var(--rs);border:1px solid var(--brd);background:var(--bg2);color:var(--t1);font-family:'Nunito',sans-serif;font-size:12px">
+          <div style="display:flex;gap:6px;margin-left:12px">
+            <button class="filter-btn active" data-filter="all">Все</button>
+            <button class="filter-btn" data-filter="color">Цветные</button>
+            <button class="filter-btn" data-filter="bw">Ч/Б и серые</button>
+          </div>
+        </div>
+        <table class="results-table">
+          <thead><tr><th>Файл</th><th>Тип</th><th>Заливка</th></tr></thead>
+          <tbody id="colorTableBody"></tbody>
+        </table>
+        <div class="pages-grid" id="pagesGrid"></div>
+      </div>
+
+      <!-- FORMATS TAB -->
+      <div class="tab-content" id="formats-tab">
+        <h3>Анализ форматов страниц</h3>
+        <table class="results-table">
+          <thead><tr><th>Файл</th><th>Формат</th><th>Количество</th><th>Размер (мм)</th><th>Ориентация</th></tr></thead>
+          <tbody id="formatsTableBody"></tbody>
+        </table>
+      </div>
+
+      <!-- POGON TAB -->
+      <div class="tab-content" id="pogon-tab">
+        <h3>Погонные метры (длина страниц)</h3>
+        <p class="subtitle">Расчёт по длинной стороне каждой страницы</p>
+        <table class="results-table">
+          <thead><tr><th>Файл</th><th>Страниц</th><th>Формат</th><th>Длина стр. (м)</th><th>Общая длина (м)</th></tr></thead>
+          <tbody id="pogonTableBody"></tbody>
+          <tfoot>
+            <tr class="total-row">
+              <td colspan="4"><strong>ИТОГО погонных метров:</strong></td>
+              <td><strong id="totalPogonSum">0 м</strong></td>
+            </tr>
+          </tfoot>
+        </table>
+
+        <!-- ROLL CALCULATIONS -->
+        <div class="roll-section">
+          <h3>🧻 Расчёт по рулонам</h3>
+          <p class="subtitle">Сколько погонных метров рулона потребуется для печати всех страниц</p>
+
+          <div class="roll-cards" id="rollCards"></div>
+
+          <h3 style="margin-top:20px">Детализация по форматам страниц</h3>
+          <table class="results-table" id="rollDetailTable">
+            <thead><tr><th>Формат стр.</th><th>Кол-во</th><th>Размер (мм)</th><th>Рулон 600 мм</th><th>Рулон 297 мм</th></tr></thead>
+            <tbody id="rollDetailBody"></tbody>
+            <tfoot>
+              <tr class="total-row">
+                <td colspan="3"><strong>ИТОГО:</strong></td>
+                <td><strong id="rollTotal600">0 м</strong></td>
+                <td><strong id="rollTotal297">0 м</strong></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- CONVERTER TAB -->
+      <div class="tab-content" id="converter-tab">
+        <h3>Конвертер документов → JPEG / PNG</h3>
+        <p class="subtitle">Конвертация страниц в изображения высокого качества</p>
+
+        <div class="converter-panel">
+          <div class="converter-row">
+            <div class="sg">
+              <label>Выберите файл</label>
+              <select id="pdfSelector">
+                <option value="">— Выберите файл —</option>
+              </select>
+            </div>
+            <span class="file-type-badge" id="selectedFileType"></span>
+          </div>
+
+          <div class="converter-row">
+            <div class="sg">
+              <label>Формат</label>
+              <select id="outputFormat">
+                <option value="jpeg" selected>JPEG</option>
+                <option value="png">PNG</option>
+              </select>
+            </div>
+            <div class="sg" id="qualityContainer">
+              <label>Качество (%)</label>
+              <input type="number" id="jpegQuality" min="1" max="100" value="95" style="width:80px">
+            </div>
+            <div class="sg" id="scaleContainer">
+              <label>Масштаб</label>
+              <select id="scaleSelector">
+                <option value="1">1x (оригинал)</option>
+                <option value="1.5">1.5x</option>
+                <option value="2" selected>2x (высокое качество)</option>
+                <option value="3">3x (максимальное)</option>
+              </select>
+            </div>
+            <div class="sg" style="justify-content:flex-end">
+              <label>&nbsp;</label>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button id="convertBtn" class="btn btn-p">🚀 Конвертировать</button>
+                <button id="downloadAllBtn" class="btn btn-ok" style="display:none">📥 Скачать ZIP</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="format-info-box" id="formatInfo">
+            <strong>ℹ️</strong> <span id="formatInfoText"></span>
+          </div>
+        </div>
+
+        <div class="conv-progress" id="conversionProgress">
+          <div class="progress-bar"><div class="progress-fill" id="conversionProgressFill"></div></div>
+          <p>Конвертация: <span id="currentPageNum">0</span> из <span id="totalPageNum">0</span> страниц</p>
+        </div>
+
+        <div class="converted-grid" id="convertedImages"></div>
+      </div>
+
+      <!-- FILES TAB -->
+      <div class="tab-content" id="files-tab">
+        <h3>Загруженные файлы</h3>
+        <table class="results-table">
+          <thead><tr><th>Имя файла</th><th>Тип</th><th>Размер</th><th>Страниц</th><th>Статус</th></tr></thead>
+          <tbody id="filesTableBody"></tbody>
+        </table>
+      </div>
+
+    </div>
+  </div><!-- /results -->
+
+</div><!-- /main -->
+
+<!-- HIDDEN ELEMENTS -->
+<div id="canvas-container"><canvas id="canvas"></canvas></div>
+<div id="render-container"></div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+let allFilesData = [];
+let currentFilter = 'all';
+let convertedImages = [];
+let pdfFilesMap = new Map();
+let docxFilesMap = new Map();
+let xlsxFilesMap = new Map();
+let imageFilesMap = new Map();
+
+// Progress tracking
+let progressStartTime = 0;
+let progressTimerInterval = null;
+
+// Upload click
+document.getElementById('uploadContainer').addEventListener('click', () => document.getElementById('fileInput').click());
+document.getElementById('fileInput').addEventListener('change', handleFileSelect);
+document.getElementById('colorThreshold').addEventListener('change', reanalyzeColors);
+
+// Tabs
+document.querySelectorAll('.tab-btn[data-tab]').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const tab = this.dataset.tab;
+    document.querySelectorAll('.tab-btn[data-tab]').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    this.classList.add('active');
+    document.getElementById(tab + '-tab').classList.add('active');
+  });
+});
+
+// Filter buttons
+document.querySelectorAll('[data-filter]').forEach(btn => {
+  btn.addEventListener('click', function() {
+    currentFilter = this.dataset.filter;
+    document.querySelectorAll('[data-filter]').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    filterColorPages();
+  });
+});
+
+// Drag and Drop
+const uploadContainer = document.getElementById('uploadContainer');
+uploadContainer.addEventListener('dragover', e => { e.preventDefault(); uploadContainer.classList.add('dragover'); });
+uploadContainer.addEventListener('dragleave', () => uploadContainer.classList.remove('dragover'));
+uploadContainer.addEventListener('drop', e => { e.preventDefault(); uploadContainer.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
+
+async function handleFileSelect(e) {
+  const files = e.target.files;
+  if (files.length > 0) await handleFiles(files);
+}
+
+// ===== DETAILED PROGRESS HELPERS =====
+function startProgressTimer() {
+  progressStartTime = Date.now();
+  progressTimerInterval = setInterval(() => {
+    const elapsed = Date.now() - progressStartTime;
+    const sec = Math.floor(elapsed / 1000);
+    const ms = elapsed % 1000;
+    document.getElementById('progressElapsed').textContent = `⏱ ${sec}.${String(ms).substring(0,1)}с`;
+  }, 100);
+}
+
+function stopProgressTimer() {
+  if (progressTimerInterval) { clearInterval(progressTimerInterval); progressTimerInterval = null; }
+}
+
+function setProgressFile(name) {
+  document.getElementById('progressFile').textContent = `📄 ${name}`;
+}
+
+function setProgressStage(stage) {
+  document.getElementById('progressStage').textContent = stage;
+}
+
+function setProgressPages(current, total) {
+  if (total > 0) {
+    document.getElementById('progressPages').textContent = `Страница ${current} из ${total}`;
+    document.getElementById('progressSubFill').style.width = ((current / total) * 100) + '%';
+  } else {
+    document.getElementById('progressPages').textContent = '';
+    document.getElementById('progressSubFill').style.width = '0%';
+  }
+}
+
+async function handleFiles(files) {
+  const filesArray = Array.from(files);
+  document.getElementById('filesCount').textContent = `Выбрано файлов: ${filesArray.length}`;
+  document.getElementById('loading').classList.add('active');
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('summaryPanel').classList.remove('active');
+
+  allFilesData = [];
+  pdfFilesMap.clear(); docxFilesMap.clear(); xlsxFilesMap.clear(); imageFilesMap.clear();
+  convertedImages = [];
+  document.getElementById('convertedImages').innerHTML = '';
+  document.getElementById('downloadAllBtn').style.display = 'none';
+
+  startProgressTimer();
+
+  let processedFiles = 0;
+  for (const file of filesArray) {
+    setProgressFile(file.name);
+    setProgressStage('Загрузка файла...');
+    setProgressPages(0, 0);
+    const fileData = await processFile(file);
+    allFilesData.push(fileData);
+    processedFiles++;
+    updateProgress(processedFiles, filesArray.length);
+  }
+
+  stopProgressTimer();
+  displayResults();
+  document.getElementById('loading').classList.remove('active');
+  document.getElementById('results').style.display = 'flex';
+  document.getElementById('summaryPanel').classList.add('active');
+}
+
+async function processFile(file) {
+  const fileData = {
+    name: file.name,
+    size: (file.size / 1024 / 1024).toFixed(2) + ' MB',
+    type: getFileType(file),
+    pages: [], areas: [], formats: {}, error: null, isDocxEstimated: false
+  };
+
+  try {
+    if (file.type === 'application/pdf') {
+      await processPDF(file, fileData);
+    } else if (file.type.startsWith('image/')) {
+      await processImage(file, fileData);
+    } else if (file.name.endsWith('.docx') || file.name.endsWith('.doc')) {
+      await processWord(file, fileData);
+    } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.csv')) {
+      await processExcel(file, fileData);
+    } else {
+      fileData.error = 'Формат не поддерживается для полного анализа';
+    }
+  } catch (error) {
+    fileData.error = error.message;
+    console.error('Error processing file:', error);
+  }
+  return fileData;
+}
+
+async function processPDF(file, fileData) {
+  setProgressStage('Чтение PDF...');
+  const arrayBuffer = await file.arrayBuffer();
+  pdfFilesMap.set(fileData.name, arrayBuffer.slice(0));
+
+  setProgressStage('Парсинг структуры PDF...');
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const numPages = pdf.numPages;
+
+  for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+    setProgressStage('Анализ цветности...');
+    setProgressPages(pageNum, numPages);
+
+    const page = await pdf.getPage(pageNum);
+    const viewport = page.getViewport({ scale: 1 });
+    const format = detectPageFormat(viewport.width, viewport.height);
+    if (!fileData.formats[format.name]) {
+      fileData.formats[format.name] = { count: 0, orientation: format.orientation, width: format.width, height: format.height, areaM2: format.areaM2, pogonMeters: format.pogonMeters };
+    }
+    fileData.formats[format.name].count++;
+    fileData.formats[format.name].areaM2 = format.areaM2;
+    fileData.formats[format.name].pogonMeters = format.pogonMeters;
+
+    const colorAnalysis = await analyzePageColors(page);
+
+    setProgressStage('Извлечение текста...');
+    const textContent = await page.getTextContent();
+    const text = textContent.items.map(item => item.str).join(' ');
+    const foundAreas = extractAreas(text);
+    fileData.areas.push(...foundAreas);
+
+    fileData.pages.push({ pageNum, format: format.name, orientation: format.orientation, areaM2: format.areaM2, pogonMeters: format.pogonMeters, ...colorAnalysis });
+  }
+}
+
+async function processImage(file, fileData) {
+  setProgressStage('Загрузка изображения...');
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    file.arrayBuffer().then(buffer => { imageFilesMap.set(fileData.name, { buffer, type: file.type, url }); });
+    img.onload = function() {
+      setProgressStage('Анализ цветности...');
+      setProgressPages(1, 1);
+      const canvas = document.getElementById('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = img.width; canvas.height = img.height;
+      ctx.drawImage(img, 0, 0);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const colorAnalysis = analyzeImageColors(imageData);
+      const dpi = 72;
+      const widthMm = (img.width / dpi) * 25.4;
+      const heightMm = (img.height / dpi) * 25.4;
+      const format = detectPageFormat(widthMm * 2.83465, heightMm * 2.83465);
+      fileData.pages.push({ pageNum: 1, format: format.name, orientation: format.orientation, areaM2: format.areaM2, pogonMeters: format.pogonMeters, ...colorAnalysis, preview: url });
+      fileData.formats[format.name] = { count: 1, orientation: format.orientation, width: format.width, height: format.height, areaM2: format.areaM2, pogonMeters: format.pogonMeters };
+      resolve();
+    };
+    img.src = url;
+  });
+}
+
+// ===== IMPROVED DOCX PROCESSING =====
+async function processWord(file, fileData) {
+  setProgressStage('Чтение DOCX архива...');
+  const arrayBuffer = await file.arrayBuffer();
+
+  // 1. Parse DOCX ZIP to estimate page count
+  setProgressStage('Анализ структуры документа...');
+  let estimatedPages = 1;
+  let hasExplicitPageBreaks = false;
+
+  try {
+    const zip = await JSZip.loadAsync(arrayBuffer);
+    const docXml = await zip.file('word/document.xml')?.async('string');
+    if (docXml) {
+      // Count explicit page breaks
+      const pageBreakMatches = docXml.match(/<w:br\s+w:type\s*=\s*["']page["']\s*\/?>/gi) || [];
+      // Count section breaks (which also cause page breaks)
+      const sectionBreaks = docXml.match(/<w:sectPr[\s>]/gi) || [];
+      const explicitBreaks = pageBreakMatches.length + Math.max(0, sectionBreaks.length - 1);
+
+      if (explicitBreaks > 0) {
+        estimatedPages = explicitBreaks + 1;
+        hasExplicitPageBreaks = true;
+      }
+
+      // If no explicit breaks, estimate from paragraph count and text length
+      if (!hasExplicitPageBreaks) {
+        const paragraphs = docXml.match(/<w:p[\s>]/gi) || [];
+        // Extract all text content from XML
+        const textMatches = docXml.match(/<w:t[^>]*>([^<]*)<\/w:t>/gi) || [];
+        let totalChars = 0;
+        textMatches.forEach(m => {
+          const inner = m.replace(/<[^>]+>/g, '');
+          totalChars += inner.length;
+        });
+
+        // ~2500 characters per A4 page (with formatting), minimum 1
+        // Also account for paragraphs (each adds spacing)
+        const charEstimate = Math.ceil(totalChars / 2500);
+        const paraEstimate = Math.ceil(paragraphs.length / 30);
+        estimatedPages = Math.max(1, Math.max(charEstimate, paraEstimate));
+      }
+    }
+  } catch (e) {
+    console.warn('DOCX ZIP parsing failed, falling back to mammoth estimation:', e);
+  }
+
+  // 2. Convert with mammoth for HTML and text
+  setProgressStage('Конвертация DOCX → HTML...');
+  const htmlResult = await mammoth.convertToHtml({ arrayBuffer });
+  const textResult = await mammoth.extractRawText({ arrayBuffer });
+  docxFilesMap.set(fileData.name, { html: htmlResult.value, text: textResult.value, messages: htmlResult.messages });
+
+  // 3. Refine page estimate using text length if no explicit breaks found
+  if (!hasExplicitPageBreaks && textResult.value.length > 0) {
+    const textLen = textResult.value.length;
+    const textEstimate = Math.max(1, Math.ceil(textLen / 2500));
+    estimatedPages = Math.max(estimatedPages, textEstimate);
+  }
+
+  fileData.isDocxEstimated = true;
+
+  // 4. Render HTML and analyze each page visually
+  setProgressStage('Рендеринг и анализ цветности...');
+  const renderContainer = document.getElementById('render-container');
+  const a4WidthPx = 794; // A4 at 96dpi
+  const a4HeightPx = 1123;
+
+  renderContainer.innerHTML = `<div id="docx-render-content" style="width:${a4WidthPx}px;padding:40px;background:white;font-family:'Open Sans',Arial,sans-serif;font-size:12px;line-height:1.6;color:#333"><style>#docx-render-content h1{font-size:24px;margin:20px 0}#docx-render-content h2{font-size:20px;margin:16px 0}#docx-render-content p{margin:10px 0}#docx-render-content table{border-collapse:collapse;width:100%;margin:15px 0}#docx-render-content td,#docx-render-content th{border:1px solid #ddd;padding:8px}#docx-render-content ul,#docx-render-content ol{margin:10px 0;padding-left:30px}#docx-render-content img{max-width:100%;height:auto}</style>${htmlResult.value}</div>`;
+
+  await new Promise(r => setTimeout(r, 200));
+
+  // Measure actual rendered height to refine page count
+  const contentEl = document.getElementById('docx-render-content');
+  if (contentEl) {
+    const actualHeight = contentEl.scrollHeight;
+    const pagesFromHeight = Math.max(1, Math.ceil(actualHeight / a4HeightPx));
+    // Use the max of all estimates
+    estimatedPages = Math.max(estimatedPages, pagesFromHeight);
+  }
+
+  // 5. Analyze color and fill for each page via canvas
+  for (let pageIdx = 0; pageIdx < estimatedPages; pageIdx++) {
+    setProgressPages(pageIdx + 1, estimatedPages);
+    setProgressStage(`Анализ страницы ${pageIdx + 1}/${estimatedPages}...`);
+
+    let colorPercentage = 0;
+    let grayPercentage = 0;
+    let fillPercentage = 0;
+    let pageType = 'bw';
+
+    try {
+      // Render just this page's portion to canvas
+      const canvas = document.createElement('canvas');
+      canvas.width = a4WidthPx;
+      canvas.height = a4HeightPx;
+      const ctx = canvas.getContext('2d');
+
+      // Use html2canvas on the render container, clipping to this page
+      const fullCanvas = await html2canvas(renderContainer, {
+        scale: 1,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        y: pageIdx * a4HeightPx,
+        height: a4HeightPx,
+        windowWidth: a4WidthPx + 100,
+        width: a4WidthPx + 80
+      });
+
+      ctx.drawImage(fullCanvas, 0, 0, a4WidthPx, a4HeightPx);
+      const imageData = ctx.getImageData(0, 0, a4WidthPx, a4HeightPx);
+      const analysis = analyzeImageColors(imageData);
+      colorPercentage = analysis.colorPercentage;
+      grayPercentage = analysis.grayPercentage;
+      fillPercentage = analysis.fillPercentage;
+      pageType = analysis.pageType;
+    } catch (e) {
+      console.warn('DOCX page canvas analysis failed for page', pageIdx + 1, e);
+      // Fallback: analyze HTML for color clues
+      const html = htmlResult.value;
+      const hasColorStyles = /color\s*:\s*(?!#000|#333|black|rgb\(0)/i.test(html);
+      const hasColorBg = /background(?:-color)?\s*:\s*(?!#fff|white|transparent|rgb\(255)/i.test(html);
+      const hasImages = /<img\s/i.test(html);
+      if (hasColorStyles || hasColorBg || hasImages) {
+        colorPercentage = 5;
+        pageType = 'color';
+      }
+      fillPercentage = textResult.value.length > 0 ? Math.min(80, (textResult.value.length / estimatedPages / 2500) * 60) : 0;
+    }
+
+    const a4AreaM2 = (210 * 297) / 1000000;
+    const a4PogonMeters = 0.297;
+
+    fileData.pages.push({
+      pageNum: pageIdx + 1,
+      format: 'A4',
+      orientation: 'portrait',
+      areaM2: a4AreaM2,
+      pogonMeters: a4PogonMeters,
+      colorPercentage,
+      grayPercentage: grayPercentage || 0,
+      fillPercentage,
+      pageType
+    });
+  }
+
+  fileData.formats['A4'] = {
+    count: estimatedPages,
+    orientation: 'portrait',
+    width: 210,
+    height: 297,
+    areaM2: (210 * 297) / 1000000,
+    pogonMeters: 0.297
+  };
+
+  renderContainer.innerHTML = '';
+}
+
+async function processExcel(file, fileData) {
+  setProgressStage('Чтение таблицы...');
+  const arrayBuffer = await file.arrayBuffer();
+  const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+  xlsxFilesMap.set(fileData.name, { workbook, sheets: workbook.SheetNames.map(name => ({ name, data: XLSX.utils.sheet_to_json(workbook.Sheets[name], { header: 1 }), html: XLSX.utils.sheet_to_html(workbook.Sheets[name]) })) });
+  const a4AreaM2 = (210 * 297) / 1000000;
+  const a4PogonMeters = 0.297;
+  workbook.SheetNames.forEach((sheetName, index) => {
+    setProgressStage(`Лист: ${sheetName}`);
+    setProgressPages(index + 1, workbook.SheetNames.length);
+    fileData.pages.push({ pageNum: index + 1, format: 'A4', orientation: 'portrait', areaM2: a4AreaM2, pogonMeters: a4PogonMeters, colorPercentage: 0, grayPercentage: 0, fillPercentage: 30, pageType: 'bw', sheetName });
+  });
+  fileData.formats['A4'] = { count: workbook.SheetNames.length, orientation: 'portrait', width: 210, height: 297, areaM2: a4AreaM2, pogonMeters: a4PogonMeters };
+}
+
+async function analyzePageColors(page) {
+  const scale = 1.5;
+  const viewport = page.getViewport({ scale });
+  const canvas = document.getElementById('canvas');
+  const context = canvas.getContext('2d');
+  canvas.width = viewport.width; canvas.height = viewport.height;
+  await page.render({ canvasContext: context, viewport }).promise;
+  const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+  return analyzeImageColors(imageData);
+}
+
+function analyzeImageColors(imageData) {
+  const data = imageData.data;
+  let colorPixels = 0, grayPixels = 0, nonWhitePixels = 0;
+  const totalPixels = data.length / 4;
+  const threshold = parseFloat(document.getElementById('colorThreshold').value) / 100;
+  const grayTolerance = 10;
+
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i], g = data[i+1], b = data[i+2];
+    if (!(r > 250 && g > 250 && b > 250)) {
+      nonWhitePixels++;
+      const maxDiff = Math.max(Math.abs(r-g), Math.abs(g-b), Math.abs(r-b));
+      if (maxDiff <= grayTolerance) grayPixels++;
+      else colorPixels++;
+    }
+  }
+
+  const colorPercentage = (colorPixels / totalPixels) * 100;
+  const grayPercentage = (grayPixels / totalPixels) * 100;
+  const fillPercentage = (nonWhitePixels / totalPixels) * 100;
+
+  let pageType = 'bw';
+  if (colorPercentage > threshold * 100) pageType = 'color';
+  else if (grayPercentage > 0.5) pageType = 'gray';
+
+  return { colorPercentage: colorPercentage.toFixed(2), grayPercentage: grayPercentage.toFixed(2), fillPercentage: fillPercentage.toFixed(2), pageType };
+}
+
+function detectPageFormat(widthPt, heightPt) {
+  const widthMm = widthPt * 0.352778;
+  const heightMm = heightPt * 0.352778;
+  const isPortrait = heightMm > widthMm;
+  const width = isPortrait ? widthMm : heightMm;
+  const height = isPortrait ? heightMm : widthMm;
+  const pogonMeters = Math.max(widthMm, heightMm) / 1000;
+
+  const formats = {
+    'A0': { width: 841, height: 1189 }, 'A1': { width: 594, height: 841 },
+    'A2': { width: 420, height: 594 }, 'A3': { width: 297, height: 420 },
+    'A4': { width: 210, height: 297 }, 'A5': { width: 148, height: 210 },
+    'A6': { width: 105, height: 148 }, 'Letter': { width: 216, height: 279 },
+    'Legal': { width: 216, height: 356 }, 'Tabloid': { width: 279, height: 432 }
+  };
+
+  const tolerance = 10;
+  for (const [name, size] of Object.entries(formats)) {
+    if (Math.abs(width - size.width) < tolerance && Math.abs(height - size.height) < tolerance) {
+      return { name, orientation: isPortrait ? 'portrait' : 'landscape', width: Math.round(width), height: Math.round(height), areaM2: (widthMm * heightMm) / 1000000, pogonMeters };
+    }
+  }
+  return { name: 'Custom', orientation: isPortrait ? 'portrait' : 'landscape', width: Math.round(width), height: Math.round(height), areaM2: (widthMm * heightMm) / 1000000, pogonMeters };
+}
+
+function extractAreas(text) {
+  const areas = [];
+  const patterns = [
+    /(\d+(?:[.,]\d+)?)\s*(?:кв\.?\s*)?м(?:²|2|\s|$)/gi,
+    /(\d+(?:[.,]\d+)?)\s*м²/gi,
+    /(\d+(?:[.,]\d+)?)\s*square\s*meters?/gi,
+    /(\d+(?:[.,]\d+)?)\s*sq\.?\s*m/gi,
+    /площадь[:\s]+(\d+(?:[.,]\d+)?)/gi,
+    /area[:\s]+(\d+(?:[.,]\d+)?)/gi,
+    /(\d+(?:[.,]\d+)?)\s*кв\.м/gi
+  ];
+  patterns.forEach(pattern => {
+    let match;
+    while ((match = pattern.exec(text)) !== null) {
+      const value = parseFloat(match[1].replace(',', '.'));
+      if (!isNaN(value) && value > 0 && value < 100000) areas.push({ value, unit: 'м²', original: match[0] });
+    }
+  });
+  return areas;
+}
+
+function getFileType(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  const typeMap = { 'pdf':'PDF','doc':'Word','docx':'Word','jpg':'Image','jpeg':'Image','png':'Image','tiff':'Image','tif':'Image','xls':'Excel','xlsx':'Excel','csv':'CSV','ppt':'PowerPoint','pptx':'PowerPoint','rtf':'RTF' };
+  return typeMap[ext] || 'Unknown';
+}
+
+function updateProgress(current, total) {
+  const percentage = Math.round((current / total) * 100);
+  const progressFill = document.getElementById('progressFill');
+  progressFill.style.width = percentage + '%';
+  document.getElementById('loadingText').textContent = `Обработано файлов: ${current} из ${total}`;
+}
+
+function displayResults() {
+  updateSummary();
+  updateFilesTable();
+  updateColorTable();
+  updateFormatsTable();
+  updatePogonTable();
+  updateStatsTables();
+  updatePdfSelector();
+  updateRollCalculations();
+  updateDetailCollapse();
+}
+
+function updateStatsTables() {
+  let colorCount = 0, bwCount = 0, grayCount = 0, highFillCount = 0, lowFillCount = 0, totalPogonMeters = 0;
+  const formatCounts = {};
+
+  allFilesData.forEach(file => {
+    file.pages.forEach(page => {
+      if (page.pageType === 'color') colorCount++;
+      else if (page.pageType === 'gray') grayCount++;
+      else bwCount++;
+      if (!formatCounts[page.format]) formatCounts[page.format] = 0;
+      formatCounts[page.format]++;
+      if (parseFloat(page.fillPercentage || 0) > 50) highFillCount++;
+      else lowFillCount++;
+      if (page.pogonMeters) totalPogonMeters += page.pogonMeters;
+    });
+  });
+
+  const totalPages = colorCount + bwCount + grayCount;
+  const bwAndGrayCount = bwCount + grayCount;
+
+  document.getElementById('colorDistribution').innerHTML = `Всего: ${totalPages} стр.`;
+  document.getElementById('colorDetails').innerHTML = `Цветные: ${colorCount} | Ч/Б и серые: ${bwAndGrayCount}`;
+  const formatsList = Object.entries(formatCounts).sort((a,b)=>b[1]-a[1]).map(([f,c])=>`${f}: ${c}`).join(' | ');
+  document.getElementById('formatDistribution').innerHTML = `${Object.keys(formatCounts).length} форматов`;
+  document.getElementById('formatDetails').innerHTML = formatsList || 'Нет данных';
+  document.getElementById('fillDistribution').innerHTML = `Всего: ${highFillCount + lowFillCount} стр.`;
+  document.getElementById('fillDetails').innerHTML = `Заливка 50+%: ${highFillCount} | Без заливки: ${lowFillCount}`;
+  const roundedPogon = Math.ceil(totalPogonMeters * 10) / 10;
+  document.getElementById('pogonDistribution').innerHTML = `${roundedPogon.toFixed(1)} м`;
+  document.getElementById('pogonDetails').innerHTML = `Длина ${totalPages} страниц`;
+  updateFilesStatsTable();
+}
+
+function updateFilesStatsTable() {
+  const tbody = document.getElementById('filesStatsBody');
+  tbody.innerHTML = '';
+  let totalPages = 0, totalColor = 0, totalBW = 0, totalHighFill = 0, totalPogon = 0;
+
+  allFilesData.forEach(file => {
+    const row = tbody.insertRow();
+    let fileColorCount = 0, fileBWCount = 0, fileHighFillCount = 0, filePogon = 0;
+    file.pages.forEach(page => {
+      if (page.pageType === 'color') fileColorCount++;
+      else fileBWCount++;
+      if (parseFloat(page.fillPercentage || 0) > 50) fileHighFillCount++;
+      if (page.pogonMeters) filePogon += page.pogonMeters;
+    });
+    totalPages += file.pages.length;
+    totalColor += fileColorCount;
+    totalBW += fileBWCount;
+    totalHighFill += fileHighFillCount;
+    totalPogon += filePogon;
+    const docxBadge = file.isDocxEstimated ? ' <span class="docx-note">≈ оценка</span>' : '';
+    row.innerHTML = `<td>${file.name.length > 30 ? file.name.substring(0,30)+'...' : file.name}${docxBadge}</td><td><span class="file-status ${file.type.toLowerCase()}">${file.type}</span></td><td>${file.pages.length}</td><td>${fileColorCount}</td><td>${fileBWCount}</td><td>${fileHighFillCount}</td><td>${filePogon.toFixed(3)}</td>`;
+  });
+
+  const roundedTotal = Math.ceil(totalPogon * 10) / 10;
+  document.getElementById('totalPagesSum').textContent = totalPages;
+  document.getElementById('totalColorSum').textContent = totalColor;
+  document.getElementById('totalBWSum').textContent = totalBW;
+  document.getElementById('totalHighFillSum').textContent = totalHighFill;
+  document.getElementById('totalPogonStatsSum').textContent = roundedTotal.toFixed(1);
+}
+
+function updateSummary() {
+  let totalFiles = allFilesData.length, totalPages = 0, totalColorPages = 0, totalBWPages = 0, totalPogonMeters = 0, highFillCount = 0, lowFillCount = 0;
+  allFilesData.forEach(file => {
+    totalPages += file.pages.length;
+    file.pages.forEach(page => {
+      if (page.pageType === 'color') totalColorPages++;
+      else totalBWPages++;
+      if (parseFloat(page.fillPercentage || 0) > 50) highFillCount++;
+      else lowFillCount++;
+      if (page.pogonMeters) totalPogonMeters += page.pogonMeters;
+    });
+  });
+  const roundedPogon = Math.ceil(totalPogonMeters * 10) / 10;
+  document.getElementById('totalFiles').textContent = totalFiles;
+  document.getElementById('totalPages').textContent = totalPages;
+  document.getElementById('totalColorPages').textContent = totalColorPages;
+  document.getElementById('totalBWPages').textContent = totalBWPages;
+  document.getElementById('totalPogonMeters').textContent = roundedPogon.toFixed(1) + ' м';
+  document.getElementById('highFillPages').textContent = highFillCount;
+  document.getElementById('lowFillPages').textContent = lowFillCount;
+}
+
+function updateFilesTable() {
+  const tbody = document.getElementById('filesTableBody');
+  tbody.innerHTML = '';
+  allFilesData.forEach(file => {
+    const row = tbody.insertRow();
+    const docxNote = file.isDocxEstimated ? ' <span class="docx-note">≈ оценка стр.</span>' : '';
+    row.innerHTML = `<td>${file.name}</td><td><span class="file-status ${file.type.toLowerCase()}">${file.type}</span></td><td>${file.size}</td><td>${file.pages.length}${docxNote}</td><td>${file.error ? '<span style="color:var(--acc)">⚠️ ' + file.error + '</span>' : '<span style="color:var(--ok)">✅ Обработан</span>'}</td>`;
+  });
+}
+
+function updateColorTable() {
+  const tbody = document.getElementById('colorTableBody');
+  tbody.innerHTML = '';
+  allFilesData.forEach(file => {
+    file.pages.forEach(page => {
+      let shouldShow = currentFilter === 'all' || (currentFilter === 'color' && page.pageType === 'color') || (currentFilter === 'bw' && (page.pageType === 'gray' || page.pageType === 'bw'));
+      if (shouldShow) {
+        const row = tbody.insertRow();
+        const typeLabel = page.pageType === 'color' ? 'Цветная' : page.pageType === 'gray' ? 'Ч/Б (серая)' : 'Ч/Б';
+        row.innerHTML = `<td>${file.name} (стр. ${page.pageNum})</td><td><span class="page-type ${page.pageType}">${typeLabel}</span></td><td>${page.fillPercentage}%</td>`;
+      }
+    });
+  });
+}
+
+function updateFormatsTable() {
+  const tbody = document.getElementById('formatsTableBody');
+  tbody.innerHTML = '';
+  const allFormats = {};
+  allFilesData.forEach(file => {
+    Object.entries(file.formats).forEach(([format, data]) => {
+      const key = `${file.name}_${format}`;
+      if (!allFormats[key]) allFormats[key] = { fileName: file.name, format, ...data };
+    });
+  });
+  Object.values(allFormats).forEach(data => {
+    const row = tbody.insertRow();
+    row.innerHTML = `<td>${data.fileName}</td><td><span class="format-badge">${data.format}</span></td><td>${data.count}</td><td>${data.width} × ${data.height}</td><td>${data.orientation === 'portrait' ? '📄 Книжная' : '📐 Альбомная'}</td>`;
+  });
+}
+
+function updatePogonTable() {
+  const tbody = document.getElementById('pogonTableBody');
+  tbody.innerHTML = '';
+  let totalPogon = 0;
+  allFilesData.forEach(file => {
+    const formatGroups = {};
+    file.pages.forEach(page => {
+      if (page.pogonMeters) {
+        if (!formatGroups[page.format]) formatGroups[page.format] = { count: 0, pogonPerPage: page.pogonMeters, totalPogon: 0 };
+        formatGroups[page.format].count++;
+        formatGroups[page.format].totalPogon += page.pogonMeters;
+      }
+    });
+    Object.entries(formatGroups).forEach(([format, data]) => {
+      const row = tbody.insertRow();
+      row.innerHTML = `<td>${file.name.length > 30 ? file.name.substring(0,30)+'...' : file.name}</td><td>${data.count}</td><td><span class="format-badge">${format}</span></td><td>${data.pogonPerPage.toFixed(3)} м</td><td>${data.totalPogon.toFixed(3)} м</td>`;
+      totalPogon += data.totalPogon;
+    });
+  });
+  const roundedTotal = Math.ceil(totalPogon * 10) / 10;
+  document.getElementById('totalPogonSum').textContent = roundedTotal.toFixed(1) + ' м';
+}
+
+// ===== ROLL CALCULATIONS =====
+function calculateRollMeters(pageWidthMm, pageHeightMm, pageCount, rollWidthMm) {
+  const w = Math.min(pageWidthMm, pageHeightMm); // short side
+  const h = Math.max(pageWidthMm, pageHeightMm); // long side
+
+  // Strategy 1: place short side across roll, long side along roll
+  let fit1 = Math.floor(rollWidthMm / w);
+  let len1 = fit1 > 0 ? (Math.ceil(pageCount / fit1) * h) / 1000 : Infinity;
+
+  // Strategy 2: place long side across roll, short side along roll
+  let fit2 = Math.floor(rollWidthMm / h);
+  let len2 = fit2 > 0 ? (Math.ceil(pageCount / fit2) * w) / 1000 : Infinity;
+
+  // Pick the strategy that uses less roll
+  if (fit1 === 0 && fit2 === 0) {
+    return { fits: false, rollMeters: 0, pagesAcross: 0, feedPerRow: 0, strategy: 'none' };
+  }
+
+  let best;
+  if (len1 <= len2 && fit1 > 0) {
+    best = { fits: true, rollMeters: len1, pagesAcross: fit1, feedPerRow: h, strategy: `${w}мм поперёк, ${h}мм вдоль` };
+  } else {
+    best = { fits: true, rollMeters: len2, pagesAcross: fit2, feedPerRow: w, strategy: `${h}мм поперёк, ${w}мм вдоль` };
+  }
+  return best;
+}
+
+function updateRollCalculations() {
+  const rollWidths = [600, 297];
+
+  // Collect all page formats with dimensions
+  const formatMap = {};
+  allFilesData.forEach(file => {
+    Object.entries(file.formats).forEach(([formatName, data]) => {
+      const key = `${formatName}_${data.width}_${data.height}`;
+      if (!formatMap[key]) {
+        formatMap[key] = { name: formatName, width: data.width, height: data.height, count: 0 };
+      }
+      formatMap[key].count += data.count;
+    });
+  });
+
+  const formats = Object.values(formatMap);
+
+  // Build roll summary cards
+  const rollCardsEl = document.getElementById('rollCards');
+  rollCardsEl.innerHTML = '';
+
+  rollWidths.forEach(rollWidth => {
+    let totalRollMeters = 0;
+    let totalPages = 0;
+    let allFit = true;
+
+    formats.forEach(fmt => {
+      const calc = calculateRollMeters(fmt.width, fmt.height, fmt.count, rollWidth);
+      if (calc.fits) {
+        totalRollMeters += calc.rollMeters;
+        totalPages += fmt.count;
+      } else {
+        allFit = false;
+      }
+    });
+
+    const roundedMeters = Math.ceil(totalRollMeters * 10) / 10;
+
+    const card = document.createElement('div');
+    card.className = 'roll-card';
+    card.innerHTML = `
+      <div class="roll-card-header">
+        <div class="roll-card-title">🧻 Рулон</div>
+        <div class="roll-card-width">${rollWidth} мм</div>
+      </div>
+      <div class="roll-card-value">${roundedMeters.toFixed(1)} м</div>
+      <div class="roll-card-label">Погонных метров рулона</div>
+      <div class="roll-detail-row">
+        <span class="roll-detail-key">Всего страниц</span>
+        <span class="roll-detail-val">${totalPages}</span>
+      </div>
+      <div class="roll-detail-row">
+        <span class="roll-detail-key">Форматов</span>
+        <span class="roll-detail-val">${formats.length}</span>
+      </div>
+      ${!allFit ? '<div class="roll-detail-row"><span class="roll-detail-key" style="color:var(--warn)">⚠️ Не все форматы помещаются</span><span class="roll-detail-val"></span></div>' : ''}
+    `;
+    rollCardsEl.appendChild(card);
+  });
+
+  // Build detailed table
+  const tbody = document.getElementById('rollDetailBody');
+  tbody.innerHTML = '';
+  let total600 = 0, total297 = 0;
+
+  formats.forEach(fmt => {
+    const calc600 = calculateRollMeters(fmt.width, fmt.height, fmt.count, 600);
+    const calc297 = calculateRollMeters(fmt.width, fmt.height, fmt.count, 297);
+
+    const row = tbody.insertRow();
+
+    let cell600, cell297;
+    if (calc600.fits) {
+      const r600 = Math.ceil(calc600.rollMeters * 10) / 10;
+      total600 += calc600.rollMeters;
+      cell600 = `${r600.toFixed(1)} м <span style="font-size:9px;color:var(--t3)">(${calc600.pagesAcross} в ряд, подача ${calc600.feedPerRow}мм)</span>`;
+    } else {
+      cell600 = '<span style="color:var(--warn)">⚠️ Не помещается</span>';
+    }
+
+    if (calc297.fits) {
+      const r297 = Math.ceil(calc297.rollMeters * 10) / 10;
+      total297 += calc297.rollMeters;
+      cell297 = `${r297.toFixed(1)} м <span style="font-size:9px;color:var(--t3)">(${calc297.pagesAcross} в ряд, подача ${calc297.feedPerRow}мм)</span>`;
+    } else {
+      cell297 = '<span style="color:var(--warn)">⚠️ Не помещается</span>';
+    }
+
+    row.innerHTML = `<td><span class="format-badge">${fmt.name}</span></td><td>${fmt.count}</td><td>${fmt.width} × ${fmt.height} мм</td><td>${cell600}</td><td>${cell297}</td>`;
+  });
+
+  const rounded600 = Math.ceil(total600 * 10) / 10;
+  const rounded297 = Math.ceil(total297 * 10) / 10;
+  document.getElementById('rollTotal600').textContent = rounded600.toFixed(1) + ' м';
+  document.getElementById('rollTotal297').textContent = rounded297.toFixed(1) + ' м';
+}
+
+function filterColorPages() { updateColorTable(); }
+
+// ===== COLLAPSIBLE DETAIL SECTION =====
+document.getElementById('detailCollapseHeader').addEventListener('click', function() {
+  this.classList.toggle('open');
+  document.getElementById('detailCollapseBody').classList.toggle('open');
+});
+
+function updateDetailCollapse() {
+  const container = document.getElementById('detailCollapseInner');
+  const metaEl = document.getElementById('detailCollapseMeta');
+  const collapseEl = document.getElementById('detailCollapse');
+
+  const allPages = [];
+  allFilesData.forEach(file => {
+    file.pages.forEach(page => {
+      const isImage = file.type === 'Image';
+      const source = isImage ? `Файл ${file.name}` : `${file.name} → Стр. ${page.pageNum}`;
+      allPages.push({
+        source,
+        pageType: page.pageType,
+        fillPercentage: parseFloat(page.fillPercentage || 0),
+        isColor: page.pageType === 'color'
+      });
+    });
+  });
+
+  if (allPages.length === 0) { collapseEl.style.display = 'none'; return; }
+  collapseEl.style.display = 'block';
+
+  const colorPages = allPages.filter(p => p.isColor);
+  const bwPages = allPages.filter(p => !p.isColor);
+
+  const FILL_THRESHOLD = 10;
+  const colorWithFill = colorPages.filter(p => p.fillPercentage >= FILL_THRESHOLD);
+  const colorNoFill = colorPages.filter(p => p.fillPercentage < FILL_THRESHOLD);
+  const bwWithFill = bwPages.filter(p => p.fillPercentage >= FILL_THRESHOLD);
+  const bwNoFill = bwPages.filter(p => p.fillPercentage < FILL_THRESHOLD);
+
+  // Meta badges
+  metaEl.innerHTML = `
+    <span class="detail-collapse-badge clr">🎨 Цвет: ${colorPages.length}</span>
+    <span class="detail-collapse-badge bw">⬛ Ч/Б: ${bwPages.length}</span>
+  `;
+
+  let html = '';
+
+  // COLOR GROUP
+  if (colorPages.length > 0) {
+    html += `<div class="detail-group">
+      <div class="detail-group-header">
+        <div class="detail-group-title clr">🎨 Цветные страницы (${colorPages.length})</div>
+        <div class="detail-group-stats">
+          <span>С заливкой: ${colorWithFill.length}</span>
+          <span>Без заливки: ${colorNoFill.length}</span>
+        </div>
+      </div>
+      <div class="detail-items">`;
+    colorPages.forEach(p => {
+      const fillClass = p.fillPercentage >= 50 ? 'high' : 'clr';
+      html += `<div class="detail-item">
+        <div class="detail-item-source">${escapeHtml(p.source)}</div>
+        <div class="detail-item-type"><span class="page-type color">Цвет</span></div>
+        <div class="detail-item-fill">
+          <div class="detail-fill-bar"><div class="detail-fill-bar-inner ${fillClass}" style="width:${Math.min(p.fillPercentage, 100)}%"></div></div>
+          <div class="detail-fill-val">${p.fillPercentage.toFixed(2)}%</div>
+        </div>
+      </div>`;
+    });
+    html += `</div></div>`;
+  }
+
+  // B&W GROUP
+  if (bwPages.length > 0) {
+    html += `<div class="detail-group">
+      <div class="detail-group-header">
+        <div class="detail-group-title bw">⬛ Ч/Б страницы (${bwPages.length})</div>
+        <div class="detail-group-stats">
+          <span>С заливкой: ${bwWithFill.length}</span>
+          <span>Без заливки: ${bwNoFill.length}</span>
+        </div>
+      </div>
+      <div class="detail-items">`;
+    bwPages.forEach(p => {
+      const fillClass = p.fillPercentage >= 50 ? 'high' : 'bw';
+      html += `<div class="detail-item">
+        <div class="detail-item-source">${escapeHtml(p.source)}</div>
+        <div class="detail-item-type"><span class="page-type bw">Ч/Б</span></div>
+        <div class="detail-item-fill">
+          <div class="detail-fill-bar"><div class="detail-fill-bar-inner ${fillClass}" style="width:${Math.min(p.fillPercentage, 100)}%"></div></div>
+          <div class="detail-fill-val">${p.fillPercentage.toFixed(2)}%</div>
+        </div>
+      </div>`;
+    });
+    html += `</div></div>`;
+  }
+
+  // SUMMARY ROW
+  html += `<div style="margin-top:16px;padding:12px 16px;background:var(--bg1);border-radius:var(--rs);border:1px solid var(--brd);font-size:11px;font-family:'JetBrains Mono',monospace;display:flex;flex-wrap:wrap;gap:16px;color:var(--t2)">
+    <span>Всего файлов: <strong style="color:var(--t1)">${allFilesData.length}</strong></span>
+    <span>Всего листов: <strong style="color:var(--t1)">${allPages.length}</strong></span>
+    <span>Цветных с заливкой: <strong style="color:var(--acc)">${colorWithFill.length}</strong></span>
+    <span>Цветных без заливки: <strong style="color:var(--acc)">${colorNoFill.length}</strong></span>
+    <span>Ч/Б с заливкой: <strong style="color:var(--t1)">${bwWithFill.length}</strong></span>
+    <span>Ч/Б без заливки: <strong style="color:var(--t1)">${bwNoFill.length}</strong></span>
+  </div>`;
+
+  // FILE TYPE BREAKDOWN
+  const typeCounts = {};
+  allFilesData.forEach(f => {
+    const ext = f.name.split('.').pop().toLowerCase();
+    const key = ext.toUpperCase();
+    if (!typeCounts[key]) typeCounts[key] = 0;
+    typeCounts[key]++;
+  });
+  const typeEntries = Object.entries(typeCounts).filter(([,c]) => c > 0);
+  if (typeEntries.length > 0) {
+    html += `<div style="margin-top:8px;padding:10px 16px;background:var(--bg1);border-radius:var(--rs);border:1px solid var(--brd);font-size:11px;font-family:'JetBrains Mono',monospace;display:flex;flex-wrap:wrap;gap:14px;color:var(--t2)">`;
+    typeEntries.forEach(([ext, count]) => {
+      html += `<span>${ext}: <strong style="color:var(--t1)">${count}</strong></span>`;
+    });
+    html += `</div>`;
+  }
+
+  container.innerHTML = html;
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function reanalyzeColors() {
+  if (allFilesData.length === 0) return;
+  const threshold = parseFloat(document.getElementById('colorThreshold').value);
+  allFilesData.forEach(file => {
+    file.pages.forEach(page => {
+      const colorPercentage = parseFloat(page.colorPercentage);
+      const grayPercentage = parseFloat(page.grayPercentage);
+      if (colorPercentage > threshold) page.pageType = 'color';
+      else if (grayPercentage > 0.5) page.pageType = 'gray';
+      else page.pageType = 'bw';
+    });
+  });
+  displayResults();
+}
+
+// ===== CONVERTER =====
+document.getElementById('convertBtn').addEventListener('click', startConversion);
+document.getElementById('downloadAllBtn').addEventListener('click', downloadAllAsZip);
+
+document.getElementById('outputFormat').addEventListener('change', function() {
+  document.getElementById('qualityContainer').style.display = this.value === 'png' ? 'none' : 'flex';
+});
+
+document.getElementById('pdfSelector').addEventListener('change', function() {
+  const selectedIndex = this.value;
+  const fileTypeSpan = document.getElementById('selectedFileType');
+  const formatInfo = document.getElementById('formatInfo');
+  const formatInfoText = document.getElementById('formatInfoText');
+  const scaleContainer = document.getElementById('scaleContainer');
+  if (selectedIndex === '') { fileTypeSpan.style.display = 'none'; formatInfo.style.display = 'none'; return; }
+
+  const fileData = allFilesData[selectedIndex];
+  fileTypeSpan.textContent = fileData.type;
+  fileTypeSpan.style.display = 'inline-block';
+  fileTypeSpan.className = 'file-type-badge file-status ' + fileData.type.toLowerCase();
+
+  const formatMessages = {
+    'PDF': 'PDF файлы конвертируются с точным сохранением макета.',
+    'Word': 'DOCX файлы конвертируются через HTML. Сложное форматирование может отличаться от оригинала.',
+    'Excel': 'Каждый лист таблицы будет конвертирован в отдельное изображение.',
+    'Image': 'Изображение будет преобразовано в выбранный формат.',
+    'PowerPoint': 'Конвертация презентаций ограничена. Рекомендуется сначала экспортировать в PDF.',
+    'RTF': 'RTF файлы имеют ограниченную поддержку конвертации.'
+  };
+  if (formatMessages[fileData.type]) { formatInfoText.textContent = formatMessages[fileData.type]; formatInfo.style.display = 'block'; }
+  else formatInfo.style.display = 'none';
+  scaleContainer.style.display = fileData.type === 'Image' ? 'none' : 'flex';
+});
+
+function updatePdfSelector() {
+  const selector = document.getElementById('pdfSelector');
+  selector.innerHTML = '<option value="">— Выберите файл —</option>';
+  const supportedTypes = ['PDF', 'Word', 'Excel', 'Image'];
+  allFilesData.forEach((file, index) => {
+    if (supportedTypes.includes(file.type)) {
+      const option = document.createElement('option');
+      option.value = index;
+      option.textContent = `${file.name} (${file.type})`;
+      selector.appendChild(option);
+    }
+  });
+  document.getElementById('selectedFileType').style.display = 'none';
+  document.getElementById('formatInfo').style.display = 'none';
+}
+
+async function startConversion() {
+  const selector = document.getElementById('pdfSelector');
+  const selectedIndex = selector.value;
+  if (selectedIndex === '') { alert('Пожалуйста, выберите файл для конвертации'); return; }
+
+  const fileData = allFilesData[selectedIndex];
+  convertedImages = [];
+  document.getElementById('convertedImages').innerHTML = '';
+  document.getElementById('downloadAllBtn').style.display = 'none';
+  document.getElementById('conversionProgress').style.display = 'block';
+
+  const outputFormat = document.getElementById('outputFormat').value;
+  const quality = parseFloat(document.getElementById('jpegQuality').value) / 100;
+  const scale = parseFloat(document.getElementById('scaleSelector').value);
+  const fileExtension = outputFormat === 'png' ? 'png' : 'jpg';
+
+  try {
+    switch (fileData.type) {
+      case 'PDF': await convertPDF(fileData, outputFormat, quality, scale, fileExtension); break;
+      case 'Word': await convertDOCX(fileData, outputFormat, quality, scale, fileExtension); break;
+      case 'Excel': await convertXLSX(fileData, outputFormat, quality, scale, fileExtension); break;
+      case 'Image': await convertImage(fileData, outputFormat, quality, fileExtension); break;
+      default: throw new Error(`Формат ${fileData.type} пока не поддерживается для конвертации`);
+    }
+    if (convertedImages.length > 0) document.getElementById('downloadAllBtn').style.display = 'inline-flex';
+    document.getElementById('conversionProgress').style.display = 'none';
+    alert(`✅ Успешно конвертировано ${convertedImages.length} страниц в ${outputFormat.toUpperCase()}!`);
+  } catch (error) {
+    console.error('Ошибка конвертации:', error);
+    alert('Ошибка при конвертации: ' + error.message);
+    document.getElementById('conversionProgress').style.display = 'none';
+  }
+}
+
+async function convertPDF(fileData, outputFormat, quality, scale, fileExtension) {
+  const pdfData = pdfFilesMap.get(fileData.name);
+  if (!pdfData) throw new Error('PDF файл не найден. Попробуйте загрузить файл заново.');
+  const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
+  const numPages = pdf.numPages;
+  document.getElementById('totalPageNum').textContent = numPages;
+  for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+    document.getElementById('currentPageNum').textContent = pageNum;
+    updateConversionProgress(pageNum, numPages);
+    const page = await pdf.getPage(pageNum);
+    const viewport = page.getViewport({ scale });
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    canvas.width = viewport.width; canvas.height = viewport.height;
+    await page.render({ canvasContext: context, viewport }).promise;
+    const imageDataUrl = canvasToDataUrl(canvas, outputFormat, quality);
+    const fileName = `${fileData.name.replace('.pdf','')}_page_${pageNum}.${fileExtension}`;
+    saveConvertedImage(imageDataUrl, pageNum, fileName, outputFormat, fileExtension);
+  }
+}
+
+async function convertDOCX(fileData, outputFormat, quality, scale, fileExtension) {
+  const docxData = docxFilesMap.get(fileData.name);
+  if (!docxData) throw new Error('DOCX файл не найден. Попробуйте загрузить файл заново.');
+  document.getElementById('totalPageNum').textContent = '1';
+  document.getElementById('currentPageNum').textContent = '1';
+  updateConversionProgress(1, 1);
+  const renderContainer = document.getElementById('render-container');
+  renderContainer.innerHTML = `<div style="width:${Math.round(794*scale)}px;min-height:${Math.round(1123*scale)}px;padding:${Math.round(40*scale)}px;background:white;font-family:'Open Sans',Arial,sans-serif;font-size:${Math.round(12*scale)}px;line-height:1.6;color:#333"><style>#render-container h1{font-size:${Math.round(24*scale)}px;margin:${Math.round(20*scale)}px 0}#render-container h2{font-size:${Math.round(20*scale)}px;margin:${Math.round(16*scale)}px 0}#render-container p{margin:${Math.round(10*scale)}px 0}#render-container table{border-collapse:collapse;width:100%;margin:${Math.round(15*scale)}px 0}#render-container td,#render-container th{border:1px solid #ddd;padding:${Math.round(8*scale)}px}#render-container ul,#render-container ol{margin:${Math.round(10*scale)}px 0;padding-left:${Math.round(30*scale)}px}</style>${docxData.html}</div>`;
+  await new Promise(resolve => setTimeout(resolve, 100));
+  const canvas = await html2canvas(renderContainer, { scale: 1, useCORS: true, backgroundColor: '#ffffff' });
+  const imageDataUrl = canvasToDataUrl(canvas, outputFormat, quality);
+  const fileName = `${fileData.name.replace(/\.(docx|doc)$/i,'')}_page_1.${fileExtension}`;
+  saveConvertedImage(imageDataUrl, 1, fileName, outputFormat, fileExtension);
+  renderContainer.innerHTML = '';
+}
+
+async function convertXLSX(fileData, outputFormat, quality, scale, fileExtension) {
+  const xlsxData = xlsxFilesMap.get(fileData.name);
+  if (!xlsxData) throw new Error('Excel файл не найден. Попробуйте загрузить файл заново.');
+  const sheets = xlsxData.sheets;
+  document.getElementById('totalPageNum').textContent = sheets.length;
+  for (let i = 0; i < sheets.length; i++) {
+    const sheet = sheets[i];
+    document.getElementById('currentPageNum').textContent = i + 1;
+    updateConversionProgress(i + 1, sheets.length);
+    const renderContainer = document.getElementById('render-container');
+    renderContainer.innerHTML = `<div style="width:${Math.round(1123*scale)}px;min-height:${Math.round(794*scale)}px;padding:${Math.round(30*scale)}px;background:white;font-family:'Open Sans',Arial,sans-serif;font-size:${Math.round(11*scale)}px"><h3 style="margin-bottom:${Math.round(15*scale)}px;color:#333;font-size:${Math.round(16*scale)}px">📊 ${sheet.name}</h3><style>#render-container table{border-collapse:collapse;width:100%;background:white}#render-container td,#render-container th{border:1px solid #ddd;padding:${Math.round(6*scale)}px ${Math.round(10*scale)}px;text-align:left;font-size:${Math.round(11*scale)}px}#render-container th{background:#f5f5f5;font-weight:600}#render-container tr:nth-child(even) td{background:#fafafa}</style>${sheet.html}</div>`;
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const canvas = await html2canvas(renderContainer, { scale: 1, useCORS: true, backgroundColor: '#ffffff' });
+    const imageDataUrl = canvasToDataUrl(canvas, outputFormat, quality);
+    const baseName = fileData.name.replace(/\.(xlsx|xls|csv)$/i, '');
+    const fileName = `${baseName}_${sheet.name.replace(/[^a-zA-Z0-9а-яА-Я]/g,'_')}.${fileExtension}`;
+    saveConvertedImage(imageDataUrl, i + 1, fileName, outputFormat, fileExtension, sheet.name);
+    renderContainer.innerHTML = '';
+  }
+}
+
+async function convertImage(fileData, outputFormat, quality, fileExtension) {
+  const imageData = imageFilesMap.get(fileData.name);
+  if (!imageData) throw new Error('Изображение не найдено. Попробуйте загрузить файл заново.');
+  document.getElementById('totalPageNum').textContent = '1';
+  document.getElementById('currentPageNum').textContent = '1';
+  updateConversionProgress(1, 1);
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = function() {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = img.width; canvas.height = img.height;
+      ctx.drawImage(img, 0, 0);
+      const imageDataUrl = canvasToDataUrl(canvas, outputFormat, quality);
+      const baseName = fileData.name.replace(/\.(jpg|jpeg|png|gif|webp|tiff|tif)$/i, '');
+      const fileName = `${baseName}_converted.${fileExtension}`;
+      saveConvertedImage(imageDataUrl, 1, fileName, outputFormat, fileExtension);
+      resolve();
+    };
+    img.onerror = () => reject(new Error('Не удалось загрузить изображение'));
+    img.src = imageData.url;
+  });
+}
+
+function canvasToDataUrl(canvas, outputFormat, quality) {
+  return outputFormat === 'png' ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', quality);
+}
+
+function updateConversionProgress(current, total) {
+  const progress = (current / total) * 100;
+  const progressFill = document.getElementById('conversionProgressFill');
+  progressFill.style.width = progress + '%';
+}
+
+function saveConvertedImage(dataUrl, pageNum, fileName, format, extension, sheetName = null) {
+  convertedImages.push({ dataUrl, pageNum, fileName, format, sheetName });
+  displayConvertedImage(dataUrl, pageNum, fileName, extension, sheetName);
+}
+
+function displayConvertedImage(dataUrl, pageNum, fileName, fileExtension, sheetName = null) {
+  const container = document.getElementById('convertedImages');
+  const imageCard = document.createElement('div');
+  imageCard.className = 'img-card';
+  const img = document.createElement('img');
+  img.src = dataUrl;
+  const label = document.createElement('div');
+  label.className = 'img-card-label';
+  label.textContent = sheetName ? `${sheetName} (${fileExtension.toUpperCase()})` : `Страница ${pageNum} (${fileExtension.toUpperCase()})`;
+  const downloadBtn = document.createElement('button');
+  downloadBtn.className = 'btn btn-s';
+  downloadBtn.style.cssText = 'width:100%;justify-content:center;font-size:11px';
+  downloadBtn.textContent = '💾 Скачать';
+  downloadBtn.onclick = () => window.downloadImage(dataUrl, fileName);
+  imageCard.appendChild(img);
+  imageCard.appendChild(label);
+  imageCard.appendChild(downloadBtn);
+  container.appendChild(imageCard);
+}
+
+window.downloadImage = function(dataUrl, fileName) {
+  const link = document.createElement('a');
+  link.href = dataUrl; link.download = fileName; link.click();
+};
+
+async function downloadAllAsZip() {
+  if (convertedImages.length === 0) { alert('Нет изображений для скачивания'); return; }
+  const zip = new JSZip();
+  const format = convertedImages[0].format || 'jpeg';
+  const imgFolder = zip.folder(format === 'png' ? 'png_pages' : 'jpeg_pages');
+  convertedImages.forEach(img => { imgFolder.file(img.fileName, img.dataUrl.split(',')[1], { base64: true }); });
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `converted_${format}.zip`;
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+</script>
+
+</body>
+</html>

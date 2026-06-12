@@ -1,0 +1,1369 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>iHatePDF — Universal Document Analyzer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.20.1/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="/favicon.ico" type="image/x-icon">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg1:#1a1a2e;--bg2:#16213e;--bg3:#0f3460;--bgP:#1e2746;--bgC:#253256;
+  --acc:#e94560;--accH:#ff6b81;--accS:rgba(233,69,96,0.15);
+  --t1:#eef0f6;--t2:#8892b0;--t3:#5a6480;
+  --brd:#2d3a5c;--ok:#2ed573;--warn:#ffa502;
+  --r:10px;--rs:6px
+}
+html,body{min-height:100%;font-family:'Nunito',sans-serif;background:var(--bg1);color:var(--t1)}
+body{padding-bottom:40px}
+
+/* ===== TOPBAR ===== */
+.topbar{background:var(--bg2);border-bottom:1px solid var(--brd);display:flex;align-items:center;padding:0 20px;gap:12px;height:52px;position:sticky;top:0;z-index:100}
+.topbar-logo{font-weight:800;font-size:15px;color:var(--acc);white-space:nowrap;display:flex;align-items:center;gap:6px}
+.topbar-logo span{color:var(--t1)}
+.topbar-div{width:1px;height:28px;background:var(--brd);flex-shrink:0}
+.topbar-info{font-size:11px;color:var(--t2);font-family:'JetBrains Mono',monospace}
+.topbar-actions{margin-left:auto;display:flex;gap:8px;align-items:center}
+
+/* ===== NAV LINKS ===== */
+.nav-link{padding:5px 14px;border:1px solid var(--brd);border-radius:20px;font-size:11px;font-weight:600;color:var(--t2);text-decoration:none;transition:all .2s;font-family:'Nunito',sans-serif}
+.nav-link:hover{border-color:var(--acc);color:var(--acc);background:var(--accS)}
+
+/* ===== BUTTONS ===== */
+.btn{padding:6px 14px;border:none;border-radius:var(--rs);font-family:'Nunito',sans-serif;font-weight:600;font-size:12px;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.btn-p{background:var(--acc);color:#fff}.btn-p:hover{background:var(--accH);transform:translateY(-1px)}
+.btn-s{background:var(--bgC);color:var(--t1);border:1px solid var(--brd)}.btn-s:hover{background:var(--bg3)}
+.btn-g{background:transparent;color:var(--t2);border:1px solid var(--brd)}.btn-g:hover{color:var(--t1);background:var(--bgC)}
+.btn-ok{background:#1a4a2e;color:var(--ok);border:1px solid #2d6b42}.btn-ok:hover{background:#235c38}
+
+/* ===== MAIN CONTENT ===== */
+.main{max-width:1300px;margin:0 auto;padding:24px 20px;display:flex;flex-direction:column;gap:24px}
+
+/* ===== HERO HEADER ===== */
+.hero{background:var(--bg2);border:1px solid var(--brd);border-radius:var(--r);padding:28px 32px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px}
+.hero-logo{max-height:80px}
+.hero-subtitle{font-size:12px;color:var(--t2);font-style:italic}
+.hero-badges{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin-top:4px}
+.hero-badge{padding:3px 10px;border-radius:14px;font-size:10px;font-weight:700;background:var(--bgC);border:1px solid var(--brd);color:var(--t2)}
+
+/* ===== UPLOAD ===== */
+.upload-area{border:1px solid var(--brd);border-radius:var(--r);padding:32px 20px;text-align:center;cursor:pointer;transition:all .3s;background:var(--bg2)}
+.upload-area:hover,.upload-area.dragover{border-color:var(--acc);background:var(--accS)}
+.upload-area.fullscreen{min-height:calc(100vh - 52px - 200px);display:flex;flex-direction:column;align-items:center;justify-content:center;border:none;background:var(--bg2);border-radius:var(--r)}
+.upload-area-icon{font-size:48px;margin-bottom:12px}
+.upload-area.fullscreen .upload-area-icon{font-size:64px;margin-bottom:16px}
+.upload-area-title{font-size:14px;font-weight:700;color:var(--t1);margin-bottom:4px}
+.upload-area.fullscreen .upload-area-title{font-size:18px}
+.upload-area-sub{font-size:11px;color:var(--t2)}
+.upload-area-formats{font-size:10px;color:var(--t3);margin-top:6px;font-family:'JetBrains Mono',monospace}
+.files-count{font-size:11px;color:var(--ok);font-family:'JetBrains Mono',monospace;margin-top:8px;font-weight:600}
+
+/* ===== ZONE WRAPPER ===== */
+.zone-wrap{background:var(--bg2);border:1px solid var(--brd);border-radius:var(--r);padding:20px;display:flex;flex-direction:column;gap:14px}
+.zone-wrap.fullscreen-zone{border:none;background:transparent;padding:0}
+.zone-title{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--t2);display:flex;align-items:center;gap:8px}
+.zone-title .zone-icon{font-size:18px}
+.zone-badge{padding:2px 8px;border-radius:10px;font-size:9px;font-weight:700;font-family:'JetBrains Mono',monospace}
+.zone-badge.analysis{background:rgba(25,118,210,.15);color:#64b5f6;border:1px solid rgba(25,118,210,.3)}
+
+/* ===== SUMMARY CARDS ===== */
+.summary-panel{display:none}
+.summary-panel.active{display:block}
+.summary-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--t3);margin-bottom:12px}
+.summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.summary-card{background:var(--bg2);border:1px solid var(--brd);border-radius:var(--r);padding:18px 16px;text-align:center}
+.summary-value{font-size:1.8em;font-weight:800;color:var(--acc);font-family:'JetBrains Mono',monospace;line-height:1}
+.summary-value.clr-gray{color:var(--t2)}
+.summary-value.clr-yellow{color:#ffc107}
+.summary-label{font-size:10px;color:var(--t2);margin-top:6px;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+
+/* ===== LOADING ===== */
+.loading{display:none;text-align:center;padding:32px;background:var(--bg2);border:1px solid var(--brd);border-radius:var(--r)}
+.loading.active{display:block}
+.spinner{display:inline-block;width:40px;height:40px;border:4px solid var(--brd);border-top:4px solid var(--acc);border-radius:50%;animation:spin 1s linear infinite;margin-bottom:12px}
+@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+.loading-text{font-size:12px;color:var(--t2);font-family:'JetBrains Mono',monospace;margin-bottom:10px}
+
+/* ===== PROGRESS BAR ===== */
+.progress-bar{width:100%;height:8px;background:var(--bgC);border-radius:4px;overflow:hidden;margin-top:10px}
+.progress-fill{height:100%;background:var(--acc);border-radius:4px;transition:width .3s;display:flex;align-items:center;justify-content:center;color:transparent;font-size:0}
+
+/* ===== DETAILED PROGRESS ===== */
+.progress-detail{margin-top:12px;font-size:11px;color:var(--t3);font-family:'JetBrains Mono',monospace;display:flex;flex-direction:column;gap:6px;align-items:center}
+.progress-file{color:var(--t1);font-weight:600;font-size:12px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.progress-stage{color:var(--warn);font-size:10px;text-transform:uppercase;letter-spacing:.5px}
+.progress-pages{color:var(--t2);font-size:10px}
+.progress-elapsed{color:var(--t3);font-size:10px}
+.progress-sub-bar{width:80%;max-width:400px;height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;margin-top:4px}
+.progress-sub-fill{height:100%;background:var(--warn);border-radius:2px;transition:width .2s;width:0%}
+
+/* ===== RESULTS SECTION ===== */
+#results{display:none;flex-direction:column;gap:20px}
+#results.visible{display:flex}
+
+/* ===== TABS ===== */
+.tabs-container{display:flex;gap:0;border-bottom:1px solid var(--brd);flex-wrap:wrap;background:var(--bg2);border-radius:var(--r) var(--r) 0 0;border:1px solid var(--brd);border-bottom:none}
+.tab-btn{padding:10px 18px;background:transparent;border:none;color:var(--t3);cursor:pointer;font-size:11px;font-weight:700;font-family:'Nunito',sans-serif;text-transform:uppercase;letter-spacing:.4px;border-bottom:2px solid transparent;transition:all .2s;margin-bottom:-1px}
+.tab-btn:hover{color:var(--t2)}
+.tab-btn.active{color:var(--acc);border-bottom-color:var(--acc)}
+.tab-content{display:none;background:var(--bg2);border:1px solid var(--brd);border-top:none;border-radius:0 0 var(--r) var(--r);padding:20px}
+.tab-content.active{display:block}
+.tab-content h3{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--t3);margin-bottom:16px}
+.tab-content p.subtitle{font-size:11px;color:var(--t3);margin-top:-10px;margin-bottom:14px;font-family:'JetBrains Mono',monospace}
+
+/* ===== TABLES ===== */
+.results-table{width:100%;border-collapse:collapse;font-size:12px}
+.results-table thead{background:var(--bg3)}
+.results-table th{padding:10px 14px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--t2);border-bottom:1px solid var(--brd)}
+.results-table td{padding:10px 14px;border-bottom:1px solid var(--brd);color:var(--t1)}
+.results-table tbody tr:hover{background:var(--bgC)}
+.results-table tbody tr:last-child td{border-bottom:none}
+.results-table tfoot td{padding:10px 14px;font-weight:700;color:var(--t1);background:var(--bgC);border-top:1px solid var(--brd)}
+
+/* ===== FILE STATUS BADGES ===== */
+.file-status,.page-type,.format-badge{display:inline-block;padding:3px 10px;border-radius:14px;font-size:10px;font-weight:700;font-family:'JetBrains Mono',monospace}
+.file-status.pdf{background:rgba(25,118,210,.15);color:#64b5f6;border:1px solid rgba(25,118,210,.3)}
+.file-status.image{background:rgba(123,31,162,.15);color:#ce93d8;border:1px solid rgba(123,31,162,.3)}
+.file-status.word{background:rgba(56,142,60,.15);color:#81c784;border:1px solid rgba(56,142,60,.3)}
+.file-status.excel{background:rgba(46,125,50,.15);color:#a5d6a7;border:1px solid rgba(46,125,50,.3)}
+.file-status.csv{background:rgba(0,131,143,.15);color:#80cbc4;border:1px solid rgba(0,131,143,.3)}
+.file-status.powerpoint{background:rgba(198,40,40,.15);color:#ef9a9a;border:1px solid rgba(198,40,40,.3)}
+.file-status.rtf{background:rgba(255,143,0,.15);color:#ffcc80;border:1px solid rgba(255,143,0,.3)}
+.page-type.color{background:var(--accS);color:var(--acc);border:1px solid rgba(233,69,96,.3)}
+.page-type.bw{background:rgba(90,100,128,.15);color:var(--t2);border:1px solid var(--brd)}
+.page-type.gray{background:rgba(90,100,128,.1);color:var(--t3);border:1px solid var(--brd)}
+.format-badge{background:rgba(25,118,210,.12);color:#64b5f6;border:1px solid rgba(25,118,210,.25)}
+
+/* ===== TOTAL ROW ===== */
+.total-row td{background:var(--bgC)!important;color:var(--t1)!important;font-weight:700}
+
+/* ===== CONVERTER PANEL ===== */
+.converter-panel{background:var(--bgC);border:1px solid var(--brd);border-radius:var(--rs);padding:16px;display:flex;flex-direction:column;gap:14px}
+.converter-row{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end}
+.sg{display:flex;flex-direction:column;gap:5px}
+.sg label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--t3)}
+.sg select,.sg input[type="number"],.sg input[type="text"]{padding:6px 10px;border-radius:var(--rs);border:1px solid var(--brd);background:var(--bg2);color:var(--t1);font-family:'Nunito',sans-serif;font-size:12px;min-width:120px}
+.sg select{cursor:pointer}
+.sg select option{background:var(--bg2);color:var(--t1)}
+
+/* ===== FORMAT INFO BOX ===== */
+.format-info-box{display:none;padding:10px 14px;background:var(--bgC);border:1px solid var(--brd);border-radius:var(--rs);font-size:11px;color:var(--t2);font-family:'JetBrains Mono',monospace}
+.format-info-box strong{color:var(--t1)}
+
+/* ===== CONVERSION PROGRESS ===== */
+.conv-progress{display:none;padding:10px 0}
+.conv-progress p{font-size:11px;color:var(--t2);font-family:'JetBrains Mono',monospace;margin-top:8px;text-align:center}
+
+/* ===== CONVERTED IMAGES GRID ===== */
+.converted-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-top:16px}
+.img-card{background:var(--bgC);border:1px solid var(--brd);border-radius:var(--rs);padding:12px;text-align:center}
+.img-card img{width:100%;height:auto;border-radius:4px;margin-bottom:8px;border:1px solid var(--brd);transition:transform .2s}
+.img-card img:hover{transform:scale(1.02)}
+.img-card-label{font-size:10px;color:var(--t2);font-family:'JetBrains Mono',monospace;margin-bottom:8px}
+
+/* ===== COLOR ANALYSIS CONTROLS ===== */
+.filter-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.filter-row label{font-size:11px;color:var(--t2);font-weight:600}
+.filter-btn{padding:5px 14px;border:1px solid var(--brd);border-radius:var(--rs);font-size:10px;font-weight:700;font-family:'Nunito',sans-serif;cursor:pointer;background:var(--bgC);color:var(--t2);transition:all .15s;text-transform:uppercase;letter-spacing:.3px}
+.filter-btn:hover{border-color:var(--t2);color:var(--t1)}
+.filter-btn.active{border-color:var(--acc);background:var(--accS);color:var(--acc)}
+
+/* ===== SELECTED FILE TYPE BADGE ===== */
+.file-type-badge{display:none;padding:3px 10px;border-radius:14px;font-size:10px;font-weight:700;font-family:'JetBrains Mono',monospace;border:1px solid var(--brd)}
+
+/* ===== SCROLLBAR ===== */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--brd);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--t3)}
+
+/* ===== HIDDEN CANVAS ===== */
+#canvas-container{display:none}
+#render-container{position:absolute;left:-9999px;top:-9999px;background:white;padding:40px;width:794px;font-family:'Nunito',Arial,sans-serif}
+
+/* ===== PAGES GRID (color analysis) ===== */
+.pages-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-top:16px}
+.page-card{background:var(--bgC);border:1px solid var(--brd);border-radius:var(--rs);padding:12px;transition:all .2s}
+.page-card:hover{border-color:var(--acc);transform:translateY(-2px)}
+.page-preview{width:100%;height:120px;border-radius:4px;margin-bottom:10px;background:var(--bg3);display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid var(--brd)}
+.page-preview canvas,.page-preview img{width:100%;height:100%;object-fit:cover}
+
+/* ===== ERROR / SUCCESS MESSAGES ===== */
+.msg-error{background:rgba(198,40,40,.12);color:#ef9a9a;padding:12px 16px;border-radius:var(--rs);font-size:11px;border:1px solid rgba(198,40,40,.3);margin-top:8px}
+.msg-success{background:rgba(46,125,50,.12);color:var(--ok);padding:12px 16px;border-radius:var(--rs);font-size:11px;border:1px solid rgba(46,125,50,.3);margin-top:8px}
+
+/* ===== ROLL SECTION ===== */
+.roll-section{margin-top:24px;padding-top:20px;border-top:1px solid var(--brd)}
+.roll-section h3{margin-bottom:16px}
+.roll-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-bottom:20px}
+.roll-card{background:var(--bgC);border:1px solid var(--brd);border-radius:var(--rs);padding:16px}
+.roll-card-header{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.roll-card-title{font-size:14px;font-weight:800;color:var(--t1)}
+.roll-card-width{font-size:11px;color:var(--acc);font-family:'JetBrains Mono',monospace;background:var(--accS);padding:2px 8px;border-radius:10px}
+.roll-card-value{font-size:2em;font-weight:800;color:var(--acc);font-family:'JetBrains Mono',monospace;line-height:1;margin-bottom:8px}
+.roll-card-label{font-size:10px;color:var(--t2);text-transform:uppercase;letter-spacing:.3px;margin-bottom:12px}
+.roll-detail-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:11px;border-bottom:1px solid rgba(45,58,92,.5)}
+.roll-detail-row:last-child{border-bottom:none}
+.roll-detail-key{color:var(--t2)}
+.roll-detail-val{color:var(--t1);font-family:'JetBrains Mono',monospace;font-weight:600}
+
+/* ===== DOCX INFO NOTE ===== */
+.docx-note{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:10px;font-size:9px;font-family:'JetBrains Mono',monospace;background:rgba(255,165,2,.1);color:var(--warn);border:1px solid rgba(255,165,2,.2)}
+
+/* ===== COLLAPSIBLE DETAIL SECTION ===== */
+.detail-collapse{margin-top:24px;border:1px solid var(--brd);border-radius:var(--rs);overflow:hidden}
+.detail-collapse-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--bgC);cursor:pointer;user-select:none;transition:background .2s}
+.detail-collapse-header:hover{background:var(--bg3)}
+.detail-collapse-title{font-size:12px;font-weight:700;color:var(--t1);display:flex;align-items:center;gap:8px}
+.detail-collapse-meta{display:flex;gap:10px;align-items:center}
+.detail-collapse-badge{padding:3px 10px;border-radius:14px;font-size:10px;font-weight:700;font-family:'JetBrains Mono',monospace}
+.detail-collapse-badge.clr{background:var(--accS);color:var(--acc);border:1px solid rgba(233,69,96,.3)}
+.detail-collapse-badge.bw{background:rgba(90,100,128,.15);color:var(--t2);border:1px solid var(--brd)}
+.detail-collapse-arrow{font-size:10px;color:var(--t3);transition:transform .3s;display:inline-block}
+.detail-collapse-header.open .detail-collapse-arrow{transform:rotate(180deg)}
+.detail-collapse-body{max-height:0;overflow:hidden;transition:max-height .4s ease}
+.detail-collapse-body.open{max-height:5000px}
+.detail-collapse-inner{padding:16px}
+.detail-group{margin-bottom:20px}
+.detail-group:last-child{margin-bottom:0}
+.detail-group-header{display:flex;align-items:center;gap:10px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--brd)}
+.detail-group-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.detail-group-title.clr{color:var(--acc)}
+.detail-group-title.bw{color:var(--t2)}
+.detail-group-stats{display:flex;gap:12px;margin-left:auto;font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--t3)}
+.detail-group-stats span{white-space:nowrap}
+.detail-items{display:flex;flex-direction:column;gap:4px}
+.detail-item{display:flex;align-items:center;gap:10px;padding:6px 12px;border-radius:var(--rs);background:var(--bg1);font-size:11px;transition:background .15s}
+.detail-item:hover{background:var(--bg3)}
+.detail-item-source{flex:1;color:var(--t1);font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.detail-item-type{flex-shrink:0}
+.detail-item-fill{flex-shrink:0;display:flex;align-items:center;gap:8px;min-width:160px}
+.detail-fill-bar{width:80px;height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;flex-shrink:0}
+.detail-fill-bar-inner{height:100%;border-radius:3px;transition:width .3s}
+.detail-fill-bar-inner.clr{background:var(--acc)}
+.detail-fill-bar-inner.bw{background:var(--t3)}
+.detail-fill-bar-inner.high{background:var(--ok)}
+.detail-fill-val{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--t2);min-width:50px;text-align:right}
+
+/* ===== HEIC STATUS ===== */
+.heic-status-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:14px;font-size:9px;font-weight:700;font-family:'JetBrains Mono',monospace;transition:all .3s}
+.heic-status-badge.loading{background:rgba(255,165,2,.1);color:var(--warn);border:1px solid rgba(255,165,2,.2)}
+.heic-status-badge.ready{background:rgba(46,204,113,.12);color:var(--ok);border:1px solid rgba(46,204,113,.3)}
+.heic-status-badge.failed{background:rgba(233,69,96,.12);color:var(--acc);border:1px solid rgba(233,69,96,.3)}
+.heic-dot{width:5px;height:5px;border-radius:50%}
+.heic-status-badge.loading .heic-dot{background:var(--warn);animation:heicPulse 1s infinite}
+.heic-status-badge.ready .heic-dot{background:var(--ok)}
+.heic-status-badge.failed .heic-dot{background:var(--acc)}
+@keyframes heicPulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ===== HEIC/WEBP CONVERSION MODAL ===== */
+.hwmodal-overlay{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;padding:20px}
+.hwmodal-overlay.open{display:flex}
+.hwmodal{background:var(--bg2);border:1px solid var(--brd);border-radius:var(--r);max-width:520px;width:100%;overflow:hidden;display:flex;flex-direction:column}
+.hwmodal-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--brd)}
+.hwmodal-header h3{font-size:14px;font-weight:700;color:var(--t1)}
+.hwmodal-close{background:none;border:none;color:var(--t3);font-size:1.4rem;cursor:pointer;padding:4px;line-height:1;transition:color .2s}
+.hwmodal-close:hover{color:var(--acc)}
+.hwmodal-body{padding:20px;display:flex;flex-direction:column;gap:14px}
+.hwmodal-body p{font-size:12px;color:var(--t2)}
+.hwmodal-filelist{max-height:150px;overflow-y:auto;display:flex;flex-direction:column;gap:4px}
+.hwmodal-file{padding:6px 10px;background:var(--bgC);border-radius:var(--rs);font-size:11px;color:var(--t1);font-family:'JetBrains Mono',monospace;display:flex;justify-content:space-between}
+.hwmodal-file .hwf-ext{color:var(--warn);font-weight:600}
+.hwmodal-quality{display:flex;align-items:center;gap:10px}
+.hwmodal-quality input[type="range"]{-webkit-appearance:none;flex:1;height:5px;background:var(--bg3);border-radius:3px;border:1px solid var(--brd);padding:0}
+.hwmodal-quality input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;background:var(--acc);border-radius:50%;cursor:pointer;border:2px solid var(--bg1)}
+.hwmodal-quality-val{font-size:12px;color:var(--acc);font-weight:700;font-family:'JetBrains Mono',monospace;min-width:35px}
+.hwmodal-footer{display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:14px 20px;border-top:1px solid var(--brd)}
+.hwmodal-progress{padding:0 20px 16px;display:none}
+.hwmodal-progress.visible{display:block}
+.hwmodal-progress-text{font-size:11px;color:var(--t2);font-family:'JetBrains Mono',monospace;margin-top:8px;text-align:center}
+
+/* ===== GRADATION TABLES ===== */
+.grad-section{margin-top:24px;padding-top:20px;border-top:1px solid var(--brd)}
+.grad-section h3{margin-bottom:12px}
+.grad-section p.subtitle{margin-top:-6px;margin-bottom:14px}
+.results-table th.th-accent{background:var(--acc);color:#fff}
+.results-table th.th-color{background:rgba(233,69,96,.25);color:var(--acc)}
+.results-table th.th-bw{background:rgba(90,100,128,.25);color:var(--t2)}
+.grad-cell-active{background:var(--accS)!important;color:var(--acc);font-weight:700}
+.grad-cell-empty{color:var(--t3)}
+
+/* ===== TOAST ===== */
+.toast-msg{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--bg2);border:1px solid var(--ok);color:var(--ok);padding:10px 20px;border-radius:var(--rs);font-size:12px;font-family:'Nunito',sans-serif;font-weight:600;z-index:999;transition:transform .4s;box-shadow:0 8px 32px rgba(0,0,0,.4);max-width:90vw;text-align:center}
+.toast-msg.show{transform:translateX(-50%) translateY(0)}
+.toast-msg.error{border-color:var(--acc);color:var(--acc)}
+
+@media(max-width:768px){
+  .topbar{padding:0 12px;gap:8px}
+  .topbar-info{display:none}
+  .main{padding:16px 12px}
+  .converter-row{flex-direction:column;align-items:stretch}
+  .roll-cards{grid-template-columns:1fr}
+  .summary-grid{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <div class="topbar-logo">🔥 <span>iHatePDF</span></div>
+  <div class="topbar-div"></div>
+  <div class="topbar-info">потому что мне все равно, я просто ненавижу PDF 🔥📄🔥</div>
+  <div class="topbar-actions">
+    <a href="/badge" class="nav-link">⚪️️ iHateBadges</a>
+    <a href="/colorblind" class="nav-link">🔴🟢🔵 Cororblind</a>
+    <a href="/crop" class="nav-link">✂️ iHateCrop</a>
+    <a href="/cards" class="nav-link">🃏 iHateCards</a>
+    <a href="/qr" class="nav-link">🖼️iHateQr</a>
+    <a href="/photo" class="nav-link">📖 iHatePhoto</a>
+  </div>
+</header>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- HERO -->
+  <div class="hero" id="heroSection">
+    <div id="logoContainer"><img src="Image.gif" alt="iHatePDF" class="hero-logo" onerror="this.style.display='none'"></div>
+    <div class="hero-badges">
+      <span class="hero-badge">📊 Анализ цветности</span>
+      <span class="hero-badge">📐 Форматы</span>
+      <span class="hero-badge">📏 Погонные метры</span>
+      <span class="hero-badge">🖼️ Конвертер</span>
+      <span class="hero-badge">📑 Несколько файлов</span>
+      <span class="hero-badge">📈 Градация заливки</span>
+    </div>
+  </div>
+
+  <!-- ===== SINGLE UPLOAD ZONE ===== -->
+  <div class="zone-wrap fullscreen-zone" id="uploadZone">
+    <div class="zone-title" id="zoneTitle" style="display:none">
+      <span class="zone-icon">📊</span> Анализ документов
+      <span class="zone-badge analysis">ОЦЕНКА</span>
+      <span class="heic-status-badge loading" id="heicStatus" style="margin-left:auto"><span class="heic-dot"></span><span id="heicStatusText">HEIC...</span></span>
+    </div>
+    <div class="upload-area fullscreen" id="uploadContainer">
+      <input type="file" id="fileInput" style="display:none" multiple accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xls,.xlsx,.csv,.ppt,.pptx,.rtf,.tiff,.tif,.heic,.heif,.webp">
+      <div class="upload-area-icon">📂</div>
+      <div class="upload-area-title"><strong>Нажмите</strong> или перетащите файлы</div>
+      <div class="upload-area-sub">Анализ цветности, форматов, заливки, конвертация</div>
+      <div class="upload-area-formats">PDF · DOC · DOCX · JPEG · PNG · XLS · XLSX · CSV · PPT · PPTX · RTF · TIFF · HEIC · WEBP</div>
+      <div class="files-count" id="filesCount"></div>
+    </div>
+  </div>
+
+  <!-- LOADING -->
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <div class="loading-text" id="loadingText">Анализируем файлы...</div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-detail" id="progressDetail">
+      <div class="progress-file" id="progressFile"></div>
+      <div class="progress-stage" id="progressStage"></div>
+      <div class="progress-sub-bar"><div class="progress-sub-fill" id="progressSubFill"></div></div>
+      <div class="progress-pages" id="progressPages"></div>
+      <div class="progress-elapsed" id="progressElapsed"></div>
+    </div>
+  </div>
+
+  <!-- SUMMARY -->
+  <div class="summary-panel" id="summaryPanel">
+    <div class="summary-title">📈 Сводка</div>
+    <div class="summary-grid">
+      <div class="summary-card"><div class="summary-value" id="totalFiles">0</div><div class="summary-label">Файлов</div></div>
+      <div class="summary-card"><div class="summary-value" id="totalPages">0</div><div class="summary-label">Страниц</div></div>
+      <div class="summary-card"><div class="summary-value clr-yellow" id="totalColorPages">0</div><div class="summary-label">Цветных</div></div>
+      <div class="summary-card"><div class="summary-value clr-gray" id="totalBWPages">0</div><div class="summary-label">Ч/Б</div></div>
+      <div class="summary-card"><div class="summary-value" id="totalNoFillPages">0</div><div class="summary-label">Без заливки</div></div>
+      <div class="summary-card"><div class="summary-value clr-yellow" id="totalColorFillPages">0</div><div class="summary-label">Цвет + заливка</div></div>
+      <div class="summary-card"><div class="summary-value clr-gray" id="totalBWFillPages">0</div><div class="summary-label">Ч/Б + заливка</div></div>
+      <div class="summary-card"><div class="summary-value" id="totalPogonMeters">0</div><div class="summary-label">Погонных м</div></div>
+    </div>
+  </div>
+
+  <!-- RESULTS TABS -->
+  <div id="results">
+    <div style="background:var(--bg2);border:1px solid var(--brd);border-radius:var(--r);overflow:hidden">
+      <div class="tabs-container">
+        <button class="tab-btn active" data-tab="overview">📊 Обзор</button>
+        <button class="tab-btn" data-tab="colors">🎨 Цвета</button>
+        <button class="tab-btn" data-tab="formats">📐 Форматы</button>
+        <button class="tab-btn" data-tab="pogon">📏 Погонные м</button>
+        <button class="tab-btn" data-tab="converter">🖼️ Конвертер</button>
+        <button class="tab-btn" data-tab="files">📁 Файлы</button>
+      </div>
+
+      <!-- OVERVIEW TAB -->
+      <div class="tab-content active" id="overview-tab">
+        <h3>Статистика по файлам</h3>
+        <table class="results-table" id="filesStatsTable">
+          <thead><tr><th>Файл</th><th>Тип</th><th>Страниц</th><th>Цветных</th><th>Ч/Б и серые</th><th>Заливка 50+%</th><th>Погонные (м)</th></tr></thead>
+          <tbody id="filesStatsBody"></tbody>
+          <tfoot>
+            <tr class="total-row">
+              <td colspan="2"><strong>ИТОГО:</strong></td>
+              <td id="totalPagesSum">0</td><td id="totalColorSum">0</td><td id="totalBWSum">0</td><td id="totalHighFillSum">0</td><td id="totalPogonStatsSum">0</td>
+            </tr>
+          </tfoot>
+        </table>
+
+        <!-- GRADATION: WIDE FORMAT ONLY -->
+        <div class="grad-section" id="gradationSection" style="display:none">
+          <h3>📐 Градация заливки — Широкоформатная печать</h3>
+          <p class="subtitle">Форматы больше А3 (А2, А1, А0)</p>
+          <table class="results-table">
+            <thead>
+              <tr>
+                <th rowspan="2" class="th-accent">Формат</th>
+                <th colspan="3" class="th-color">Цветные (Color)</th>
+                <th colspan="3" class="th-bw">Черно-белые (BW)</th>
+                <th rowspan="2" class="th-accent">Итого</th>
+              </tr>
+              <tr>
+                <th class="th-color" title="Чертежи (до 15%)">&lt; 15%</th>
+                <th class="th-color" title="Плакаты (15-50%)">15-50%</th>
+                <th class="th-color" title="Заливка (более 50%)">&gt; 50%</th>
+                <th class="th-bw" title="Чертежи (до 15%)">&lt; 15%</th>
+                <th class="th-bw" title="Плакаты (15-50%)">15-50%</th>
+                <th class="th-bw" title="Заливка (более 50%)">&gt; 50%</th>
+              </tr>
+            </thead>
+            <tbody id="gradWideBody"></tbody>
+          </table>
+        </div>
+
+        <!-- COLLAPSIBLE DETAILED BREAKDOWN -->
+        <div class="detail-collapse" id="detailCollapse" style="display:none">
+          <div class="detail-collapse-header" id="detailCollapseHeader">
+            <div class="detail-collapse-title">
+              📋 Подробная сводка по страницам
+              <span class="detail-collapse-arrow">▼</span>
+            </div>
+            <div class="detail-collapse-meta" id="detailCollapseMeta"></div>
+          </div>
+          <div class="detail-collapse-body" id="detailCollapseBody">
+            <div class="detail-collapse-inner" id="detailCollapseInner"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- COLORS TAB -->
+      <div class="tab-content" id="colors-tab">
+        <h3>Анализ цветности страниц</h3>
+        <div class="filter-row">
+          <label>Порог цветности для А3+ (%):</label>
+          <input type="number" id="colorThreshold" min="0" max="100" value="0.3" step="0.5" style="width:80px;padding:5px 8px;border-radius:var(--rs);border:1px solid var(--brd);background:var(--bg2);color:var(--t1);font-family:'Nunito',sans-serif;font-size:12px">
+          <span style="font-size:9px;color:var(--t3);font-family:'JetBrains Mono',monospace">(&lt; А3 = 0.05 авто)</span>
+          <div style="display:flex;gap:6px;margin-left:12px">
+            <button class="filter-btn active" data-filter="all">Все</button>
+            <button class="filter-btn" data-filter="color">Цветные</button>
+            <button class="filter-btn" data-filter="bw">Ч/Б и серые</button>
+          </div>
+        </div>
+        <table class="results-table">
+          <thead><tr><th>Файл</th><th>Тип</th><th>Заливка</th></tr></thead>
+          <tbody id="colorTableBody"></tbody>
+        </table>
+        <div class="pages-grid" id="pagesGrid"></div>
+      </div>
+
+      <!-- FORMATS TAB -->
+      <div class="tab-content" id="formats-tab">
+        <h3>Анализ форматов страниц</h3>
+        <table class="results-table">
+          <thead><tr><th>Файл</th><th>Формат</th><th>Количество</th><th>Размер (мм)</th><th>Ориентация</th></tr></thead>
+          <tbody id="formatsTableBody"></tbody>
+        </table>
+      </div>
+
+      <!-- POGON TAB -->
+      <div class="tab-content" id="pogon-tab">
+        <h3>Погонные метры (длина страниц)</h3>
+        <p class="subtitle">Расчёт по длинной стороне каждой страницы</p>
+        <table class="results-table">
+          <thead><tr><th>Файл</th><th>Страниц</th><th>Формат</th><th>Длина стр. (м)</th><th>Общая длина (м)</th></tr></thead>
+          <tbody id="pogonTableBody"></tbody>
+          <tfoot>
+            <tr class="total-row">
+              <td colspan="4"><strong>ИТОГО погонных метров:</strong></td>
+              <td><strong id="totalPogonSum">0 м</strong></td>
+            </tr>
+          </tfoot>
+        </table>
+        <div class="roll-section">
+          <h3>🧻 Расчёт по рулонам</h3>
+          <p class="subtitle">Сколько погонных метров рулона потребуется для печати всех страниц</p>
+          <div class="roll-cards" id="rollCards"></div>
+          <h3 style="margin-top:20px">Детализация по форматам страниц</h3>
+          <table class="results-table" id="rollDetailTable">
+            <thead><tr><th>Формат стр.</th><th>Кол-во</th><th>Размер (мм)</th><th>Рулон 600 мм</th><th>Рулон 297 мм</th></tr></thead>
+            <tbody id="rollDetailBody"></tbody>
+            <tfoot>
+              <tr class="total-row">
+                <td colspan="3"><strong>ИТОГО:</strong></td>
+                <td><strong id="rollTotal600">0 м</strong></td>
+                <td><strong id="rollTotal297">0 м</strong></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- CONVERTER TAB -->
+      <div class="tab-content" id="converter-tab">
+        <h3>Конвертер документов → JPEG / PNG</h3>
+        <p class="subtitle">Конвертация страниц загруженных документов в изображения</p>
+
+        <div class="converter-panel">
+          <div class="converter-row">
+            <div class="sg">
+              <label>Выберите файл</label>
+              <select id="pdfSelector">
+                <option value="">— Выберите файл —</option>
+              </select>
+            </div>
+            <span class="file-type-badge" id="selectedFileType"></span>
+          </div>
+
+          <div class="converter-row">
+            <div class="sg">
+              <label>Формат</label>
+              <select id="outputFormat">
+                <option value="jpeg" selected>JPEG</option>
+                <option value="png">PNG</option>
+              </select>
+            </div>
+            <div class="sg" id="qualityContainer">
+              <label>Качество (%)</label>
+              <input type="number" id="jpegQuality" min="1" max="100" value="95" style="width:80px">
+            </div>
+            <div class="sg" id="scaleContainer">
+              <label>Масштаб</label>
+              <select id="scaleSelector">
+                <option value="1">1x (оригинал)</option>
+                <option value="1.5">1.5x</option>
+                <option value="2" selected>2x (высокое качество)</option>
+                <option value="3">3x (максимальное)</option>
+              </select>
+            </div>
+            <div class="sg" style="justify-content:flex-end">
+              <label>&nbsp;</label>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button id="convertBtn" class="btn btn-p">🚀 Конвертировать</button>
+                <button id="downloadAllBtn" class="btn btn-ok" style="display:none">📥 Скачать ZIP</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="format-info-box" id="formatInfo">
+            <strong>ℹ️</strong> <span id="formatInfoText"></span>
+          </div>
+        </div>
+
+        <div class="conv-progress" id="conversionProgress">
+          <div class="progress-bar"><div class="progress-fill" id="conversionProgressFill"></div></div>
+          <p>Конвертация: <span id="currentPageNum">0</span> из <span id="totalPageNum">0</span> страниц</p>
+        </div>
+
+        <div class="converted-grid" id="convertedImages"></div>
+      </div>
+
+      <!-- FILES TAB -->
+      <div class="tab-content" id="files-tab">
+        <h3>Загруженные файлы</h3>
+        <table class="results-table">
+          <thead><tr><th>Имя файла</th><th>Тип</th><th>Размер</th><th>Страниц</th><th>Статус</th></tr></thead>
+          <tbody id="filesTableBody"></tbody>
+        </table>
+      </div>
+
+    </div>
+  </div><!-- /results -->
+
+</div><!-- /main -->
+
+<!-- HIDDEN ELEMENTS -->
+<div id="canvas-container"><canvas id="canvas"></canvas></div>
+<div id="render-container"></div>
+
+<!-- HEIC/WEBP CONVERSION MODAL -->
+<div class="hwmodal-overlay" id="hwModal">
+  <div class="hwmodal">
+    <div class="hwmodal-header">
+      <h3>🖼️ Конвертация HEIC / WEBP → JPEG</h3>
+      <button class="hwmodal-close" id="hwModalClose">×</button>
+    </div>
+    <div class="hwmodal-body">
+      <p>Обнаружены файлы для конвертации:</p>
+      <div class="hwmodal-filelist" id="hwFileList"></div>
+      <div class="sg">
+        <label>Качество JPEG</label>
+        <div class="hwmodal-quality">
+          <input type="range" id="hwQuality" min="80" max="100" value="97" step="1">
+          <span class="hwmodal-quality-val" id="hwQualityVal">97%</span>
+        </div>
+      </div>
+    </div>
+    <div class="hwmodal-footer">
+      <button class="btn btn-g" id="hwCancel">Отмена</button>
+      <button class="btn btn-p" id="hwConvert">📦 Конвертировать в JPEG</button>
+    </div>
+    <div class="hwmodal-progress" id="hwProgress">
+      <div class="progress-bar"><div class="progress-fill" id="hwProgressFill"></div></div>
+      <div class="hwmodal-progress-text" id="hwProgressText">Конвертация...</div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast-msg" id="toastMsg"></div>
+
+<!-- ===== LIBHEIF-JS for HEIC ===== -->
+<script>
+let libheifModule = null, libheifReady = false;
+const LIBHEIF_URLS = [
+  'https://cdn.jsdelivr.net/npm/libheif-js@1.19.8/libheif/libheif.js',
+  'https://unpkg.com/libheif-js@1.19.8/libheif/libheif.js'
+];
+function loadScript(u){return new Promise((r,j)=>{const s=document.createElement('script');s.src=u;s.onload=()=>r(u);s.onerror=()=>j(new Error('Load failed: '+u));document.head.appendChild(s);})}
+async function initLibheif(){
+  const el=document.getElementById('heicStatus'),tx=document.getElementById('heicStatusText');
+  for(const u of LIBHEIF_URLS){try{
+    await loadScript(u);
+    if(typeof libheif==='function'){
+      const mod=libheif();
+      if(mod&&mod.HeifDecoder){libheifModule=mod;libheifReady=true;
+        el.className='heic-status-badge ready';tx.textContent='HEIC ✓';return;}
+    }
+  }catch(e){console.warn('[libheif] Failed:',u,e.message);}}
+  el.className='heic-status-badge failed';tx.textContent='HEIC ✗';
+}
+initLibheif();
+</script>
+
+<script>
+// =============================================
+// SECTION 1: ANALYSIS ENGINE
+// =============================================
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+let allFilesData = [];
+let currentFilter = 'all';
+let convertedImages = [];
+let pdfFilesMap = new Map();
+let docxFilesMap = new Map();
+let xlsxFilesMap = new Map();
+let imageFilesMap = new Map();
+let progressStartTime = 0;
+let progressTimerInterval = null;
+
+// Upload click
+document.getElementById('uploadContainer').addEventListener('click', () => document.getElementById('fileInput').click());
+document.getElementById('fileInput').addEventListener('change', handleFileSelect);
+document.getElementById('colorThreshold').addEventListener('change', reanalyzeColors);
+
+// Tabs
+document.querySelectorAll('.tab-btn[data-tab]').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const tab = this.dataset.tab;
+    document.querySelectorAll('.tab-btn[data-tab]').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    this.classList.add('active');
+    document.getElementById(tab + '-tab').classList.add('active');
+  });
+});
+
+// Filter buttons
+document.querySelectorAll('[data-filter]').forEach(btn => {
+  btn.addEventListener('click', function() {
+    currentFilter = this.dataset.filter;
+    document.querySelectorAll('[data-filter]').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    filterColorPages();
+  });
+});
+
+// Drag and Drop
+const uploadContainer = document.getElementById('uploadContainer');
+uploadContainer.addEventListener('dragover', e => { e.preventDefault(); uploadContainer.classList.add('dragover'); });
+uploadContainer.addEventListener('dragleave', () => uploadContainer.classList.remove('dragover'));
+uploadContainer.addEventListener('drop', e => { e.preventDefault(); uploadContainer.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
+
+async function handleFileSelect(e) {
+  const files = e.target.files;
+  if (files.length > 0) await handleFiles(files);
+}
+
+function startProgressTimer() {
+  progressStartTime = Date.now();
+  progressTimerInterval = setInterval(() => {
+    const elapsed = Date.now() - progressStartTime;
+    const sec = Math.floor(elapsed / 1000);
+    const ms = elapsed % 1000;
+    document.getElementById('progressElapsed').textContent = `⏱ ${sec}.${String(ms).substring(0,1)}с`;
+  }, 100);
+}
+function stopProgressTimer() { if (progressTimerInterval) { clearInterval(progressTimerInterval); progressTimerInterval = null; } }
+function setProgressFile(name) { document.getElementById('progressFile').textContent = `📄 ${name}`; }
+function setProgressStage(stage) { document.getElementById('progressStage').textContent = stage; }
+function setProgressPages(current, total) {
+  if (total > 0) { document.getElementById('progressPages').textContent = `Страница ${current} из ${total}`; document.getElementById('progressSubFill').style.width = ((current / total) * 100) + '%'; }
+  else { document.getElementById('progressPages').textContent = ''; document.getElementById('progressSubFill').style.width = '0%'; }
+}
+
+async function handleFiles(files) {
+  const filesArray = Array.from(files);
+
+  // Separate HEIC/WEBP files for conversion
+  const conversionFiles = [];
+  const analysisFiles = [];
+  filesArray.forEach(f => {
+    const ext = f.name.split('.').pop().toLowerCase();
+    if (ext === 'heic' || ext === 'heif' || ext === 'webp') {
+      conversionFiles.push(f);
+    } else {
+      analysisFiles.push(f);
+    }
+  });
+
+  // Show conversion modal for HEIC/WEBP
+  if (conversionFiles.length > 0) {
+    showHWConversionModal(conversionFiles);
+  }
+
+  // Process analysis files
+  if (analysisFiles.length === 0) return;
+
+  // Collapse fullscreen mode
+  uploadContainer.classList.remove('fullscreen');
+  document.getElementById('uploadZone').classList.remove('fullscreen-zone');
+  document.getElementById('uploadZone').classList.add('zone-wrap');
+  document.getElementById('zoneTitle').style.display = '';
+
+  document.getElementById('filesCount').textContent = `Выбрано файлов: ${analysisFiles.length}`;
+  document.getElementById('loading').classList.add('active');
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('summaryPanel').classList.remove('active');
+
+  allFilesData = [];
+  pdfFilesMap.clear(); docxFilesMap.clear(); xlsxFilesMap.clear(); imageFilesMap.clear();
+  convertedImages = [];
+  document.getElementById('convertedImages').innerHTML = '';
+  document.getElementById('downloadAllBtn').style.display = 'none';
+
+  startProgressTimer();
+  let processedFiles = 0;
+  for (const file of analysisFiles) {
+    setProgressFile(file.name); setProgressStage('Загрузка файла...'); setProgressPages(0, 0);
+    const fileData = await processFile(file);
+    allFilesData.push(fileData);
+    processedFiles++;
+    updateProgress(processedFiles, analysisFiles.length);
+  }
+  stopProgressTimer();
+  displayResults();
+  document.getElementById('loading').classList.remove('active');
+  document.getElementById('results').style.display = 'flex';
+  document.getElementById('summaryPanel').classList.add('active');
+}
+
+async function processFile(file) {
+  const fileData = { name: file.name, size: (file.size / 1024 / 1024).toFixed(2) + ' MB', type: getFileType(file), pages: [], areas: [], formats: {}, error: null, isDocxEstimated: false };
+  try {
+    if (file.type === 'application/pdf') await processPDF(file, fileData);
+    else if (file.type.startsWith('image/')) await processImage(file, fileData);
+    else if (file.name.endsWith('.docx') || file.name.endsWith('.doc')) await processWord(file, fileData);
+    else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.csv')) await processExcel(file, fileData);
+    else fileData.error = 'Формат не поддерживается для полного анализа';
+  } catch (error) { fileData.error = error.message; console.error('Error processing file:', error); }
+  return fileData;
+}
+
+// ===== COLOR THRESHOLD LOGIC =====
+function getColorThreshold(widthMm, heightMm) {
+  const short = Math.min(widthMm || 210, heightMm || 297);
+  const long = Math.max(widthMm || 210, heightMm || 297);
+  // A3 = 297×420. If dimensions >= A3 (with tolerance), use adjustable threshold
+  if (short >= 287 && long >= 410) {
+    return parseFloat(document.getElementById('colorThreshold').value);
+  }
+  // Smaller than A3: hardcoded 0.05
+  return 0.05;
+}
+
+function classifyPageType(colorPercentage, grayPercentage, widthMm, heightMm) {
+  const threshold = getColorThreshold(widthMm, heightMm);
+  if (parseFloat(colorPercentage) > threshold) return 'color';
+  if (parseFloat(grayPercentage) > 0.5) return 'gray';
+  return 'bw';
+}
+
+function isWideFormat(formatName, widthMm, heightMm) {
+  if (['A2', 'A1', 'A0'].includes(formatName)) return true;
+  if (['A6', 'A5', 'A4', 'A3', 'Letter', 'Legal', 'Tabloid'].includes(formatName)) return false;
+  // Custom: check if larger than A3
+  const long = Math.max(widthMm || 0, heightMm || 0);
+  const short = Math.min(widthMm || 0, heightMm || 0);
+  return long > 430 || short > 307;
+}
+
+// ===== PROCESSING FUNCTIONS =====
+async function processPDF(file, fileData) {
+  setProgressStage('Чтение PDF...'); const arrayBuffer = await file.arrayBuffer(); pdfFilesMap.set(fileData.name, arrayBuffer.slice(0));
+  setProgressStage('Парсинг структуры PDF...'); const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise; const numPages = pdf.numPages;
+  for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+    setProgressStage('Анализ цветности...'); setProgressPages(pageNum, numPages);
+    const page = await pdf.getPage(pageNum); const viewport = page.getViewport({ scale: 1 }); const format = detectPageFormat(viewport.width, viewport.height);
+    if (!fileData.formats[format.name]) fileData.formats[format.name] = { count: 0, orientation: format.orientation, width: format.width, height: format.height, areaM2: format.areaM2, pogonMeters: format.pogonMeters };
+    fileData.formats[format.name].count++; fileData.formats[format.name].areaM2 = format.areaM2; fileData.formats[format.name].pogonMeters = format.pogonMeters;
+    const colorAnalysis = await analyzePageColors(page);
+    colorAnalysis.pageType = classifyPageType(colorAnalysis.colorPercentage, colorAnalysis.grayPercentage, format.width, format.height);
+    setProgressStage('Извлечение текста...'); const textContent = await page.getTextContent(); const text = textContent.items.map(item => item.str).join(' '); const foundAreas = extractAreas(text); fileData.areas.push(...foundAreas);
+    fileData.pages.push({ pageNum, format: format.name, orientation: format.orientation, widthMm: format.width, heightMm: format.height, areaM2: format.areaM2, pogonMeters: format.pogonMeters, ...colorAnalysis });
+  }
+}
+
+async function processImage(file, fileData) {
+  setProgressStage('Загрузка изображения...');
+  return new Promise((resolve) => {
+    const img = new Image(); const url = URL.createObjectURL(file);
+    file.arrayBuffer().then(buffer => { imageFilesMap.set(fileData.name, { buffer, type: file.type, url }); });
+    img.onload = function() {
+      setProgressStage('Анализ цветности...'); setProgressPages(1, 1);
+      const canvas = document.getElementById('canvas'); const ctx = canvas.getContext('2d'); canvas.width = img.width; canvas.height = img.height; ctx.drawImage(img, 0, 0);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height); const colorAnalysis = analyzeImageColors(imageData);
+      const dpi = 72; const widthMm = (img.width / dpi) * 25.4; const heightMm = (img.height / dpi) * 25.4;
+      const format = detectPageFormat(widthMm * 2.83465, heightMm * 2.83465);
+      colorAnalysis.pageType = classifyPageType(colorAnalysis.colorPercentage, colorAnalysis.grayPercentage, format.width, format.height);
+      fileData.pages.push({ pageNum: 1, format: format.name, orientation: format.orientation, widthMm: format.width, heightMm: format.height, areaM2: format.areaM2, pogonMeters: format.pogonMeters, ...colorAnalysis, preview: url });
+      fileData.formats[format.name] = { count: 1, orientation: format.orientation, width: format.width, height: format.height, areaM2: format.areaM2, pogonMeters: format.pogonMeters };
+      resolve();
+    };
+    img.src = url;
+  });
+}
+
+async function processWord(file, fileData) {
+  setProgressStage('Чтение DOCX архива...'); const arrayBuffer = await file.arrayBuffer();
+  setProgressStage('Анализ структуры документа...'); let estimatedPages = 1; let hasExplicitPageBreaks = false;
+  try {
+    const zip = await JSZip.loadAsync(arrayBuffer); const docXml = await zip.file('word/document.xml')?.async('string');
+    if (docXml) {
+      const pageBreakMatches = docXml.match(/<w:br\s+w:type\s*=\s*["']page["']\s*\/?>/gi) || [];
+      const sectionBreaks = docXml.match(/<w:sectPr[\s>]/gi) || [];
+      const explicitBreaks = pageBreakMatches.length + Math.max(0, sectionBreaks.length - 1);
+      if (explicitBreaks > 0) { estimatedPages = explicitBreaks + 1; hasExplicitPageBreaks = true; }
+      if (!hasExplicitPageBreaks) {
+        const paragraphs = docXml.match(/<w:p[\s>]/gi) || [];
+        const textMatches = docXml.match(/<w:t[^>]*>([^<]*)<\/w:t>/gi) || [];
+        let totalChars = 0; textMatches.forEach(m => { totalChars += m.replace(/<[^>]+>/g, '').length; });
+        const charEstimate = Math.ceil(totalChars / 2500); const paraEstimate = Math.ceil(paragraphs.length / 30);
+        estimatedPages = Math.max(1, Math.max(charEstimate, paraEstimate));
+      }
+    }
+  } catch (e) { console.warn('DOCX ZIP parsing failed:', e); }
+
+  setProgressStage('Конвертация DOCX → HTML...');
+  const htmlResult = await mammoth.convertToHtml({ arrayBuffer }); const textResult = await mammoth.extractRawText({ arrayBuffer });
+  docxFilesMap.set(fileData.name, { html: htmlResult.value, text: textResult.value, messages: htmlResult.messages });
+  if (!hasExplicitPageBreaks && textResult.value.length > 0) { estimatedPages = Math.max(estimatedPages, Math.max(1, Math.ceil(textResult.value.length / 2500))); }
+  fileData.isDocxEstimated = true;
+
+  setProgressStage('Рендеринг и анализ цветности...');
+  const renderContainer = document.getElementById('render-container');
+  const a4WidthPx = 794, a4HeightPx = 1123;
+  renderContainer.innerHTML = `<div id="docx-render-content" style="width:${a4WidthPx}px;padding:40px;background:white;font-family:'Open Sans',Arial,sans-serif;font-size:12px;line-height:1.6;color:#333"><style>#docx-render-content h1{font-size:24px;margin:20px 0}#docx-render-content h2{font-size:20px;margin:16px 0}#docx-render-content p{margin:10px 0}#docx-render-content table{border-collapse:collapse;width:100%;margin:15px 0}#docx-render-content td,#docx-render-content th{border:1px solid #ddd;padding:8px}#docx-render-content ul,#docx-render-content ol{margin:10px 0;padding-left:30px}#docx-render-content img{max-width:100%;height:auto}</style>${htmlResult.value}</div>`;
+  await new Promise(r => setTimeout(r, 200));
+  const contentEl = document.getElementById('docx-render-content');
+  if (contentEl) { estimatedPages = Math.max(estimatedPages, Math.max(1, Math.ceil(contentEl.scrollHeight / a4HeightPx))); }
+
+  for (let pageIdx = 0; pageIdx < estimatedPages; pageIdx++) {
+    setProgressPages(pageIdx + 1, estimatedPages); setProgressStage(`Анализ страницы ${pageIdx + 1}/${estimatedPages}...`);
+    let colorPercentage = 0, grayPercentage = 0, fillPercentage = 0, pageType = 'bw';
+    try {
+      const canvas = document.createElement('canvas'); canvas.width = a4WidthPx; canvas.height = a4HeightPx;
+      const ctx = canvas.getContext('2d');
+      const fullCanvas = await html2canvas(renderContainer, { scale: 1, useCORS: true, backgroundColor: '#ffffff', y: pageIdx * a4HeightPx, height: a4HeightPx, windowWidth: a4WidthPx + 100, width: a4WidthPx + 80 });
+      ctx.drawImage(fullCanvas, 0, 0, a4WidthPx, a4HeightPx);
+      const imageData = ctx.getImageData(0, 0, a4WidthPx, a4HeightPx); const analysis = analyzeImageColors(imageData);
+      colorPercentage = analysis.colorPercentage; grayPercentage = analysis.grayPercentage; fillPercentage = analysis.fillPercentage;
+      pageType = classifyPageType(colorPercentage, grayPercentage, 210, 297);
+    } catch (e) {
+      const html = htmlResult.value;
+      if (/color\s*:\s*(?!#000|#333|black|rgb\(0)/i.test(html) || /background(?:-color)?\s*:\s*(?!#fff|white|transparent|rgb\(255)/i.test(html) || /<img\s/i.test(html)) { colorPercentage = 5; pageType = 'color'; }
+      fillPercentage = textResult.value.length > 0 ? Math.min(80, (textResult.value.length / estimatedPages / 2500) * 60) : 0;
+    }
+    fileData.pages.push({ pageNum: pageIdx + 1, format: 'A4', orientation: 'portrait', widthMm: 210, heightMm: 297, areaM2: (210 * 297) / 1000000, pogonMeters: 0.297, colorPercentage, grayPercentage: grayPercentage || 0, fillPercentage, pageType });
+  }
+  fileData.formats['A4'] = { count: estimatedPages, orientation: 'portrait', width: 210, height: 297, areaM2: (210 * 297) / 1000000, pogonMeters: 0.297 };
+  renderContainer.innerHTML = '';
+}
+
+async function processExcel(file, fileData) {
+  setProgressStage('Чтение таблицы...'); const arrayBuffer = await file.arrayBuffer();
+  const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+  xlsxFilesMap.set(fileData.name, { workbook, sheets: workbook.SheetNames.map(name => ({ name, data: XLSX.utils.sheet_to_json(workbook.Sheets[name], { header: 1 }), html: XLSX.utils.sheet_to_html(workbook.Sheets[name]) })) });
+  const a4AreaM2 = (210 * 297) / 1000000, a4PogonMeters = 0.297;
+  workbook.SheetNames.forEach((sheetName, index) => {
+    setProgressStage(`Лист: ${sheetName}`); setProgressPages(index + 1, workbook.SheetNames.length);
+    fileData.pages.push({ pageNum: index + 1, format: 'A4', orientation: 'portrait', widthMm: 210, heightMm: 297, areaM2: a4AreaM2, pogonMeters: a4PogonMeters, colorPercentage: 0, grayPercentage: 0, fillPercentage: 30, pageType: 'bw', sheetName });
+  });
+  fileData.formats['A4'] = { count: workbook.SheetNames.length, orientation: 'portrait', width: 210, height: 297, areaM2: a4AreaM2, pogonMeters: a4PogonMeters };
+}
+
+// ===== COLOR ANALYSIS =====
+async function analyzePageColors(page) {
+  const scale = 1.5; const viewport = page.getViewport({ scale });
+  const canvas = document.getElementById('canvas'); const context = canvas.getContext('2d'); canvas.width = viewport.width; canvas.height = viewport.height;
+  await page.render({ canvasContext: context, viewport }).promise;
+  const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+  return analyzeImageColors(imageData);
+}
+
+function analyzeImageColors(imageData) {
+  const data = imageData.data; let colorPixels = 0, grayPixels = 0, nonWhitePixels = 0; const totalPixels = data.length / 4;
+  const grayTolerance = 10;
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i], g = data[i+1], b = data[i+2];
+    if (!(r > 250 && g > 250 && b > 250)) { nonWhitePixels++; const maxDiff = Math.max(Math.abs(r-g), Math.abs(g-b), Math.abs(r-b)); if (maxDiff <= grayTolerance) grayPixels++; else colorPixels++; }
+  }
+  const colorPercentage = (colorPixels / totalPixels) * 100; const grayPercentage = (grayPixels / totalPixels) * 100; const fillPercentage = (nonWhitePixels / totalPixels) * 100;
+  // pageType is set to 'bw' as default; will be overridden by classifyPageType after format is known
+  return { colorPercentage: colorPercentage.toFixed(2), grayPercentage: grayPercentage.toFixed(2), fillPercentage: fillPercentage.toFixed(2), pageType: 'bw' };
+}
+
+function detectPageFormat(widthPt, heightPt) {
+  const widthMm = widthPt * 0.352778; const heightMm = heightPt * 0.352778;
+  const isPortrait = heightMm > widthMm; const width = isPortrait ? widthMm : heightMm; const height = isPortrait ? heightMm : widthMm;
+  const pogonMeters = Math.max(widthMm, heightMm) / 1000;
+  const formats = { 'A0':{width:841,height:1189},'A1':{width:594,height:841},'A2':{width:420,height:594},'A3':{width:297,height:420},'A4':{width:210,height:297},'A5':{width:148,height:210},'A6':{width:105,height:148},'Letter':{width:216,height:279},'Legal':{width:216,height:356},'Tabloid':{width:279,height:432} };
+  const tolerance = 10;
+  for (const [name, size] of Object.entries(formats)) {
+    if (Math.abs(width - size.width) < tolerance && Math.abs(height - size.height) < tolerance)
+      return { name, orientation: isPortrait ? 'portrait' : 'landscape', width: Math.round(width), height: Math.round(height), areaM2: (widthMm * heightMm) / 1000000, pogonMeters };
+  }
+  return { name: 'Custom', orientation: isPortrait ? 'portrait' : 'landscape', width: Math.round(width), height: Math.round(height), areaM2: (widthMm * heightMm) / 1000000, pogonMeters };
+}
+
+function extractAreas(text) {
+  const areas = []; const patterns = [/(\d+(?:[.,]\d+)?)\s*(?:кв\.?\s*)?м(?:²|2|\s|$)/gi,/(\d+(?:[.,]\d+)?)\s*м²/gi,/(\d+(?:[.,]\d+)?)\s*square\s*meters?/gi,/(\d+(?:[.,]\d+)?)\s*sq\.?\s*m/gi,/площадь[:\s]+(\d+(?:[.,]\d+)?)/gi,/area[:\s]+(\d+(?:[.,]\d+)?)/gi,/(\d+(?:[.,]\d+)?)\s*кв\.м/gi];
+  patterns.forEach(pattern => { let match; while ((match = pattern.exec(text)) !== null) { const value = parseFloat(match[1].replace(',', '.')); if (!isNaN(value) && value > 0 && value < 100000) areas.push({ value, unit: 'м²', original: match[0] }); } });
+  return areas;
+}
+
+function getFileType(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  const typeMap = {'pdf':'PDF','doc':'Word','docx':'Word','jpg':'Image','jpeg':'Image','png':'Image','tiff':'Image','tif':'Image','xls':'Excel','xlsx':'Excel','csv':'CSV','ppt':'PowerPoint','pptx':'PowerPoint','rtf':'RTF'};
+  return typeMap[ext] || 'Unknown';
+}
+function updateProgress(current, total) { const p = Math.round((current / total) * 100); document.getElementById('progressFill').style.width = p + '%'; document.getElementById('loadingText').textContent = `Обработано файлов: ${current} из ${total}`; }
+
+function displayResults() { updateSummary(); updateFilesTable(); updateColorTable(); updateFormatsTable(); updatePogonTable(); updateFilesStatsTable(); updatePdfSelector(); updateRollCalculations(); updateDetailCollapse(); updateGradationTables(); }
+
+// ===== GRADATION TABLES =====
+function updateGradationTables() {
+  const WIDE_ORDER = ['A2', 'A1', 'A0'];
+  const gradStats = {};
+
+  // Collect stats only for wide-format and custom/unknown pages
+  allFilesData.forEach(file => {
+    file.pages.forEach(page => {
+      const fmt = page.format;
+      const wMm = page.widthMm || 210;
+      const hMm = page.heightMm || 297;
+      const wide = isWideFormat(fmt, wMm, hMm);
+      // Also treat 'Custom' (unknown) as wide-format for this table
+      if (!wide && fmt !== 'Custom') return;
+
+      const bucket = WIDE_ORDER.includes(fmt) ? fmt : '_CustomWide';
+      if (!gradStats[bucket]) gradStats[bucket] = { color: {low:0, med:0, high:0}, bw: {low:0, med:0, high:0} };
+
+      const fill = parseFloat(page.fillPercentage || 0);
+      const isColor = page.pageType === 'color';
+      let cat;
+      if (fill < 15) cat = 'low';
+      else if (fill < 50) cat = 'med';
+      else cat = 'high';
+
+      if (isColor) gradStats[bucket].color[cat]++;
+      else gradStats[bucket].bw[cat]++;
+    });
+  });
+
+  const getCls = v => v > 0 ? 'grad-cell-active' : 'grad-cell-empty';
+  const val = v => v > 0 ? v : '—';
+  let hasWide = false;
+
+  // Render wide table
+  const wideBody = document.getElementById('gradWideBody');
+  wideBody.innerHTML = '';
+  [...WIDE_ORDER, '_CustomWide'].forEach(fmt => {
+    const d = gradStats[fmt];
+    if (!d) return;
+    const total = d.color.low + d.color.med + d.color.high + d.bw.low + d.bw.med + d.bw.high;
+    if (total === 0) return;
+    hasWide = true;
+    const label = fmt === '_CustomWide' ? 'Другой' : fmt;
+    wideBody.innerHTML += `<tr>
+      <td><span class="format-badge">${label}</span></td>
+      <td class="${getCls(d.color.low)}">${val(d.color.low)}</td>
+      <td class="${getCls(d.color.med)}">${val(d.color.med)}</td>
+      <td class="${getCls(d.color.high)}">${val(d.color.high)}</td>
+      <td class="${getCls(d.bw.low)}">${val(d.bw.low)}</td>
+      <td class="${getCls(d.bw.med)}">${val(d.bw.med)}</td>
+      <td class="${getCls(d.bw.high)}">${val(d.bw.high)}</td>
+      <td><strong>${total}</strong></td>
+    </tr>`;
+  });
+
+  document.getElementById('gradationSection').style.display = hasWide ? '' : 'none';
+}
+
+// ===== DISPLAY FUNCTIONS =====
+function updateFilesStatsTable() {
+  const tbody = document.getElementById('filesStatsBody'); tbody.innerHTML = '';
+  let totalPages = 0, totalColor = 0, totalBW = 0, totalHighFill = 0, totalPogon = 0;
+  allFilesData.forEach(file => {
+    const row = tbody.insertRow(); let fc = 0, fb = 0, fh = 0, fp = 0;
+    file.pages.forEach(page => { if (page.pageType === 'color') fc++; else fb++; if (parseFloat(page.fillPercentage || 0) > 50) fh++; if (page.pogonMeters) fp += page.pogonMeters; });
+    totalPages += file.pages.length; totalColor += fc; totalBW += fb; totalHighFill += fh; totalPogon += fp;
+    const docxBadge = file.isDocxEstimated ? ' <span class="docx-note">≈ оценка</span>' : '';
+    row.innerHTML = `<td>${file.name.length > 30 ? file.name.substring(0,30)+'...' : file.name}${docxBadge}</td><td><span class="file-status ${file.type.toLowerCase()}">${file.type}</span></td><td>${file.pages.length}</td><td>${fc}</td><td>${fb}</td><td>${fh}</td><td>${fp.toFixed(3)}</td>`;
+  });
+  document.getElementById('totalPagesSum').textContent = totalPages; document.getElementById('totalColorSum').textContent = totalColor;
+  document.getElementById('totalBWSum').textContent = totalBW; document.getElementById('totalHighFillSum').textContent = totalHighFill;
+  document.getElementById('totalPogonStatsSum').textContent = (Math.ceil(totalPogon * 10) / 10).toFixed(1);
+}
+
+function updateSummary() {
+  let totalFiles = allFilesData.length, totalPages = 0, totalColorPages = 0, totalBWPages = 0, totalPogonMeters = 0;
+  let totalNoFill = 0, totalColorFill = 0, totalBWFill = 0;
+  const FILL_THRESH = 50;
+  allFilesData.forEach(file => { totalPages += file.pages.length; file.pages.forEach(page => {
+    const isColor = page.pageType === 'color';
+    const hasFill = parseFloat(page.fillPercentage || 0) >= FILL_THRESH;
+    if (isColor) totalColorPages++; else totalBWPages++;
+    if (!hasFill) totalNoFill++;
+    else if (isColor) totalColorFill++;
+    else totalBWFill++;
+    if (page.pogonMeters) totalPogonMeters += page.pogonMeters;
+  }); });
+  document.getElementById('totalFiles').textContent = totalFiles; document.getElementById('totalPages').textContent = totalPages;
+  document.getElementById('totalColorPages').textContent = totalColorPages; document.getElementById('totalBWPages').textContent = totalBWPages;
+  document.getElementById('totalNoFillPages').textContent = totalNoFill;
+  document.getElementById('totalColorFillPages').textContent = totalColorFill;
+  document.getElementById('totalBWFillPages').textContent = totalBWFill;
+  document.getElementById('totalPogonMeters').textContent = (Math.ceil(totalPogonMeters * 10) / 10).toFixed(1) + ' м';
+}
+
+function updateFilesTable() {
+  const tbody = document.getElementById('filesTableBody'); tbody.innerHTML = '';
+  allFilesData.forEach(file => { const row = tbody.insertRow(); const note = file.isDocxEstimated ? ' <span class="docx-note">≈ оценка стр.</span>' : '';
+    row.innerHTML = `<td>${file.name}</td><td><span class="file-status ${file.type.toLowerCase()}">${file.type}</span></td><td>${file.size}</td><td>${file.pages.length}${note}</td><td>${file.error ? '<span style="color:var(--acc)">⚠️ ' + file.error + '</span>' : '<span style="color:var(--ok)">✅ Обработан</span>'}</td>`; });
+}
+
+function updateColorTable() {
+  const tbody = document.getElementById('colorTableBody'); tbody.innerHTML = '';
+  allFilesData.forEach(file => { file.pages.forEach(page => {
+    let show = currentFilter === 'all' || (currentFilter === 'color' && page.pageType === 'color') || (currentFilter === 'bw' && (page.pageType === 'gray' || page.pageType === 'bw'));
+    if (show) { const row = tbody.insertRow(); const tl = page.pageType === 'color' ? 'Цветная' : page.pageType === 'gray' ? 'Ч/Б (серая)' : 'Ч/Б';
+      row.innerHTML = `<td>${file.name} (стр. ${page.pageNum})</td><td><span class="page-type ${page.pageType}">${tl}</span></td><td>${page.fillPercentage}%</td>`; }
+  }); });
+}
+
+function updateFormatsTable() {
+  const tbody = document.getElementById('formatsTableBody'); tbody.innerHTML = ''; const allFormats = {};
+  allFilesData.forEach(file => { Object.entries(file.formats).forEach(([format, data]) => { const key = `${file.name}_${format}`; if (!allFormats[key]) allFormats[key] = { fileName: file.name, format, ...data }; }); });
+  Object.values(allFormats).forEach(data => { const row = tbody.insertRow(); row.innerHTML = `<td>${data.fileName}</td><td><span class="format-badge">${data.format}</span></td><td>${data.count}</td><td>${data.width} × ${data.height}</td><td>${data.orientation === 'portrait' ? '📄 Книжная' : '📐 Альбомная'}</td>`; });
+}
+
+function updatePogonTable() {
+  const tbody = document.getElementById('pogonTableBody'); tbody.innerHTML = ''; let totalPogon = 0;
+  allFilesData.forEach(file => { const fg = {}; file.pages.forEach(page => { if (page.pogonMeters) { if (!fg[page.format]) fg[page.format] = { count: 0, pogonPerPage: page.pogonMeters, totalPogon: 0 }; fg[page.format].count++; fg[page.format].totalPogon += page.pogonMeters; } });
+    Object.entries(fg).forEach(([format, data]) => { const row = tbody.insertRow(); row.innerHTML = `<td>${file.name.length > 30 ? file.name.substring(0,30)+'...' : file.name}</td><td>${data.count}</td><td><span class="format-badge">${format}</span></td><td>${data.pogonPerPage.toFixed(3)} м</td><td>${data.totalPogon.toFixed(3)} м</td>`; totalPogon += data.totalPogon; });
+  });
+  document.getElementById('totalPogonSum').textContent = (Math.ceil(totalPogon * 10) / 10).toFixed(1) + ' м';
+}
+
+function calculateRollMeters(pw, ph, count, rollW) {
+  const w = Math.min(pw, ph), h = Math.max(pw, ph);
+  let fit1 = Math.floor(rollW / w), len1 = fit1 > 0 ? (Math.ceil(count / fit1) * h) / 1000 : Infinity;
+  let fit2 = Math.floor(rollW / h), len2 = fit2 > 0 ? (Math.ceil(count / fit2) * w) / 1000 : Infinity;
+  if (fit1 === 0 && fit2 === 0) return { fits: false, rollMeters: 0, pagesAcross: 0, feedPerRow: 0, strategy: 'none' };
+  if (len1 <= len2 && fit1 > 0) return { fits: true, rollMeters: len1, pagesAcross: fit1, feedPerRow: h, strategy: `${w}мм поперёк, ${h}мм вдоль` };
+  return { fits: true, rollMeters: len2, pagesAcross: fit2, feedPerRow: w, strategy: `${h}мм поперёк, ${w}мм вдоль` };
+}
+
+function updateRollCalculations() {
+  const rollWidths = [600, 297]; const formatMap = {};
+  allFilesData.forEach(file => { Object.entries(file.formats).forEach(([fn, data]) => { const key = `${fn}_${data.width}_${data.height}`; if (!formatMap[key]) formatMap[key] = { name: fn, width: data.width, height: data.height, count: 0 }; formatMap[key].count += data.count; }); });
+  const formats = Object.values(formatMap); const rc = document.getElementById('rollCards'); rc.innerHTML = '';
+  rollWidths.forEach(rw => { let tr = 0, tp = 0, af = true; formats.forEach(f => { const c = calculateRollMeters(f.width, f.height, f.count, rw); if (c.fits) { tr += c.rollMeters; tp += f.count; } else af = false; });
+    const rm = Math.ceil(tr * 10) / 10; const card = document.createElement('div'); card.className = 'roll-card';
+    card.innerHTML = `<div class="roll-card-header"><div class="roll-card-title">🧻 Рулон</div><div class="roll-card-width">${rw} мм</div></div><div class="roll-card-value">${rm.toFixed(1)} м</div><div class="roll-card-label">Погонных метров рулона</div><div class="roll-detail-row"><span class="roll-detail-key">Всего страниц</span><span class="roll-detail-val">${tp}</span></div><div class="roll-detail-row"><span class="roll-detail-key">Форматов</span><span class="roll-detail-val">${formats.length}</span></div>${!af ? '<div class="roll-detail-row"><span class="roll-detail-key" style="color:var(--warn)">⚠️ Не все форматы помещаются</span><span class="roll-detail-val"></span></div>' : ''}`;
+    rc.appendChild(card);
+  });
+  const tbody = document.getElementById('rollDetailBody'); tbody.innerHTML = ''; let t600 = 0, t297 = 0;
+  formats.forEach(fmt => { const c6 = calculateRollMeters(fmt.width, fmt.height, fmt.count, 600); const c2 = calculateRollMeters(fmt.width, fmt.height, fmt.count, 297);
+    let s6, s2;
+    if (c6.fits) { const r = Math.ceil(c6.rollMeters * 10) / 10; t600 += c6.rollMeters; s6 = `${r.toFixed(1)} м <span style="font-size:9px;color:var(--t3)">(${c6.pagesAcross} в ряд)</span>`; } else s6 = '<span style="color:var(--warn)">⚠️</span>';
+    if (c2.fits) { const r = Math.ceil(c2.rollMeters * 10) / 10; t297 += c2.rollMeters; s2 = `${r.toFixed(1)} м <span style="font-size:9px;color:var(--t3)">(${c2.pagesAcross} в ряд)</span>`; } else s2 = '<span style="color:var(--warn)">⚠️</span>';
+    const row = tbody.insertRow(); row.innerHTML = `<td><span class="format-badge">${fmt.name}</span></td><td>${fmt.count}</td><td>${fmt.width} × ${fmt.height} мм</td><td>${s6}</td><td>${s2}</td>`;
+  });
+  document.getElementById('rollTotal600').textContent = (Math.ceil(t600 * 10) / 10).toFixed(1) + ' м';
+  document.getElementById('rollTotal297').textContent = (Math.ceil(t297 * 10) / 10).toFixed(1) + ' м';
+}
+
+function filterColorPages() { updateColorTable(); }
+
+// Collapsible
+document.getElementById('detailCollapseHeader').addEventListener('click', function() { this.classList.toggle('open'); document.getElementById('detailCollapseBody').classList.toggle('open'); });
+
+function updateDetailCollapse() {
+  const container = document.getElementById('detailCollapseInner'); const metaEl = document.getElementById('detailCollapseMeta'); const collapseEl = document.getElementById('detailCollapse');
+  const allPages = []; allFilesData.forEach(file => { file.pages.forEach(page => { const src = file.type === 'Image' ? `Файл ${file.name}` : `${file.name} → Стр. ${page.pageNum}`;
+    allPages.push({ source: src, pageType: page.pageType, fillPercentage: parseFloat(page.fillPercentage || 0), isColor: page.pageType === 'color' }); }); });
+  if (allPages.length === 0) { collapseEl.style.display = 'none'; return; } collapseEl.style.display = 'block';
+  const colorPages = allPages.filter(p => p.isColor), bwPages = allPages.filter(p => !p.isColor);
+  metaEl.innerHTML = `<span class="detail-collapse-badge clr">🎨 Цвет: ${colorPages.length}</span><span class="detail-collapse-badge bw">⬛ Ч/Б: ${bwPages.length}</span>`;
+  let html = '';
+  if (colorPages.length > 0) { html += `<div class="detail-group"><div class="detail-group-header"><div class="detail-group-title clr">🎨 Цветные (${colorPages.length})</div></div><div class="detail-items">`;
+    colorPages.forEach(p => { const fc = p.fillPercentage >= 50 ? 'high' : 'clr'; html += `<div class="detail-item"><div class="detail-item-source">${escapeHtml(p.source)}</div><div class="detail-item-type"><span class="page-type color">Цвет</span></div><div class="detail-item-fill"><div class="detail-fill-bar"><div class="detail-fill-bar-inner ${fc}" style="width:${Math.min(p.fillPercentage,100)}%"></div></div><div class="detail-fill-val">${p.fillPercentage.toFixed(2)}%</div></div></div>`; });
+    html += `</div></div>`; }
+  if (bwPages.length > 0) { html += `<div class="detail-group"><div class="detail-group-header"><div class="detail-group-title bw">⬛ Ч/Б (${bwPages.length})</div></div><div class="detail-items">`;
+    bwPages.forEach(p => { const fc = p.fillPercentage >= 50 ? 'high' : 'bw'; html += `<div class="detail-item"><div class="detail-item-source">${escapeHtml(p.source)}</div><div class="detail-item-type"><span class="page-type bw">Ч/Б</span></div><div class="detail-item-fill"><div class="detail-fill-bar"><div class="detail-fill-bar-inner ${fc}" style="width:${Math.min(p.fillPercentage,100)}%"></div></div><div class="detail-fill-val">${p.fillPercentage.toFixed(2)}%</div></div></div>`; });
+    html += `</div></div>`; }
+  container.innerHTML = html;
+}
+
+function escapeHtml(str) { const div = document.createElement('div'); div.textContent = str; return div.innerHTML; }
+
+function reanalyzeColors() {
+  if (allFilesData.length === 0) return;
+  allFilesData.forEach(file => { file.pages.forEach(page => {
+    page.pageType = classifyPageType(page.colorPercentage, page.grayPercentage, page.widthMm || 210, page.heightMm || 297);
+  }); });
+  displayResults();
+}
+
+// ===== DOC CONVERTER =====
+document.getElementById('convertBtn').addEventListener('click', startDocConversion);
+document.getElementById('downloadAllBtn').addEventListener('click', downloadAllAsZip);
+document.getElementById('outputFormat').addEventListener('change', function() { document.getElementById('qualityContainer').style.display = this.value === 'png' ? 'none' : 'flex'; });
+document.getElementById('pdfSelector').addEventListener('change', function() {
+  const si = this.value; const ft = document.getElementById('selectedFileType'); const fi = document.getElementById('formatInfo'); const fit = document.getElementById('formatInfoText'); const sc = document.getElementById('scaleContainer');
+  if (si === '') { ft.style.display = 'none'; fi.style.display = 'none'; return; }
+  const fd = allFilesData[si]; ft.textContent = fd.type; ft.style.display = 'inline-block'; ft.className = 'file-type-badge file-status ' + fd.type.toLowerCase();
+  const msgs = {'PDF':'PDF файлы конвертируются с точным сохранением макета.','Word':'DOCX файлы конвертируются через HTML.','Excel':'Каждый лист → отдельное изображение.','Image':'Изображение будет преобразовано в выбранный формат.'};
+  if (msgs[fd.type]) { fit.textContent = msgs[fd.type]; fi.style.display = 'block'; } else fi.style.display = 'none';
+  sc.style.display = fd.type === 'Image' ? 'none' : 'flex';
+});
+
+function updatePdfSelector() {
+  const sel = document.getElementById('pdfSelector'); sel.innerHTML = '<option value="">— Выберите файл —</option>';
+  const ok = ['PDF', 'Word', 'Excel', 'Image'];
+  allFilesData.forEach((file, i) => { if (ok.includes(file.type)) { const o = document.createElement('option'); o.value = i; o.textContent = `${file.name} (${file.type})`; sel.appendChild(o); } });
+  document.getElementById('selectedFileType').style.display = 'none'; document.getElementById('formatInfo').style.display = 'none';
+}
+
+async function startDocConversion() {
+  const si = document.getElementById('pdfSelector').value; if (si === '') { alert('Выберите файл'); return; }
+  const fd = allFilesData[si]; convertedImages = []; document.getElementById('convertedImages').innerHTML = '';
+  document.getElementById('downloadAllBtn').style.display = 'none'; document.getElementById('conversionProgress').style.display = 'block';
+  const of = document.getElementById('outputFormat').value; const q = parseFloat(document.getElementById('jpegQuality').value) / 100;
+  const s = parseFloat(document.getElementById('scaleSelector').value); const ext = of === 'png' ? 'png' : 'jpg';
+  try {
+    switch (fd.type) {
+      case 'PDF': await convertPDF(fd, of, q, s, ext); break;
+      case 'Word': await convertDOCX(fd, of, q, s, ext); break;
+      case 'Excel': await convertXLSX(fd, of, q, s, ext); break;
+      case 'Image': await convertImageDoc(fd, of, q, ext); break;
+    }
+    if (convertedImages.length > 0) document.getElementById('downloadAllBtn').style.display = 'inline-flex';
+    document.getElementById('conversionProgress').style.display = 'none';
+  } catch (error) { console.error('Ошибка:', error); alert('Ошибка: ' + error.message); document.getElementById('conversionProgress').style.display = 'none'; }
+}
+
+async function convertPDF(fd, of, q, s, ext) {
+  const d = pdfFilesMap.get(fd.name); if (!d) throw new Error('PDF не найден');
+  const pdf = await pdfjsLib.getDocument({ data: d }).promise; const n = pdf.numPages; document.getElementById('totalPageNum').textContent = n;
+  for (let p = 1; p <= n; p++) { document.getElementById('currentPageNum').textContent = p; updateConversionProgress(p, n);
+    const page = await pdf.getPage(p); const vp = page.getViewport({ scale: s }); const c = document.createElement('canvas'); const ctx = c.getContext('2d'); c.width = vp.width; c.height = vp.height;
+    await page.render({ canvasContext: ctx, viewport: vp }).promise;
+    const du = canvasToDataUrl(c, of, q); saveConvertedImage(du, p, `${fd.name.replace('.pdf','')}_page_${p}.${ext}`, of, ext); }
+}
+async function convertDOCX(fd, of, q, s, ext) {
+  const d = docxFilesMap.get(fd.name); if (!d) throw new Error('DOCX не найден');
+  document.getElementById('totalPageNum').textContent = '1'; document.getElementById('currentPageNum').textContent = '1'; updateConversionProgress(1, 1);
+  const rc = document.getElementById('render-container');
+  rc.innerHTML = `<div style="width:${Math.round(794*s)}px;min-height:${Math.round(1123*s)}px;padding:${Math.round(40*s)}px;background:white;font-family:'Open Sans',Arial,sans-serif;font-size:${Math.round(12*s)}px;line-height:1.6;color:#333">${d.html}</div>`;
+  await new Promise(r => setTimeout(r, 100));
+  const canvas = await html2canvas(rc, { scale: 1, useCORS: true, backgroundColor: '#ffffff' });
+  const du = canvasToDataUrl(canvas, of, q); saveConvertedImage(du, 1, `${fd.name.replace(/\.(docx|doc)$/i,'')}_page_1.${ext}`, of, ext); rc.innerHTML = '';
+}
+async function convertXLSX(fd, of, q, s, ext) {
+  const d = xlsxFilesMap.get(fd.name); if (!d) throw new Error('Excel не найден');
+  const sheets = d.sheets; document.getElementById('totalPageNum').textContent = sheets.length;
+  for (let i = 0; i < sheets.length; i++) { const sh = sheets[i]; document.getElementById('currentPageNum').textContent = i + 1; updateConversionProgress(i + 1, sheets.length);
+    const rc = document.getElementById('render-container');
+    rc.innerHTML = `<div style="width:${Math.round(1123*s)}px;min-height:${Math.round(794*s)}px;padding:${Math.round(30*s)}px;background:white;font-family:'Open Sans',Arial,sans-serif;font-size:${Math.round(11*s)}px"><h3 style="margin-bottom:15px;color:#333">📊 ${sh.name}</h3>${sh.html}</div>`;
+    await new Promise(r => setTimeout(r, 100));
+    const canvas = await html2canvas(rc, { scale: 1, useCORS: true, backgroundColor: '#ffffff' });
+    const du = canvasToDataUrl(canvas, of, q); const bn = fd.name.replace(/\.(xlsx|xls|csv)$/i, '');
+    saveConvertedImage(du, i + 1, `${bn}_${sh.name.replace(/[^a-zA-Z0-9а-яА-Я]/g,'_')}.${ext}`, of, ext, sh.name); rc.innerHTML = ''; }
+}
+async function convertImageDoc(fd, of, q, ext) {
+  const d = imageFilesMap.get(fd.name); if (!d) throw new Error('Изображение не найдено');
+  document.getElementById('totalPageNum').textContent = '1'; document.getElementById('currentPageNum').textContent = '1'; updateConversionProgress(1, 1);
+  return new Promise((resolve, reject) => { const img = new Image(); img.onload = function() {
+    const c = document.createElement('canvas'); const ctx = c.getContext('2d'); c.width = img.width; c.height = img.height; ctx.drawImage(img, 0, 0);
+    const du = canvasToDataUrl(c, of, q); saveConvertedImage(du, 1, `${fd.name.replace(/\.(jpg|jpeg|png|gif|webp|tiff|tif)$/i,'')}_converted.${ext}`, of, ext); resolve();
+  }; img.onerror = () => reject(new Error('Ошибка загрузки')); img.src = d.url; });
+}
+function canvasToDataUrl(c, of, q) { return of === 'png' ? c.toDataURL('image/png') : c.toDataURL('image/jpeg', q); }
+function updateConversionProgress(cur, tot) { document.getElementById('conversionProgressFill').style.width = ((cur / tot) * 100) + '%'; }
+function saveConvertedImage(du, pn, fn, fmt, ext, sn = null) { convertedImages.push({ dataUrl: du, pageNum: pn, fileName: fn, format: fmt, sheetName: sn }); displayConvertedImage(du, pn, fn, ext, sn); }
+function displayConvertedImage(du, pn, fn, ext, sn = null) {
+  const c = document.getElementById('convertedImages'); const card = document.createElement('div'); card.className = 'img-card';
+  const img = document.createElement('img'); img.src = du;
+  const lbl = document.createElement('div'); lbl.className = 'img-card-label'; lbl.textContent = sn ? `${sn} (${ext.toUpperCase()})` : `Страница ${pn} (${ext.toUpperCase()})`;
+  const btn = document.createElement('button'); btn.className = 'btn btn-s'; btn.style.cssText = 'width:100%;justify-content:center;font-size:11px'; btn.textContent = '💾 Скачать';
+  btn.onclick = () => { const a = document.createElement('a'); a.href = du; a.download = fn; a.click(); };
+  card.appendChild(img); card.appendChild(lbl); card.appendChild(btn); c.appendChild(card);
+}
+async function downloadAllAsZip() {
+  if (convertedImages.length === 0) return; const zip = new JSZip(); const fmt = convertedImages[0].format || 'jpeg';
+  const folder = zip.folder(fmt === 'png' ? 'png_pages' : 'jpeg_pages');
+  convertedImages.forEach(img => { folder.file(img.fileName, img.dataUrl.split(',')[1], { base64: true }); });
+  const blob = await zip.generateAsync({ type: 'blob' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob);
+  link.download = `converted_${fmt}.zip`; link.click(); URL.revokeObjectURL(link.href);
+}
+
+
+// =============================================
+// HEIC / WEBP CONVERSION
+// =============================================
+let hwPendingFiles = [];
+
+async function decodeHeicToImage(file) {
+  if (!await waitForLibheif(25000)) throw new Error('HEIC декодер не загружен');
+  const buf = await file.arrayBuffer(); const u8 = new Uint8Array(buf);
+  const dec = new libheifModule.HeifDecoder(); const imgs = dec.decode(u8);
+  if (!imgs || !imgs.length) throw new Error('Нет изображений в файле');
+  const img = imgs[0], w = img.get_width(), h = img.get_height();
+  if (!w || !h) throw new Error('Нулевые размеры');
+  const rgba = await new Promise((res, rej) => { img.display({ data: new Uint8ClampedArray(w * h * 4), width: w, height: h }, d => { if (!d) { rej(new Error('display() failed')); return; } res(d); }); });
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  c.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(rgba.data.buffer, rgba.data.byteOffset, rgba.data.byteLength), w, h), 0, 0);
+  const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.97));
+  const url = URL.createObjectURL(blob);
+  return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('decode failed')); i.src = url; });
+}
+
+async function waitForLibheif(ms = 25000) { if (libheifReady) return true; const t = Date.now(); while (Date.now() - t < ms) { if (libheifReady) return true; await new Promise(r => setTimeout(r, 200)); } return false; }
+
+function isHeicFile(f) { const e = f.name.split('.').pop().toLowerCase(); return e === 'heic' || e === 'heif'; }
+function isWebpFile(f) { return f.name.split('.').pop().toLowerCase() === 'webp'; }
+
+function showHWConversionModal(files) {
+  hwPendingFiles = files;
+  const list = document.getElementById('hwFileList');
+  list.innerHTML = '';
+  files.forEach(f => {
+    const ext = f.name.split('.').pop().toUpperCase();
+    const div = document.createElement('div'); div.className = 'hwmodal-file';
+    div.innerHTML = `<span>${f.name}</span><span class="hwf-ext">${ext}</span>`;
+    list.appendChild(div);
+  });
+  document.getElementById('hwModal').classList.add('open');
+  document.getElementById('hwProgress').classList.remove('visible');
+}
+
+document.getElementById('hwModalClose').addEventListener('click', () => { document.getElementById('hwModal').classList.remove('open'); });
+document.getElementById('hwCancel').addEventListener('click', () => { document.getElementById('hwModal').classList.remove('open'); });
+document.getElementById('hwQuality').addEventListener('input', function() { document.getElementById('hwQualityVal').textContent = this.value + '%'; });
+document.getElementById('hwConvert').addEventListener('click', startHWConversion);
+
+async function startHWConversion() {
+  if (!hwPendingFiles.length) return;
+  const hasHeic = hwPendingFiles.some(f => isHeicFile(f));
+  if (hasHeic && !libheifReady) { showToast('HEIC декодер ещё загружается, подождите...', true); return; }
+
+  const quality = parseInt(document.getElementById('hwQuality').value);
+  const progressEl = document.getElementById('hwProgress');
+  const progressFill = document.getElementById('hwProgressFill');
+  const progressText = document.getElementById('hwProgressText');
+  const convertBtn = document.getElementById('hwConvert');
+
+  progressEl.classList.add('visible');
+  convertBtn.disabled = true;
+  progressFill.style.width = '0%';
+
+  const zip = new JSZip();
+  const folder = zip.folder('converted_jpeg');
+  let done = 0, errors = 0;
+
+  for (let i = 0; i < hwPendingFiles.length; i++) {
+    const f = hwPendingFiles[i];
+    progressText.textContent = `Конвертация: ${f.name} (${i+1}/${hwPendingFiles.length})`;
+    try {
+      let blob;
+      if (isHeicFile(f)) {
+        const img = await decodeHeicToImage(f);
+        const c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight;
+        const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height); ctx.drawImage(img, 0, 0);
+        blob = await new Promise(r => c.toBlob(r, 'image/jpeg', quality / 100));
+        URL.revokeObjectURL(img.src);
+      } else {
+        // WEBP or other image
+        blob = await new Promise((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => {
+            const c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight;
+            const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height); ctx.drawImage(img, 0, 0);
+            c.toBlob(b => resolve(b), 'image/jpeg', quality / 100);
+          };
+          img.onerror = () => reject(new Error('Ошибка загрузки: ' + f.name));
+          img.src = URL.createObjectURL(f);
+        });
+      }
+      const fileName = f.name.replace(/\.[^.]+$/, '') + '.jpg';
+      folder.file(fileName, blob);
+      done++;
+    } catch (e) {
+      console.error('[HW Convert]', f.name, e);
+      errors++;
+    }
+    progressFill.style.width = Math.round(((i + 1) / hwPendingFiles.length) * 100) + '%';
+  }
+
+  progressText.textContent = 'Создание ZIP...';
+  try {
+    const zipBlob = await zip.generateAsync({ type: 'blob' }, m => { progressText.textContent = `ZIP: ${Math.round(m.percent)}%`; });
+    saveAs(zipBlob, `converted_jpeg_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.zip`);
+    if (errors > 0) { showToast(`Готово: ${done} файлов, ${errors} ошибок`, true); }
+    else { showToast(`✓ Сконвертировано ${done} файлов в JPEG`); }
+  } catch (e) { console.error('[ZIP]', e); showToast('Ошибка при создании архива', true); }
+
+  convertBtn.disabled = false;
+  setTimeout(() => { document.getElementById('hwModal').classList.remove('open'); }, 1500);
+}
+
+// Toast
+function showToast(msg, isError = false) {
+  const el = document.getElementById('toastMsg'); el.textContent = msg; el.className = 'toast-msg' + (isError ? ' error' : '');
+  requestAnimationFrame(() => el.classList.add('show')); setTimeout(() => el.classList.remove('show'), 4500);
+}
+</script>
+
+</body>
+</html>
