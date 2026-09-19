@@ -37,6 +37,14 @@ enum ChiselError: Error, LocalizedError {
     }
 }
 
+enum OutputCodec: Int, CaseIterable, Identifiable {
+    case h264 = 0, hevc = 1
+    var id: Int { rawValue }
+    var title: String { self == .h264 ? "H.264" : "HEVC" }
+    /// HEVC при той же картинке весит примерно на 40% меньше.
+    var bitrateFactor: Double { self == .h264 ? 1.0 : 0.6 }
+}
+
 /// Готовое задание на кодирование — ровно то, что уходит в движок.
 struct Job {
     var input: URL
@@ -46,6 +54,10 @@ struct Job {
     var videoBitrate: Int          // бит/с
     var fps: Double                // целевая частота кадров
     var limitFps: Bool             // ограничивать ли частоту кадров
+    var codec: OutputCodec
+    var sourceIsHDR: Bool
+    var hdrIsPQ: Bool
+    var keepHDR: Bool              // иначе HDR приводится к SDR
     var includeAudio: Bool
     var audioBitrate: Int          // бит/с
     var audioChannels: Int

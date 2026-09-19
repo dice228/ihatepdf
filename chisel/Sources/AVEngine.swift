@@ -1,5 +1,6 @@
 import AVFoundation
 import AudioToolbox
+import VideoToolbox
 
 /// Основной движок: AVAssetReader → AVAssetWriter (VideoToolbox, аппаратный H.264).
 /// Ничего не нужно доустанавливать — всё это часть macOS.
@@ -51,6 +52,21 @@ final class AVEngine {
         // — видео: композиция делает и поворот, и масштаб, и (при желании) прореживание кадров —
         let composition = AVMutableVideoComposition()
         composition.renderSize = CGSize(width: job.width, height: job.height)
+        // Цвет. H.264 здесь 8-битный SDR, поэтому HDR-источник надо честно
+        // привести к BT.709 — иначе картинка выходит блёклой и серой.
+        if job.sourceIsHDR {
+            if job.keepHDR {
+                composition.colorPrimaries = AVVideoColorPrimaries_ITU_R_2020
+                composition.colorTransferFunction = job.hdrIsPQ
+                    ? AVVideoTransferFunction_SMPTE_ST_2084_PQ
+                    : AVVideoTransferFunction_ITU_R_2100_HLG
+                composition.colorYCbCrMatrix = AVVideoYCbCrMatrix_ITU_R_2020
+            } else {
+                composition.colorPrimaries = AVVideoColorPrimaries_ITU_R_709_2
+                composition.colorTransferFunction = AVVideoTransferFunction_ITU_R_709_2
+                composition.colorYCbCrMatrix = AVVideoYCbCrMatrix_ITU_R_709_2
+            }
+        }
         let outFps = max(1.0, job.fps)
         composition.frameDuration = CMTime(value: 1_000,
                                            timescale: CMTimeScale((outFps * 1_000).rounded()))
@@ -72,10 +88,12 @@ final class AVEngine {
         instruction.layerInstructions = [layer]
         composition.instructions = [instruction]
 
+        let pixelFormat = job.keepHDR ? kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange
+                                      : kCVPixelFormatType_32BGRA
         let videoOutput = AVAssetReaderVideoCompositionOutput(
             videoTracks: [videoTrack],
             videoSettings: [kCVPixelBufferPixelFormatTypeKey as String:
-                                NSNumber(value: kCVPixelFormatType_32BGRA)])
+                                NSNumber(value: pixelFormat)])
         videoOutput.videoComposition = composition
         videoOutput.alwaysCopiesSampleData = false
         guard reader.canAdd(videoOutput) else { throw ChiselError.readerFailed("видеодорожка") }
@@ -111,23 +129,45 @@ final class AVEngine {
         self.writer = writer
         writer.shouldOptimizeForNetworkUse = true   // moov в начало файла: видео стартует сразу
 
-        let compression: [String: Any] = [
+        var compression: [String: Any] = [
             AVVideoAverageBitRateKey: job.videoBitrate,
-            AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel,
             AVVideoMaxKeyFrameIntervalKey: Int(max(1, (outFps * 2).rounded())),
             AVVideoMaxKeyFrameIntervalDurationKey: 2.0,
             AVVideoAllowFrameReorderingKey: true,
             AVVideoExpectedSourceFrameRateKey: Int(outFps.rounded())
         ]
+        switch job.codec {
+        case .h264:
+            compression[AVVideoProfileLevelKey] = AVVideoProfileLevelH264HighAutoLevel
+        case .hevc:
+            // 10 бит нужны только для HDR; обычному HEVC хватает профиля по умолчанию.
+            if job.keepHDR {
+                compression[AVVideoProfileLevelKey] = kVTProfileLevel_HEVC_Main10_AutoLevel as String
+            }
+        }
+
+        let colorProperties: [String: Any] = job.keepHDR
+            ? [AVVideoColorPrimariesKey: AVVideoColorPrimaries_ITU_R_2020,
+               AVVideoTransferFunctionKey: job.hdrIsPQ
+                    ? AVVideoTransferFunction_SMPTE_ST_2084_PQ
+                    : AVVideoTransferFunction_ITU_R_2100_HLG,
+               AVVideoYCbCrMatrixKey: AVVideoYCbCrMatrix_ITU_R_2020]
+            : [AVVideoColorPrimariesKey: AVVideoColorPrimaries_ITU_R_709_2,
+               AVVideoTransferFunctionKey: AVVideoTransferFunction_ITU_R_709_2,
+               AVVideoYCbCrMatrixKey: AVVideoYCbCrMatrix_ITU_R_709_2]
+
         let videoSettings: [String: Any] = [
-            AVVideoCodecKey: AVVideoCodecType.h264,
+            AVVideoCodecKey: job.codec == .hevc ? AVVideoCodecType.hevc : AVVideoCodecType.h264,
             AVVideoWidthKey: job.width,
             AVVideoHeightKey: job.height,
-            AVVideoCompressionPropertiesKey: compression
+            AVVideoCompressionPropertiesKey: compression,
+            AVVideoColorPropertiesKey: colorProperties
         ]
         let videoInput = AVAssetWriterInput(mediaType: .video, outputSettings: videoSettings)
         videoInput.expectsMediaDataInRealTime = false
-        guard writer.canAdd(videoInput) else { throw ChiselError.writerFailed("H.264") }
+        guard writer.canAdd(videoInput) else {
+            throw ChiselError.writerFailed(job.codec.title)
+        }
         writer.add(videoInput)
 
         var audioInput: AVAssetWriterInput?

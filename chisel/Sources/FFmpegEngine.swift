@@ -89,6 +89,9 @@ final class FFmpegEngine {
         info.fps = fraction(video["avg_frame_rate"]) ?? fraction(video["r_frame_rate"]) ?? 30
         if !(info.fps > 0.1) { info.fps = 30 }
         info.codec = (video["codec_name"] as? String)?.uppercased() ?? "—"
+        let transfer = (video["color_transfer"] as? String) ?? ""
+        info.hdrIsPQ = transfer == "smpte2084"
+        info.isHDR = info.hdrIsPQ || transfer == "arib-std-b67"
         info.videoBitrate = number(video["bit_rate"]) ?? 0
 
         if let audio = streams.first(where: { ($0["codec_type"] as? String) == "audio" }) {
@@ -166,12 +169,21 @@ final class FFmpegEngine {
 
         var args = ["-hide_banner", "-nostdin", "-y", "-i", job.input.path, "-map", "0:v:0"]
         if job.includeAudio { args += ["-map", "0:a:0?"] }
-        args += ["-c:v", "libx264", "-preset", "medium",
+        var filters: [String] = []
+        if job.sourceIsHDR && !job.keepHDR {
+            // Стандартная цепочка тон-маппинга HDR → SDR (нужен ffmpeg с libzimg).
+            filters += ["zscale=t=linear:npl=100", "format=gbrpf32le", "zscale=p=bt709",
+                        "tonemap=tonemap=hable:desat=0", "zscale=t=bt709:m=bt709:r=tv"]
+        }
+        filters.append("scale=\(job.width):\(job.height):flags=lanczos")
+        filters.append(job.keepHDR ? "format=yuv420p10le" : "format=yuv420p")
+
+        args += ["-c:v", job.codec == .hevc ? "libx265" : "libx264", "-preset", "medium",
                  "-b:v", "\(job.videoBitrate)",
                  "-maxrate", "\(Int(Double(job.videoBitrate) * 1.5))",
                  "-bufsize", "\(job.videoBitrate * 3)",
-                 "-pix_fmt", "yuv420p",
-                 "-vf", "scale=\(job.width):\(job.height):flags=lanczos"]
+                 "-vf", filters.joined(separator: ",")]
+        if job.codec == .hevc { args += ["-tag:v", "hvc1"] }
         if job.limitFps { args += ["-r", String(format: "%.3f", job.fps)] }
         if job.includeAudio {
             args += ["-c:a", "aac", "-b:a", "\(job.audioBitrate)",

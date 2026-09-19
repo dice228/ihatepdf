@@ -28,6 +28,28 @@ enum AppAssets {
     }()
 }
 
+/// Маленькая кнопка-переключатель для настроек, у которых два-четыре значения.
+struct Pill: View {
+    var title: String
+    var active: Bool
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 10.5, weight: .semibold))
+                .padding(.horizontal, 9)
+                .padding(.vertical, 4)
+                .background(
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(active ? Theme.gold : Theme.panelHi)
+                )
+                .foregroundColor(active ? Color(red: 0.18, green: 0.10, blue: 0.04) : Theme.text)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 struct PrimaryButton: View {
     var title: String
     var enabled: Bool

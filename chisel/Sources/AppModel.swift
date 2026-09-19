@@ -102,6 +102,51 @@ final class AppModel: ObservableObject {
         )
     }
 
+    func setFps(_ mode: FpsMode) {
+        apply { $0.fpsMode = mode }
+    }
+
+    /// H.264 здесь всегда 8 бит, поэтому вместе с ним снимается и «сохранить HDR».
+    func setCodec(_ codec: OutputCodec) {
+        apply {
+            $0.codec = codec
+            if codec == .h264 { $0.keepHDR = false }
+        }
+    }
+
+    /// Сохранить HDR можно только в HEVC — переключаем кодек заодно.
+    func setKeepHDR(_ keep: Bool) {
+        apply {
+            $0.keepHDR = keep && $0.info.isHDR
+            if keep { $0.codec = .hevc }
+        }
+    }
+
+    /// «Уложить в N МБ»: считаем нужный битрейт и ставим его ползунку.
+    /// При общих параметрах берём самый длинный файл очереди, чтобы в лимит попали все.
+    func fit(megabytes: Double) {
+        guard let i = selectedIndex, items.indices.contains(i) else { return }
+        let bytes = Int64(megabytes * 1_000_000)
+        if shareSettings && items.count > 1 {
+            let longest = items.map { $0.info.duration }.max() ?? items[i].info.duration
+            let bitrate = items[i].bitrateToFit(bytes: bytes, duration: longest)
+            for j in items.indices { items[j].videoBitrate = bitrate }
+        } else {
+            items[i].videoBitrate = items[i].bitrateToFit(bytes: bytes,
+                                                          duration: items[i].info.duration)
+        }
+    }
+
+    /// Общая обёртка: менять либо выбранный файл, либо всю очередь.
+    private func apply(_ change: (inout MediaItem) -> Void) {
+        guard let i = selectedIndex, items.indices.contains(i) else { return }
+        if shareSettings {
+            for j in items.indices { change(&items[j]) }
+        } else {
+            change(&items[i])
+        }
+    }
+
     func setAudio(_ mode: AudioMode) {
         guard let i = selectedIndex, items.indices.contains(i) else { return }
         if shareSettings {
@@ -128,6 +173,9 @@ final class AppModel: ObservableObject {
                     self.items[j].scale = source.scale
                     self.items[j].videoBitrate = source.videoBitrate
                     self.items[j].audio = self.items[j].info.hasAudio ? source.audio : .off
+                    self.items[j].fpsMode = source.fpsMode
+                    self.items[j].codec = source.codec
+                    self.items[j].keepHDR = source.keepHDR && self.items[j].info.isHDR
                 }
                 self.selection = self.items.first?.id
             }
@@ -185,6 +233,9 @@ final class AppModel: ObservableObject {
                             item.scale = first.scale
                             item.videoBitrate = first.videoBitrate
                             item.audio = info.hasAudio ? first.audio : .off
+                            item.fpsMode = first.fpsMode
+                            item.codec = first.codec
+                            item.keepHDR = first.keepHDR && info.isHDR
                         }
                         self.items.append(item)
                         if self.selection == nil { self.selection = item.id }

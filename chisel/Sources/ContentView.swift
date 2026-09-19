@@ -8,22 +8,24 @@ struct ContentView: View {
     @ObservedObject var model: AppModel
 
     var body: some View {
-        ZStack {
-            Theme.bg.ignoresSafeArea()
-            content
-            if model.isDropTargeted {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .strokeBorder(Theme.gold, style: StrokeStyle(lineWidth: 2, dash: [8, 6]))
-                    .padding(8)
-                    .allowsHitTesting(false)
+        content
+            .background(Theme.bg)
+            .overlay(dropBorder)
+            // Ширина фиксирована: окно компактное и не растягивается.
+            // Боковой список добавляет к ней свою полосу, когда файлов несколько.
+            .frame(width: model.items.count > 1 ? ContentView.paneWidth + ContentView.sidebarWidth
+                                                : ContentView.paneWidth)
+            .onDrop(of: [UTType.fileURL], isTargeted: $model.isDropTargeted) { providers in
+                model.handleDrop(providers)
             }
-        }
-        // Ширина фиксирована: окно компактное и не растягивается.
-        // Боковой список добавляет к ней свою полосу, когда файлов несколько.
-        .frame(width: model.items.count > 1 ? ContentView.paneWidth + ContentView.sidebarWidth
-                                            : ContentView.paneWidth)
-        .onDrop(of: [UTType.fileURL], isTargeted: $model.isDropTargeted) { providers in
-            model.handleDrop(providers)
+    }
+
+    @ViewBuilder private var dropBorder: some View {
+        if model.isDropTargeted {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(Theme.gold, style: StrokeStyle(lineWidth: 2, dash: [8, 6]))
+                .padding(8)
+                .allowsHitTesting(false)
         }
     }
 

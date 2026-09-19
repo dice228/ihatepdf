@@ -14,6 +14,10 @@ struct SourceInfo {
     var audioChannels: Int = 2
     var audioSampleRate: Double = 44_100
     var codec: String = "—"
+    /// HDR: кривая передачи PQ (HDR10) или HLG. Для H.264 такое видео надо
+    /// привести к SDR, иначе картинка выйдет блёклой и серой.
+    var isHDR: Bool = false
+    var hdrIsPQ: Bool = false
     var thumbnail: NSImage?
     /// AVFoundation умеет читать этот файл сам (без ffmpeg).
     var nativeReadable: Bool = true
@@ -75,6 +79,9 @@ enum Probe {
         info.fps = nominal > 0.1 ? nominal : 30
         info.videoBitrate = Double(v.estimatedDataRate)
         info.codec = codecName(v)
+        let hdr = hdrKind(v)
+        info.isHDR = hdr != nil
+        info.hdrIsPQ = hdr == .pq
 
         if let a = asset.tracks(withMediaType: .audio).first {
             info.hasAudio = true
@@ -92,6 +99,20 @@ enum Probe {
             }
         }
         return info
+    }
+
+    private enum HDRKind { case pq, hlg }
+
+    /// Смотрим кривую передачи в описании формата: ST 2084 — это HDR10, HLG — вещательный HDR.
+    private static func hdrKind(_ track: AVAssetTrack) -> HDRKind? {
+        guard let fd = track.formatDescriptions.first else { return nil }
+        let desc = fd as! CMFormatDescription
+        guard let raw = CMFormatDescriptionGetExtension(
+                desc, extensionKey: kCMFormatDescriptionExtension_TransferFunction),
+              let value = raw as? String else { return nil }
+        if value == (kCMFormatDescriptionTransferFunction_SMPTE_ST_2084_PQ as String) { return .pq }
+        if value == (kCMFormatDescriptionTransferFunction_ITU_R_2100_HLG as String) { return .hlg }
+        return nil
     }
 
     private static func codecName(_ track: AVAssetTrack) -> String {

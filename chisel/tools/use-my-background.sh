@@ -9,6 +9,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 SRC="${1:-$HOME/Documents/background icon.png}"
+SRC="${SRC/#\~/$HOME}"          # путь в кавычках вида "~/Documents/…" zsh не раскрывает
+
 if [[ ! -f "$SRC" ]]; then
     echo "Не найден файл: $SRC" >&2
     exit 1

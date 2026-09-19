@@ -5,12 +5,13 @@ struct DetailView: View {
 
     var body: some View {
         if let item = model.displayItem {
-            VStack(spacing: 14) {
-                PreviewBlock(item: item)
-                TitleBlock(model: model, item: item)
+            VStack(spacing: 13) {
+                HeaderBlock(model: model, item: item)
                 CompareBlock(model: model, item: item)
+                FitRow(model: model, item: item)
                 ShareBlock(model: model)
                 SlidersBlock(model: model, item: item)
+                OptionsBlock(model: model, item: item)
                 NotesBlock(item: item, error: model.loadError)
                 FooterBlock(model: model)
             }
@@ -23,48 +24,62 @@ struct DetailView: View {
     }
 }
 
-// MARK: - Превью
+// MARK: - Шапка: кадр слева, название и описание справа
 
-struct PreviewBlock: View {
-    var item: MediaItem
-
-    var body: some View {
-        ZStack {
-            if let image = item.info.thumbnail {
-                Image(nsImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-            } else {
-                Text("без превью")
-                    .font(.system(size: 11))
-                    .foregroundColor(Theme.textDim)
-            }
-        }
-        .frame(height: 158)
-        .frame(maxWidth: .infinity)
-        .background(Color.black.opacity(0.35))
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-    }
-}
-
-// MARK: - Имя файла и характеристики
-
-struct TitleBlock: View {
+struct HeaderBlock: View {
     @ObservedObject var model: AppModel
     var item: MediaItem
 
+    private let maxThumbWidth: CGFloat = 208
+    private let maxThumbHeight: CGFloat = 126
+
     var body: some View {
-        VStack(spacing: 4) {
-            Text(name)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(Theme.text)
-                .lineLimit(1)
-                .truncationMode(.middle)
-            Text(meta)
-                .font(.system(size: 11))
-                .foregroundColor(Theme.textDim)
+        HStack(alignment: .top, spacing: 14) {
+            thumb
+            VStack(alignment: .leading, spacing: 5) {
+                Text(name)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(Theme.text)
+                    .lineLimit(2)
+                    .truncationMode(.middle)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(meta)
+                    .font(.system(size: 11))
+                    .foregroundColor(Theme.textDim)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Кадр показываем в его собственных пропорциях — без чёрных полей по бокам.
+    private var aspect: CGFloat {
+        let w = CGFloat(item.info.width), h = CGFloat(item.info.height)
+        guard w > 0, h > 0 else { return 16.0 / 9.0 }
+        return w / h
+    }
+
+    private var thumbSize: CGSize {
+        if aspect >= maxThumbWidth / maxThumbHeight {
+            return CGSize(width: maxThumbWidth, height: (maxThumbWidth / aspect).rounded())
+        }
+        return CGSize(width: (maxThumbHeight * aspect).rounded(), height: maxThumbHeight)
+    }
+
+    private var thumb: some View {
+        Group {
+            if let image = item.info.thumbnail {
+                Image(nsImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } else {
+                Rectangle().fill(Theme.panel)
+            }
+        }
+        .frame(width: thumbSize.width, height: thumbSize.height)
+        .clipped()
+        .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
     }
 
     private var name: String {
@@ -79,6 +94,7 @@ struct TitleBlock: View {
                      Fmt.duration(item.info.duration),
                      item.info.codec,
                      Fmt.fps(item.info.fps)]
+        if item.info.isHDR { parts.append("HDR") }
         if !item.info.hasAudio { parts.append("без звука") }
         return parts.joined(separator: " · ")
     }
@@ -91,17 +107,16 @@ struct CompareBlock: View {
     var item: MediaItem
 
     var body: some View {
-        HStack(alignment: .center, spacing: 16) {
+        HStack(alignment: .center, spacing: 18) {
             column(caption: "СЕЙЧАС", size: Fmt.bytes(beforeBytes),
-                   detail: beforeDetail, color: Theme.text)
+                   detail: beforeDetail, color: Theme.text, showBadge: false)
             Text("→")
                 .font(.system(size: 16, weight: .light))
                 .foregroundColor(Theme.textDim)
             column(caption: "ПОСЛЕ", size: Fmt.bytes(afterBytes),
-                   detail: afterDetail, color: Theme.gold)
-            Spacer(minLength: 0)
-            badge
+                   detail: afterDetail, color: Theme.gold, showBadge: true)
         }
+        .frame(maxWidth: .infinity)
         .padding(14)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -141,15 +156,19 @@ struct CompareBlock: View {
               : "\(item.targetWidth)×\(item.targetHeight) · H.264"
     }
 
-    private func column(caption: String, size: String, detail: String, color: Color) -> some View {
+    private func column(caption: String, size: String, detail: String,
+                        color: Color, showBadge: Bool) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(caption)
                 .font(.system(size: 9, weight: .bold))
                 .tracking(1.2)
                 .foregroundColor(Theme.textDim)
-            Text(size)
-                .font(.system(size: 19, weight: .bold).monospacedDigit())
-                .foregroundColor(color)
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(size)
+                    .font(.system(size: 19, weight: .bold).monospacedDigit())
+                    .foregroundColor(color)
+                if showBadge { badge }
+            }
             Text(detail)
                 .font(.system(size: 10))
                 .foregroundColor(Theme.textDim)
@@ -246,6 +265,105 @@ struct SlidersBlock: View {
         guard item.info.hasAudio else { return "в файле нет звука" }
         if item.audio == .off { return "дорожка будет выброшена целиком" }
         return "добавит ≈ \(Fmt.bytes(item.audioBytes)) · речь разборчива и на 64k"
+    }
+}
+
+// MARK: - Уложиться в лимит
+
+struct FitRow: View {
+    @ObservedObject var model: AppModel
+    var item: MediaItem
+
+    private let presets: [Double] = [10, 25, 50, 100]
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text("УЛОЖИТЬ В")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundColor(Theme.textDim)
+                .frame(width: 74, alignment: .leading)
+            ForEach(presets, id: \.self) { megabytes in
+                Pill(title: "\(Int(megabytes)) МБ", active: matches(megabytes)) {
+                    model.fit(megabytes: megabytes)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .disabled(model.isConverting)
+        .opacity(model.isConverting ? 0.5 : 1)
+    }
+
+    /// Кнопка подсвечена, если текущая оценка уже попадает в этот лимит.
+    private func matches(_ megabytes: Double) -> Bool {
+        let target = megabytes * 1_000_000
+        return abs(Double(item.estimatedBytes) - target) < target * 0.03
+    }
+}
+
+// MARK: - Кадры, кодек, HDR
+
+struct OptionsBlock: View {
+    @ObservedObject var model: AppModel
+    var item: MediaItem
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            row(title: "КАДРЫ") {
+                ForEach(fpsOptions) { mode in
+                    Pill(title: mode.title, active: item.fpsMode == mode) {
+                        model.setFps(mode)
+                    }
+                }
+            }
+            row(title: "КОДЕК") {
+                ForEach(OutputCodec.allCases) { codec in
+                    Pill(title: codec.title, active: item.codec == codec) {
+                        model.setCodec(codec)
+                    }
+                }
+            }
+            if item.info.isHDR {
+                row(title: "HDR") {
+                    Pill(title: "в SDR", active: !item.keepHDR) { model.setKeepHDR(false) }
+                    Pill(title: "сохранить", active: item.keepHDR) { model.setKeepHDR(true) }
+                }
+            }
+            Text(caption)
+                .font(.system(size: 10))
+                .foregroundColor(Theme.textDim.opacity(0.8))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .disabled(model.isConverting)
+        .opacity(model.isConverting ? 0.5 : 1)
+    }
+
+    /// Показываем только те частоты, которые ниже исходной: поднимать её незачем.
+    private var fpsOptions: [FpsMode] {
+        FpsMode.allCases.filter { $0 == .source || Double($0.rawValue) < item.info.fps - 0.5 }
+    }
+
+    private func row<Content: View>(title: String,
+                                    @ViewBuilder content: () -> Content) -> some View {
+        HStack(spacing: 6) {
+            Text(title)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundColor(Theme.textDim)
+                .frame(width: 74, alignment: .leading)
+            content()
+            Spacer(minLength: 0)
+        }
+    }
+
+    private var caption: String {
+        if item.codec == .hevc {
+            return item.keepHDR
+                ? "HDR сохраняется в 10-битном HEVC — такой файл откроется не везде"
+                : "HEVC весит меньше при той же картинке, но Windows и старые плееры берут его не всегда"
+        }
+        if item.info.isHDR {
+            return "HDR приводится к SDR — иначе у получателя картинка будет блёклой"
+        }
+        return "H.264 открывается везде — самый надёжный вариант для отправки"
     }
 }
 

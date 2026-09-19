@@ -11,6 +11,16 @@ enum AudioMode: Int, CaseIterable, Identifiable {
     var title: String { self == .off ? "выкл" : "\(rawValue / 1_000)k" }
 }
 
+enum FpsMode: Int, CaseIterable, Identifiable {
+    case source = 0, f60 = 60, f30 = 30, f24 = 24
+    var id: Int { rawValue }
+    var title: String { self == .source ? "как есть" : "\(rawValue)" }
+    var limits: Bool { self != .source }
+    func value(source: Double) -> Double {
+        self == .source ? source : min(source, Double(rawValue))
+    }
+}
+
 /// Один файл в очереди со своими настройками.
 /// Ползунки независимы: разрешение отвечает за чёткость кадра, битрейт — за вес файла.
 /// Разрешение на размер не влияет, поэтому рядом с битрейтом подсказано,
@@ -21,6 +31,10 @@ struct MediaItem: Identifiable {
     var scale: Double = 1.0
     var videoBitrate: Double = 5_000_000
     var audio: AudioMode = .k128
+    var fpsMode: FpsMode = .source
+    var codec: OutputCodec = .h264
+    /// Сохранять HDR можно только в HEVC: H.264 здесь всегда 8 бит.
+    var keepHDR: Bool = false
 
     var status: ItemStatus = .ready
     var progress: Double = 0
@@ -52,9 +66,20 @@ struct MediaItem: Identifiable {
         Estimator.targetSize(sourceWidth: info.width, sourceHeight: info.height, scale: scale).h
     }
 
+    var targetFps: Double { fpsMode.value(source: info.fps) }
+
     /// Сколько битрейта обычно хватает выбранному кадру — подсказка, а не ограничение.
     var recommendedBitrate: Double {
-        0.08 * Double(targetWidth) * Double(targetHeight) * max(1, min(info.fps, 120))
+        0.08 * Double(targetWidth) * Double(targetHeight)
+            * max(1, min(targetFps, 120)) * codec.bitrateFactor
+    }
+
+    /// Битрейт видео, при котором файл уложится в заданный размер.
+    func bitrateToFit(bytes: Int64, duration: Double) -> Double {
+        let seconds = max(0.5, duration)
+        let payload = Double(bytes) * 0.985            // запас на контейнер и разброс кодировщика
+        let total = payload * 8.0 / seconds
+        return min(max(total - audioBitrate, 60_000), 120_000_000)
     }
 
     var audioBitrate: Double {
@@ -72,7 +97,7 @@ struct MediaItem: Identifiable {
         Estimator.estimatedBytes(videoBps: videoBitrate,
                                  audioBps: audioBitrate,
                                  seconds: info.duration,
-                                 frames: info.duration * info.fps)
+                                 frames: info.duration * targetFps)
     }
 
     var sizeRatio: Double {
@@ -109,8 +134,12 @@ struct MediaItem: Identifiable {
             width: targetWidth,
             height: targetHeight,
             videoBitrate: Int(videoBitrate.rounded()),
-            fps: info.fps,
-            limitFps: false,
+            fps: targetFps,
+            limitFps: fpsMode.limits,
+            codec: codec,
+            sourceIsHDR: info.isHDR,
+            hdrIsPQ: info.hdrIsPQ,
+            keepHDR: keepHDR && info.isHDR && codec == .hevc,
             includeAudio: info.hasAudio && audio != .off,
             audioBitrate: max(32_000, audio.rawValue),
             audioChannels: info.audioChannels,
