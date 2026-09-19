@@ -51,7 +51,6 @@ final class AVEngine {
         // — видео: композиция делает и поворот, и масштаб, и (при желании) прореживание кадров —
         let composition = AVMutableVideoComposition()
         composition.renderSize = CGSize(width: job.width, height: job.height)
-        composition.renderScale = 1.0
         let outFps = max(1.0, job.fps)
         composition.frameDuration = CMTime(value: 1_000,
                                            timescale: CMTimeScale((outFps * 1_000).rounded()))

@@ -79,20 +79,18 @@ enum Probe {
         if let a = asset.tracks(withMediaType: .audio).first {
             info.hasAudio = true
             info.audioBitrate = Double(a.estimatedDataRate)
-            if let fd = a.formatDescriptions.first,
-               let desc = fd as? CMAudioFormatDescription {
-                if let asbd = CMAudioFormatDescriptionGetStreamBasicDescription(desc)?.pointee {
-                    info.audioChannels = max(1, Int(asbd.mChannelsPerFrame))
-                    if asbd.mSampleRate > 0 { info.audioSampleRate = asbd.mSampleRate }
-                }
+            // formatDescriptions уже отдаёт CMFormatDescription — приводить тип не нужно.
+            if let desc = a.formatDescriptions.first,
+               let asbd = CMAudioFormatDescriptionGetStreamBasicDescription(desc)?.pointee {
+                info.audioChannels = max(1, Int(asbd.mChannelsPerFrame))
+                if asbd.mSampleRate > 0 { info.audioSampleRate = asbd.mSampleRate }
             }
         }
         return info
     }
 
     private static func codecName(_ track: AVAssetTrack) -> String {
-        guard let fd = track.formatDescriptions.first,
-              let desc = fd as? CMFormatDescription else { return "—" }
+        guard let desc = track.formatDescriptions.first else { return "—" }
         let code = CMFormatDescriptionGetMediaSubType(desc)
         let tag = fourCC(code)
         switch tag {
