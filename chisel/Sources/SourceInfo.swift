@@ -79,18 +79,24 @@ enum Probe {
         if let a = asset.tracks(withMediaType: .audio).first {
             info.hasAudio = true
             info.audioBitrate = Double(a.estimatedDataRate)
-            // formatDescriptions уже отдаёт CMFormatDescription — приводить тип не нужно.
-            if let desc = a.formatDescriptions.first,
-               let asbd = CMAudioFormatDescriptionGetStreamBasicDescription(desc)?.pointee {
-                info.audioChannels = max(1, Int(asbd.mChannelsPerFrame))
-                if asbd.mSampleRate > 0 { info.audioSampleRate = asbd.mSampleRate }
+            // formatDescriptions объявлен как [Any], но условное приведение (as?)
+            // к типу CoreFoundation Swift запрещает — такие типы не проверяются
+            // динамически. Поэтому здесь безусловное as!: элементы этого массива
+            // всегда являются описаниями формата.
+            if let fd = a.formatDescriptions.first {
+                let desc = fd as! CMFormatDescription
+                if let asbd = CMAudioFormatDescriptionGetStreamBasicDescription(desc)?.pointee {
+                    info.audioChannels = max(1, Int(asbd.mChannelsPerFrame))
+                    if asbd.mSampleRate > 0 { info.audioSampleRate = asbd.mSampleRate }
+                }
             }
         }
         return info
     }
 
     private static func codecName(_ track: AVAssetTrack) -> String {
-        guard let desc = track.formatDescriptions.first else { return "—" }
+        guard let fd = track.formatDescriptions.first else { return "—" }
+        let desc = fd as! CMFormatDescription
         let code = CMFormatDescriptionGetMediaSubType(desc)
         let tag = fourCC(code)
         switch tag {
