@@ -11,6 +11,7 @@ struct SidebarView: View {
                         SidebarRow(item: item,
                                    selected: item.id == model.selection,
                                    busy: model.isConverting,
+                                   selectable: !model.shareSettings,
                                    onSelect: { model.selection = item.id },
                                    onRemove: { model.remove(item.id) })
                     }
@@ -37,6 +38,9 @@ struct SidebarRow: View {
     var item: MediaItem
     var selected: Bool
     var busy: Bool
+    /// Пока включено «Параметры на все видео», выбирать отдельный файл незачем:
+    /// настройки всё равно общие, поэтому строки только показывают состояние очереди.
+    var selectable: Bool
     var onSelect: () -> Void
     var onRemove: () -> Void
 
@@ -67,10 +71,10 @@ struct SidebarRow: View {
         .padding(7)
         .background(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(selected ? Theme.panelHi : Color.clear)
+                .fill(background)
         )
         .contentShape(Rectangle())
-        .onTapGesture(perform: onSelect)
+        .onTapGesture { if selectable { onSelect() } }
     }
 
     private var thumb: some View {
@@ -85,6 +89,11 @@ struct SidebarRow: View {
         }
         .frame(width: 54, height: 32)
         .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+    }
+
+    private var background: Color {
+        if !selectable { return Theme.panelHi.opacity(0.35) }
+        return selected ? Theme.panelHi : Color.clear
     }
 
     private var status: String {

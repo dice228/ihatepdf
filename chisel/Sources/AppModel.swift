@@ -20,6 +20,9 @@ final class AppModel: ObservableObject {
     @Published var isLoading: Bool = false
     @Published var loadError: String = ""
     @Published var isDropTargeted: Bool = false
+    /// «Параметры на все видео»: один набор настроек на всю очередь.
+    /// Пока он включён, отдельное видео из списка не выбирается — редактируется вся очередь целиком.
+    @Published var shareSettings: Bool = true
 
     var outputDirectory: URL?
 
@@ -31,13 +34,23 @@ final class AppModel: ObservableObject {
     // MARK: - Доступ к выбранному файлу
 
     var selectedIndex: Int? {
-        guard let id = selection else { return items.isEmpty ? nil : 0 }
-        return items.firstIndex { $0.id == id }
+        if items.isEmpty { return nil }
+        if shareSettings { return 0 }
+        guard let id = selection else { return 0 }
+        return items.firstIndex { $0.id == id } ?? 0
     }
 
     var selected: MediaItem? {
         guard let i = selectedIndex, items.indices.contains(i) else { return nil }
         return items[i]
+    }
+
+    /// Файл, к которому относится то, что показано в правой части окна.
+    var displayItem: MediaItem? { selected }
+
+    /// Пока идёт конвертация, прогресс показываем по текущему файлу очереди.
+    var activeItem: MediaItem? {
+        items.first { $0.status == .running } ?? selected
     }
 
     func binding<T>(_ keyPath: WritableKeyPath<MediaItem, T>, fallback: T) -> Binding<T> {
@@ -48,20 +61,80 @@ final class AppModel: ObservableObject {
             },
             set: { newValue in
                 guard let i = self.selectedIndex, self.items.indices.contains(i) else { return }
-                self.items[i][keyPath: keyPath] = newValue
+                if self.shareSettings {
+                    for j in self.items.indices { self.items[j][keyPath: keyPath] = newValue }
+                } else {
+                    self.items[i][keyPath: keyPath] = newValue
+                }
             }
         )
     }
 
     /// Ползунок битрейта ходит по логарифму, поэтому у него отдельная привязка.
+    /// В общем режиме на все файлы уходит плотность бит на пиксель, а не абсолютный битрейт:
+    /// каждый файл получает свой битрейт под собственное разрешение.
     var bitrateBinding: Binding<Double> {
         Binding(
             get: { self.selected?.bitratePosition ?? 0.5 },
             set: { value in
                 guard let i = self.selectedIndex, self.items.indices.contains(i) else { return }
                 self.items[i].setBitratePosition(value)
+                if self.shareSettings {
+                    let bpp = self.items[i].bpp
+                    for j in self.items.indices { self.items[j].bpp = bpp }
+                }
             }
         )
+    }
+
+    func setAudio(_ mode: AudioMode) {
+        guard let i = selectedIndex, items.indices.contains(i) else { return }
+        if shareSettings {
+            for j in items.indices {
+                items[j].audio = items[j].info.hasAudio ? mode : .off
+            }
+        } else if items[i].info.hasAudio {
+            items[i].audio = mode
+        }
+    }
+
+    /// Переключатель «Параметры на все видео».
+    /// При включении настройки текущего файла разъезжаются по всей очереди,
+    /// иначе список показывал бы одно, а кодировались бы разные значения.
+    var shareBinding: Binding<Bool> {
+        Binding(
+            get: { self.shareSettings },
+            set: { isOn in
+                let sourceIndex = self.selectedIndex
+                self.shareSettings = isOn
+                guard isOn, let i = sourceIndex, self.items.indices.contains(i) else { return }
+                let source = self.items[i]
+                for j in self.items.indices {
+                    self.items[j].scale = source.scale
+                    self.items[j].bpp = source.bpp
+                    self.items[j].audio = self.items[j].info.hasAudio ? source.audio : .off
+                }
+                self.selection = self.items.first?.id
+            }
+        )
+    }
+
+    // MARK: - Итоги по всей очереди
+
+    var totalSourceBytes: Int64 { items.reduce(0) { $0 + $1.info.fileSize } }
+
+    var totalEstimatedBytes: Int64 { items.reduce(0) { $0 + $1.estimatedBytes } }
+
+    var totalResultBytes: Int64 { items.reduce(0) { $0 + $1.resultSize } }
+
+    var allDone: Bool { !items.isEmpty && items.allSatisfy { $0.status == .done } }
+
+    var doneCount: Int { items.filter { $0.status == .done }.count }
+
+    var totalRatio: Double {
+        guard totalSourceBytes > 0 else { return 1 }
+        let after = allDone ? totalResultBytes : totalEstimatedBytes
+        return Double(after) / Double(totalSourceBytes)
     }
 
     // MARK: - Добавление файлов
@@ -90,7 +163,14 @@ final class AppModel: ObservableObject {
                     guard let self = self else { return }
                     switch result {
                     case .success(let info):
-                        let item = MediaItem(info: info)
+                        var item = MediaItem(info: info)
+                        // При общих параметрах новый файл сразу перенимает их,
+                        // иначе в окне было бы одно, а кодировалось бы другое.
+                        if self.shareSettings, let first = self.items.first {
+                            item.scale = first.scale
+                            item.bpp = first.bpp
+                            item.audio = info.hasAudio ? first.audio : .off
+                        }
                         self.items.append(item)
                         if self.selection == nil { self.selection = item.id }
                     case .failure(let error):
@@ -235,13 +315,16 @@ final class AppModel: ObservableObject {
         }
     }
 
-    /// Во время работы — стоп. В покое — убрать текущий файл из списка.
+    /// Во время работы — стоп. В покое — убрать файл из списка;
+    /// при общих параметрах кнопка относится ко всей очереди, как и сами параметры.
     func cancelOrRemove() {
         if isConverting {
             cancelRequested = true
             pending.removeAll()
             engineAV?.cancel()
             engineFF?.cancel()
+        } else if shareSettings && items.count > 1 {
+            clearAll()
         } else if let i = selectedIndex, items.indices.contains(i) {
             remove(items[i].id)
         }
@@ -249,6 +332,12 @@ final class AppModel: ObservableObject {
 
     func reveal(_ url: URL) {
         NSWorkspace.shared.activateFileViewerSelecting([url])
+    }
+
+    func revealResults() {
+        let urls = items.compactMap { $0.resultURL }
+        guard !urls.isEmpty else { return }
+        NSWorkspace.shared.activateFileViewerSelecting(urls)
     }
 
     func chooseOutputFolder() {

@@ -30,6 +30,19 @@ enum Fmt {
         return String(format: v.rounded() == v ? "%.0f к/с" : "%.2f к/с", v)
     }
 
+    /// Русская форма множественного числа: 1 файл, 2 файла, 5 файлов.
+    static func plural(_ n: Int, _ one: String, _ few: String, _ many: String) -> String {
+        let tens = n % 100
+        let ones = n % 10
+        if ones == 1 && tens != 11 { return one }
+        if (2...4).contains(ones) && !(12...14).contains(tens) { return few }
+        return many
+    }
+
+    static func files(_ n: Int) -> String {
+        "\(n) " + plural(n, "файл", "файла", "файлов")
+    }
+
     static func signedPercent(_ ratio: Double) -> String {
         guard ratio.isFinite else { return "—" }
         let p = (ratio - 1.0) * 100.0

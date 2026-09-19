@@ -3,6 +3,14 @@ import Foundation
 
 enum ItemStatus { case ready, running, done, failed }
 
+/// Битрейт звука отдельной настройкой: на длинном ролике с низким битрейтом видео
+/// дорожка AAC занимает заметную долю файла, и на ней тоже можно выиграть вес.
+enum AudioMode: Int, CaseIterable, Identifiable {
+    case off = 0, k64 = 64_000, k96 = 96_000, k128 = 128_000, k192 = 192_000, k256 = 256_000
+    var id: Int { rawValue }
+    var title: String { self == .off ? "выкл" : "\(rawValue / 1_000)k" }
+}
+
 /// Один файл в очереди со своими настройками.
 /// Плотность бит на пиксель (bpp) хранится вместо абсолютного битрейта:
 /// тогда при смене разрешения битрейт пересчитывается сам и качество остаётся прежним,
@@ -12,6 +20,7 @@ struct MediaItem: Identifiable {
     var info: SourceInfo
     var scale: Double = 1.0
     var bpp: Double = 0.08
+    var audio: AudioMode = .k128
 
     var status: ItemStatus = .ready
     var progress: Double = 0
@@ -25,6 +34,7 @@ struct MediaItem: Identifiable {
     init(info: SourceInfo) {
         self.info = info
         self.bpp = MediaItem.initialBpp(info)
+        self.audio = info.hasAudio ? .k128 : .off
     }
 
     /// Стартуем от плотности самого файла — «как есть», но уже в H.264.
@@ -49,7 +59,16 @@ struct MediaItem: Identifiable {
         return min(max(raw, 60_000), 120_000_000)
     }
 
-    var audioBitrate: Double { info.hasAudio ? 128_000 : 0 }
+    var audioBitrate: Double {
+        guard info.hasAudio, audio != .off else { return 0 }
+        return Double(audio.rawValue)
+    }
+
+    /// Сколько весит звуковая дорожка — видно, есть ли смысл её ужимать.
+    var audioBytes: Int64 {
+        guard info.duration > 0 else { return 0 }
+        return Int64((audioBitrate * info.duration / 8.0).rounded())
+    }
 
     var estimatedBytes: Int64 {
         Estimator.estimatedBytes(videoBps: videoBitrate,
@@ -97,8 +116,8 @@ struct MediaItem: Identifiable {
             videoBitrate: Int(videoBitrate.rounded()),
             fps: info.fps,
             limitFps: false,
-            includeAudio: info.hasAudio,
-            audioBitrate: 128_000,
+            includeAudio: info.hasAudio && audio != .off,
+            audioBitrate: max(32_000, audio.rawValue),
             audioChannels: info.audioChannels,
             audioSampleRate: info.audioSampleRate,
             duration: info.duration)

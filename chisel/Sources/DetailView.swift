@@ -4,14 +4,16 @@ struct DetailView: View {
     @ObservedObject var model: AppModel
 
     var body: some View {
-        if let item = model.selected {
+        if let item = model.displayItem {
             VStack(spacing: 0) {
                 ScrollView {
-                    VStack(spacing: 18) {
+                    VStack(spacing: 16) {
                         PreviewBlock(item: item)
-                        TitleBlock(item: item)
-                        CompareBlock(item: item)
+                        TitleBlock(model: model, item: item)
+                        CompareBlock(model: model, item: item)
+                        ShareBlock(model: model)
                         SlidersBlock(model: model, item: item)
+                        AudioBlock(model: model, item: item)
                         NotesBlock(item: item, error: model.loadError)
                     }
                     .frame(maxWidth: 540)
@@ -20,7 +22,7 @@ struct DetailView: View {
                     .padding(.bottom, 10)
                     .frame(maxWidth: .infinity)
                 }
-                FooterBlock(model: model, item: item)
+                FooterBlock(model: model)
             }
         } else {
             EmptyStateView(model: model)
@@ -45,7 +47,7 @@ struct PreviewBlock: View {
                     .foregroundColor(Theme.textDim)
             }
         }
-        .frame(height: 196)
+        .frame(height: 186)
         .frame(maxWidth: .infinity)
         .background(Color.black.opacity(0.35))
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -55,11 +57,12 @@ struct PreviewBlock: View {
 // MARK: - Имя файла и характеристики
 
 struct TitleBlock: View {
+    @ObservedObject var model: AppModel
     var item: MediaItem
 
     var body: some View {
         VStack(spacing: 4) {
-            Text(item.info.url.lastPathComponent)
+            Text(name)
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundColor(Theme.text)
                 .lineLimit(1)
@@ -69,6 +72,13 @@ struct TitleBlock: View {
                 .foregroundColor(Theme.textDim)
         }
         .frame(maxWidth: .infinity)
+    }
+
+    private var name: String {
+        let base = item.info.url.lastPathComponent
+        let rest = model.items.count - 1
+        guard model.shareSettings, rest > 0 else { return base }
+        return "\(base) и ещё \(Fmt.files(rest))"
     }
 
     private var meta: String {
@@ -84,21 +94,18 @@ struct TitleBlock: View {
 // MARK: - Размер «до» и «после»
 
 struct CompareBlock: View {
+    @ObservedObject var model: AppModel
     var item: MediaItem
 
     var body: some View {
         HStack(alignment: .center, spacing: 16) {
-            column(caption: "СЕЙЧАС",
-                   size: Fmt.bytes(item.info.fileSize),
-                   detail: "\(item.info.width)×\(item.info.height) · \(item.info.codec)",
-                   color: Theme.text)
+            column(caption: "СЕЙЧАС", size: Fmt.bytes(beforeBytes),
+                   detail: beforeDetail, color: Theme.text)
             Text("→")
                 .font(.system(size: 16, weight: .light))
                 .foregroundColor(Theme.textDim)
-            column(caption: "ПОСЛЕ",
-                   size: afterSize,
-                   detail: "\(item.targetWidth)×\(item.targetHeight) · H.264",
-                   color: Theme.gold)
+            column(caption: "ПОСЛЕ", size: Fmt.bytes(afterBytes),
+                   detail: afterDetail, color: Theme.gold)
             Spacer(minLength: 0)
             badge
         }
@@ -113,15 +120,32 @@ struct CompareBlock: View {
         )
     }
 
-    private var isDone: Bool { item.status == .done && item.resultSize > 0 }
+    /// Когда настройки общие и файлов несколько, цифры показываем по всей очереди.
+    private var batch: Bool { model.shareSettings && model.items.count > 1 }
 
-    private var afterSize: String {
-        isDone ? Fmt.bytes(item.resultSize) : Fmt.bytes(item.estimatedBytes)
+    private var itemDone: Bool { item.status == .done && item.resultSize > 0 }
+
+    private var beforeBytes: Int64 { batch ? model.totalSourceBytes : item.info.fileSize }
+
+    private var afterBytes: Int64 {
+        if batch { return model.allDone ? model.totalResultBytes : model.totalEstimatedBytes }
+        return itemDone ? item.resultSize : item.estimatedBytes
     }
 
     private var ratio: Double {
+        if batch { return model.totalRatio }
         guard item.info.fileSize > 0 else { return 1 }
-        return isDone ? Double(item.resultSize) / Double(item.info.fileSize) : item.sizeRatio
+        return itemDone ? Double(item.resultSize) / Double(item.info.fileSize) : item.sizeRatio
+    }
+
+    private var beforeDetail: String {
+        batch ? Fmt.files(model.items.count)
+              : "\(item.info.width)×\(item.info.height) · \(item.info.codec)"
+    }
+
+    private var afterDetail: String {
+        batch ? "H.264 · \(Int((item.scale * 100).rounded()))% кадра"
+              : "\(item.targetWidth)×\(item.targetHeight) · H.264"
     }
 
     private func column(caption: String, size: String, detail: String, color: Color) -> some View {
@@ -152,6 +176,30 @@ struct CompareBlock: View {
     }
 }
 
+// MARK: - Общие параметры на всю очередь
+
+struct ShareBlock: View {
+    @ObservedObject var model: AppModel
+
+    var body: some View {
+        if model.items.count > 1 {
+            HStack(spacing: 8) {
+                Toggle("Параметры на все видео", isOn: model.shareBinding)
+                    .toggleStyle(.checkbox)
+                    .font(.system(size: 12))
+                    .foregroundColor(Theme.text)
+                Spacer(minLength: 0)
+                Text(model.shareSettings ? "список только показывает файлы"
+                                         : "выберите файл в списке слева")
+                    .font(.system(size: 10))
+                    .foregroundColor(Theme.textDim)
+            }
+            .disabled(model.isConverting)
+            .opacity(model.isConverting ? 0.5 : 1)
+        }
+    }
+}
+
 // MARK: - Два ползунка
 
 struct SlidersBlock: View {
@@ -159,13 +207,13 @@ struct SlidersBlock: View {
     var item: MediaItem
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 15) {
             SliderRow(title: "РАЗРЕШЕНИЕ",
                       value: "\(item.targetWidth)×\(item.targetHeight)",
-                      caption: "\(Int((item.scale * 100).rounded()))% от оригинала",
+                      caption: resolutionCaption,
                       position: model.binding(\.scale, fallback: 1.0),
                       range: 0.1...1.0)
-            SliderRow(title: "БИТРЕЙТ",
+            SliderRow(title: "БИТРЕЙТ ВИДЕО",
                       value: Fmt.bitrate(item.videoBitrate),
                       caption: bitrateCaption,
                       position: model.bitrateBinding,
@@ -175,8 +223,62 @@ struct SlidersBlock: View {
         .opacity(model.isConverting ? 0.5 : 1)
     }
 
+    private var batch: Bool { model.shareSettings && model.items.count > 1 }
+
+    private var resolutionCaption: String {
+        let percent = Int((item.scale * 100).rounded())
+        return batch ? "\(percent)% от оригинала — доля берётся от кадра каждого файла"
+                     : "\(percent)% от оригинала"
+    }
+
     private var bitrateCaption: String {
-        String(format: "%.3f бит на пиксель · при смене разрешения битрейт идёт следом", item.bpp)
+        let base = String(format: "%.3f бит на пиксель · при смене разрешения битрейт идёт следом", item.bpp)
+        return batch ? base + " · каждому файлу свой битрейт под его кадр" : base
+    }
+}
+
+// MARK: - Звук
+
+struct AudioBlock: View {
+    @ObservedObject var model: AppModel
+    var item: MediaItem
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("ЗВУК")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(Theme.textDim)
+                Spacer()
+                Text(value)
+                    .font(.system(size: 13, weight: .semibold).monospacedDigit())
+                    .foregroundColor(Theme.text)
+            }
+            HStack(spacing: 6) {
+                ForEach(AudioMode.allCases) { mode in
+                    Pill(title: mode.title, active: item.audio == mode) {
+                        model.setAudio(mode)
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+            Text(caption)
+                .font(.system(size: 10))
+                .foregroundColor(Theme.textDim.opacity(0.8))
+        }
+        .disabled(!item.info.hasAudio || model.isConverting)
+        .opacity(item.info.hasAudio ? (model.isConverting ? 0.5 : 1) : 0.4)
+    }
+
+    private var value: String {
+        guard item.info.hasAudio else { return "в файле нет дорожки" }
+        return item.audio == .off ? "выключен" : "AAC \(item.audio.rawValue / 1_000) кбит/с"
+    }
+
+    private var caption: String {
+        guard item.info.hasAudio else { return "нечего кодировать" }
+        if item.audio == .off { return "дорожка будет выброшена целиком" }
+        return "дорожка добавит ≈ \(Fmt.bytes(item.audioBytes)) · речь разборчива и на 64k"
     }
 }
 
@@ -216,26 +318,25 @@ struct NotesBlock: View {
 
 struct FooterBlock: View {
     @ObservedObject var model: AppModel
-    var item: MediaItem
 
     var body: some View {
         VStack(spacing: 10) {
-            if item.status == .running {
+            if let running = model.items.first(where: { $0.status == .running }) {
                 VStack(spacing: 5) {
-                    ProgressView(value: item.progress)
+                    ProgressView(value: running.progress)
                         .accentColor(Theme.orange)
-                    Text("\(Int(item.progress * 100))% · \(item.info.url.lastPathComponent)")
+                    Text(progressText(running))
                         .font(.system(size: 10).monospacedDigit())
                         .foregroundColor(Theme.textDim)
                         .lineLimit(1)
+                        .truncationMode(.middle)
                 }
-            }
-            if item.status == .done, let url = item.resultURL {
+            } else if model.doneCount > 0 {
                 HStack(spacing: 8) {
-                    Text("Готово · \(Fmt.bytes(item.resultSize))")
+                    Text(doneText)
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundColor(Theme.good)
-                    Button("Показать в Finder") { model.reveal(url) }
+                    Button("Показать в Finder") { model.revealResults() }
                         .buttonStyle(.plain)
                         .font(.system(size: 11))
                         .foregroundColor(Theme.sand)
@@ -261,6 +362,22 @@ struct FooterBlock: View {
         .padding(.vertical, 14)
         .frame(maxWidth: 592)
         .frame(maxWidth: .infinity)
+    }
+
+    private func progressText(_ running: MediaItem) -> String {
+        let percent = Int(running.progress * 100)
+        guard model.items.count > 1 else {
+            return "\(percent)% · \(running.info.url.lastPathComponent)"
+        }
+        let index = (model.items.firstIndex { $0.id == running.id } ?? 0) + 1
+        return "\(percent)% · \(index) из \(model.items.count) · \(running.info.url.lastPathComponent)"
+    }
+
+    private var doneText: String {
+        guard model.items.count > 1 else {
+            return "Готово · \(Fmt.bytes(model.totalResultBytes))"
+        }
+        return "Готово \(model.doneCount) из \(model.items.count) · всего \(Fmt.bytes(model.totalResultBytes))"
     }
 
     private var destinationHint: String {

@@ -18,6 +18,28 @@ enum Theme {
     static let nsBackground = NSColor(red: 0.145, green: 0.086, blue: 0.051, alpha: 1)
 }
 
+/// Маленькая кнопка-переключатель (выбор битрейта звука).
+struct Pill: View {
+    var title: String
+    var active: Bool
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 11, weight: .semibold))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(
+                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        .fill(active ? Theme.gold : Theme.panelHi)
+                )
+                .foregroundColor(active ? Color(red: 0.18, green: 0.10, blue: 0.04) : Theme.text)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 struct PrimaryButton: View {
     var title: String
     var enabled: Bool
