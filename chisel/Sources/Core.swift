@@ -58,6 +58,7 @@ struct Job {
     var sourceIsHDR: Bool
     var hdrIsPQ: Bool
     var keepHDR: Bool              // иначе HDR приводится к SDR
+    var burnSubtitles: Bool        // вшить субтитры в картинку (только через ffmpeg)
     var includeAudio: Bool
     var audioBitrate: Int          // бит/с
     var audioChannels: Int

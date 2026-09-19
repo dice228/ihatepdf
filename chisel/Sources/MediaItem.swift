@@ -31,10 +31,14 @@ struct MediaItem: Identifiable {
     var scale: Double = 1.0
     var videoBitrate: Double = 5_000_000
     var audio: AudioMode = .k128
+    /// Свести звук в один канал. Многоканальный источник (5.1) иначе сводится в стерео.
+    var audioMono: Bool = false
     var fpsMode: FpsMode = .source
     var codec: OutputCodec = .h264
     /// Сохранять HDR можно только в HEVC: H.264 здесь всегда 8 бит.
     var keepHDR: Bool = false
+    /// Субтитры в MP4 не переносятся — их можно только вшить в картинку, и только через ffmpeg.
+    var burnSubtitles: Bool = false
 
     var status: ItemStatus = .ready
     var progress: Double = 0
@@ -68,6 +72,11 @@ struct MediaItem: Identifiable {
 
     var targetFps: Double { fpsMode.value(source: info.fps) }
 
+    /// Вшивание доступно, только если есть что вшивать и чем.
+    var burnsSubtitles: Bool {
+        burnSubtitles && info.subtitleTracks > 0 && FFmpegEngine.isAvailable
+    }
+
     /// Сколько битрейта обычно хватает выбранному кадру — подсказка, а не ограничение.
     var recommendedBitrate: Double {
         0.08 * Double(targetWidth) * Double(targetHeight)
@@ -85,6 +94,17 @@ struct MediaItem: Identifiable {
     var audioBitrate: Double {
         guard info.hasAudio, audio != .off else { return 0 }
         return Double(audio.rawValue)
+    }
+
+    /// Как называется исходная раскладка каналов — чтобы было видно, что это 5.1.
+    var sourceChannelsName: String {
+        switch info.audioChannels {
+        case 1: return "моно"
+        case 2: return "стерео"
+        case 6: return "5.1"
+        case 8: return "7.1"
+        default: return "\(info.audioChannels) кан."
+        }
     }
 
     /// Сколько весит звуковая дорожка — видно, есть ли смысл её ужимать.
@@ -140,9 +160,10 @@ struct MediaItem: Identifiable {
             sourceIsHDR: info.isHDR,
             hdrIsPQ: info.hdrIsPQ,
             keepHDR: keepHDR && info.isHDR && codec == .hevc,
+            burnSubtitles: burnsSubtitles,
             includeAudio: info.hasAudio && audio != .off,
             audioBitrate: max(32_000, audio.rawValue),
-            audioChannels: info.audioChannels,
+            audioChannels: audioMono ? 1 : min(2, max(1, info.audioChannels)),
             audioSampleRate: info.audioSampleRate,
             duration: info.duration)
     }

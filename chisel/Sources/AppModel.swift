@@ -102,6 +102,17 @@ final class AppModel: ObservableObject {
         )
     }
 
+    var monoBinding: Binding<Bool> {
+        Binding(
+            get: { self.selected?.audioMono ?? false },
+            set: { value in self.apply { $0.audioMono = value } }
+        )
+    }
+
+    func setBurnSubtitles(_ burn: Bool) {
+        apply { $0.burnSubtitles = burn && $0.info.subtitleTracks > 0 }
+    }
+
     func setFps(_ mode: FpsMode) {
         apply { $0.fpsMode = mode }
     }
@@ -173,6 +184,8 @@ final class AppModel: ObservableObject {
                     self.items[j].scale = source.scale
                     self.items[j].videoBitrate = source.videoBitrate
                     self.items[j].audio = self.items[j].info.hasAudio ? source.audio : .off
+                    self.items[j].audioMono = source.audioMono
+                    self.items[j].burnSubtitles = source.burnSubtitles && self.items[j].info.subtitleTracks > 0
                     self.items[j].fpsMode = source.fpsMode
                     self.items[j].codec = source.codec
                     self.items[j].keepHDR = source.keepHDR && self.items[j].info.isHDR
@@ -233,6 +246,8 @@ final class AppModel: ObservableObject {
                             item.scale = first.scale
                             item.videoBitrate = first.videoBitrate
                             item.audio = info.hasAudio ? first.audio : .off
+                            item.audioMono = first.audioMono
+                            item.burnSubtitles = first.burnSubtitles && info.subtitleTracks > 0
                             item.fpsMode = first.fpsMode
                             item.codec = first.codec
                             item.keepHDR = first.keepHDR && info.isHDR
@@ -370,7 +385,9 @@ final class AppModel: ObservableObject {
             self.runNext()
         }
 
-        if item.info.nativeReadable {
+        // Вшить субтитры умеет только ffmpeg, поэтому такой файл уходит к нему,
+        // даже если macOS прочитала бы его сама.
+        if item.info.nativeReadable && !item.burnsSubtitles {
             let engine = AVEngine()
             engineAV = engine
             engine.run(job: job, progress: onProgress, completion: onDone)

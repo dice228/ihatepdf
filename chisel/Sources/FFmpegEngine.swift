@@ -17,6 +17,9 @@ final class FFmpegEngine {
         "/usr/bin/ffmpeg"
     ]
 
+    /// Проверка тяжёлая (запуск шелла), поэтому спрашиваем один раз за сеанс.
+    static let isAvailable: Bool = locate() != nil
+
     static func locate() -> URL? {
         for path in candidates where FileManager.default.isExecutableFile(atPath: path) {
             return URL(fileURLWithPath: path)
@@ -94,6 +97,9 @@ final class FFmpegEngine {
         info.isHDR = info.hdrIsPQ || transfer == "arib-std-b67"
         info.videoBitrate = number(video["bit_rate"]) ?? 0
 
+        info.audioTracks = streams.filter { ($0["codec_type"] as? String) == "audio" }.count
+        info.subtitleTracks = streams.filter { ($0["codec_type"] as? String) == "subtitle" }.count
+
         if let audio = streams.first(where: { ($0["codec_type"] as? String) == "audio" }) {
             info.hasAudio = true
             info.audioBitrate = number(audio["bit_rate"]) ?? 128_000
@@ -155,6 +161,15 @@ final class FFmpegEngine {
 
     // MARK: - Кодирование
 
+    /// В графе фильтров спецсимволы пути надо экранировать дважды — сначала для фильтра.
+    static func escapeForFilter(_ path: String) -> String {
+        var result = path.replacingOccurrences(of: "\\", with: "\\\\")
+        for symbol in [":", "'", ",", "[", "]", ";"] {
+            result = result.replacingOccurrences(of: symbol, with: "\\" + symbol)
+        }
+        return result
+    }
+
     func cancel() {
         cancelled = true
         process?.terminate()
@@ -176,6 +191,10 @@ final class FFmpegEngine {
                         "tonemap=tonemap=hable:desat=0", "zscale=t=bt709:m=bt709:r=tv"]
         }
         filters.append("scale=\(job.width):\(job.height):flags=lanczos")
+        // Вшиваем после масштабирования: текст рисуется уже в конечном размере и остаётся чётким.
+        if job.burnSubtitles {
+            filters.append("subtitles='\(FFmpegEngine.escapeForFilter(job.input.path))':si=0")
+        }
         filters.append(job.keepHDR ? "format=yuv420p10le" : "format=yuv420p")
 
         args += ["-c:v", job.codec == .hevc ? "libx265" : "libx264", "-preset", "medium",

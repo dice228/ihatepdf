@@ -18,6 +18,9 @@ struct SourceInfo {
     /// привести к SDR, иначе картинка выйдет блёклой и серой.
     var isHDR: Bool = false
     var hdrIsPQ: Bool = false
+    /// Что ещё лежит в контейнере: в MP4 уедут только одно видео и одна звуковая дорожка.
+    var audioTracks: Int = 0
+    var subtitleTracks: Int = 0
     var thumbnail: NSImage?
     /// AVFoundation умеет читать этот файл сам (без ffmpeg).
     var nativeReadable: Bool = true
@@ -82,6 +85,11 @@ enum Probe {
         let hdr = hdrKind(v)
         info.isHDR = hdr != nil
         info.hdrIsPQ = hdr == .pq
+
+        info.audioTracks = asset.tracks(withMediaType: .audio).count
+        info.subtitleTracks = asset.tracks(withMediaType: .subtitle).count
+            + asset.tracks(withMediaType: .text).count
+            + asset.tracks(withMediaType: .closedCaption).count
 
         if let a = asset.tracks(withMediaType: .audio).first {
             info.hasAudio = true

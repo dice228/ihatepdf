@@ -238,6 +238,19 @@ struct SlidersBlock: View {
                       step: 1)
                 .disabled(!item.info.hasAudio)
                 .opacity(item.info.hasAudio ? 1 : 0.4)
+            HStack(spacing: 10) {
+                Toggle("Моно", isOn: model.monoBinding)
+                    .toggleStyle(.checkbox)
+                    .font(.system(size: 11))
+                    .foregroundColor(Theme.text)
+                Text(channelsHint)
+                    .font(.system(size: 10))
+                    .foregroundColor(Theme.textDim.opacity(0.8))
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+            }
+            .disabled(!item.info.hasAudio || item.audio == .off)
+            .opacity(item.info.hasAudio && item.audio != .off ? 1 : 0.4)
         }
         .disabled(model.isConverting)
         .opacity(model.isConverting ? 0.5 : 1)
@@ -259,6 +272,13 @@ struct SlidersBlock: View {
     private var audioValue: String {
         guard item.info.hasAudio else { return "нет дорожки" }
         return item.audio == .off ? "выключен" : "AAC \(item.audio.rawValue / 1_000) кбит/с"
+    }
+
+    private var channelsHint: String {
+        guard item.info.hasAudio, item.audio != .off else { return "" }
+        let target = item.audioMono ? "моно" : (item.info.audioChannels > 1 ? "стерео" : "моно")
+        let base = "\(item.sourceChannelsName) → \(target)"
+        return item.audioMono ? base + " · на моно хватает вдвое меньшего битрейта" : base
     }
 
     private var audioCaption: String {
@@ -328,6 +348,21 @@ struct OptionsBlock: View {
                     Pill(title: "сохранить", active: item.keepHDR) { model.setKeepHDR(true) }
                 }
             }
+            if item.info.subtitleTracks > 0 {
+                row(title: "СУБТИТРЫ") {
+                    Pill(title: "убрать", active: !item.burnSubtitles) {
+                        model.setBurnSubtitles(false)
+                    }
+                    Pill(title: "вшить в кадр", active: item.burnSubtitles) {
+                        model.setBurnSubtitles(true)
+                    }
+                    if !FFmpegEngine.isAvailable {
+                        Text("нужен ffmpeg")
+                            .font(.system(size: 10))
+                            .foregroundColor(Theme.warn)
+                    }
+                }
+            }
             Text(caption)
                 .font(.system(size: 10))
                 .foregroundColor(Theme.textDim.opacity(0.8))
@@ -355,6 +390,11 @@ struct OptionsBlock: View {
     }
 
     private var caption: String {
+        if item.burnSubtitles {
+            return FFmpegEngine.isAvailable
+                ? "Субтитры рисуются прямо в кадр — иначе они не переживут отправку"
+                : "Вшивание требует ffmpeg: brew install ffmpeg"
+        }
         if item.codec == .hevc {
             return item.keepHDR
                 ? "HDR сохраняется в 10-битном HEVC — такой файл откроется не везде"
@@ -380,6 +420,12 @@ struct NotesBlock: View {
             }
             if !item.info.nativeReadable {
                 note("Контейнер обрабатывается через ffmpeg.", Theme.textDim)
+            }
+            if item.info.subtitleTracks > 0 && !item.burnSubtitles {
+                note("Субтитров внутри: \(item.info.subtitleTracks). Отдельной дорожкой в MP4 они не уедут — мессенджеры их всё равно не показывают.", Theme.textDim)
+            }
+            if item.info.audioTracks > 1 {
+                note("Звуковых дорожек: \(item.info.audioTracks). В файл попадёт первая.", Theme.textDim)
             }
             if let itemError = item.error {
                 note(itemError, Theme.warn)
