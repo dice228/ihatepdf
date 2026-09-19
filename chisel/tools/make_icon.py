@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """
-Рисует иконку Chisel (стамеска на тёмно-коричневом квадрате) и собирает .icns.
+Рисует запасные картинки Chisel: иконку приложения и фон пустого окна.
+Стиль монохромный — песочный силуэт инструмента на тёмной плитке с обводкой.
 
-Это ЗАПАСНОЙ вариант иконки: если у вас есть оригинальный logo.png,
-используйте tools/use-my-logo.sh — он соберёт .icns прямо из него.
+Это ЗАПАСНОЙ вариант. Свои файлы ставятся так:
+  иконка — tools/use-my-logo.sh, затем пересборка;
+  фон    — прямо в приложении, меню «Файл» → «Фоновая картинка…».
 
-Запуск:  python3 tools/make_icon.py
-Требует: pillow
+Запуск:  python3 tools/make_icon.py     (нужен pillow)
 """
+import io
 import os
 import struct
 import sys
@@ -18,89 +20,80 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 RES = os.path.abspath(os.path.join(HERE, "..", "Resources"))
 
 S = 2048          # рабочий холст (2x супер-сэмплинг от 1024)
-OUT = 1024        # итоговый размер мастер-PNG
+OUT = 1024
 
-# — палитра, снятая с оригинального логотипа —
-FRAME_FILL = (62, 36, 21, 255)       # тёмно-коричневый фон плитки
-FRAME_EDGE = (229, 190, 124, 255)    # песочная рамка
-STEEL = (156, 160, 164, 255)
-STEEL_HI = (196, 200, 204, 255)
-STEEL_TOP = (216, 219, 222, 255)
-STEEL_LO = (126, 130, 134, 255)
-TIP = (240, 242, 244, 255)
-FERRULE = (244, 246, 247, 255)
-GOLD = (255, 198, 46, 255)
-GOLD_LO = (226, 168, 22, 255)
-WOOD = (142, 74, 19, 255)
-WOOD_HI = (166, 90, 24, 255)
-WOOD_LO = (107, 54, 12, 255)
-CAP = (245, 145, 30, 255)
-CAP_LO = (224, 124, 18, 255)
-
-
-def rr(d, x0, y0, x1, y1, r, fill):
-    d.rounded_rectangle([x0, y0, x1, y1], radius=r, fill=fill)
+TAN = (224, 188, 133, 255)        # силуэт инструмента
+BORDER = (221, 184, 120, 255)     # обводка плитки
+FILL_TOP = (68, 42, 27, 255)      # плитка светлее сверху
+FILL_BOTTOM = (40, 24, 15, 255)
+GAP = (0, 0, 0, 0)                # разрезы силуэта: прозрачные насквозь
 
 
 def draw_chisel(img):
-    """Стамеска рисуется горизонтально (жало слева), потом слой поворачивается."""
+    """Инструмент рисуется горизонтально (жало слева), слой потом поворачивается."""
     d = ImageDraw.Draw(img)
-    L = 1600.0                 # длина инструмента по оси
-    x0 = (S - L) / 2.0         # 224
+    L = 1690.0
+    x0 = (S - L) / 2.0
     cy = S / 2.0
 
     def X(u):
         return x0 + u * L
 
-    # — жало (скошенный кончик) —
-    d.polygon([(X(0.000), cy - 78), (X(0.068), cy - 78),
-               (X(0.068), cy + 78), (X(0.040), cy + 78)], fill=TIP)
+    # — полотно со скошенным жалом —
+    d.polygon([(X(0.000), cy - 84), (X(0.082), cy - 84),
+               (X(0.082), cy + 84), (X(0.048), cy + 84)], fill=TAN)
+    d.rectangle([X(0.065), cy - 84, X(0.430), cy + 84], fill=TAN)
 
-    # — полотно —
-    d.polygon([(X(0.058), cy - 78), (X(0.430), cy - 78),
-               (X(0.430), cy + 78), (X(0.058), cy + 78)], fill=STEEL)
-    d.rectangle([X(0.058), cy - 78, X(0.430), cy - 30], fill=STEEL_HI)
-    d.rectangle([X(0.058), cy - 78, X(0.430), cy - 64], fill=STEEL_TOP)
-    d.rectangle([X(0.058), cy + 46, X(0.430), cy + 78], fill=STEEL_LO)
+    # — шейка перед обоймой: ступенька снизу —
+    d.rectangle([X(0.415), cy - 84, X(0.500), cy + 44], fill=TAN)
 
-    # — шейка (ступенька снизу перед обоймой) —
-    d.rectangle([X(0.410), cy - 78, X(0.486), cy + 38], fill=STEEL)
-    d.rectangle([X(0.410), cy - 78, X(0.486), cy - 46], fill=STEEL_HI)
+    # — обойма и рукоять одним телом —
+    d.rounded_rectangle([X(0.470), cy - 110, X(0.928), cy + 110], radius=38, fill=TAN)
 
-    # — белая обойма —
-    rr(d, X(0.462), cy - 96, X(0.566), cy + 96, 16, FERRULE)
-    # — золотое кольцо у полотна —
-    rr(d, X(0.554), cy - 102, X(0.612), cy + 102, 16, GOLD)
-    d.rectangle([X(0.554), cy + 60, X(0.612), cy + 100], fill=GOLD_LO)
+    # — торец —
+    d.rounded_rectangle([X(0.886), cy - 104, X(1.000), cy + 104], radius=54, fill=TAN)
 
-    # — деревянная рукоять —
-    rr(d, X(0.596), cy - 108, X(0.890), cy + 108, 34, WOOD)
-    d.rectangle([X(0.608), cy - 96, X(0.878), cy - 50], fill=WOOD_HI)
-    d.rectangle([X(0.608), cy + 52, X(0.878), cy + 102], fill=WOOD_LO)
-    for u in (0.678, 0.758):
-        d.rectangle([X(u), cy - 12, X(u + 0.055), cy + 4], fill=WOOD_LO)
+    # — разрезы: два кольца обоймы и поясок у торца —
+    for u in (0.508, 0.552, 0.878):
+        d.rectangle([X(u), cy - 116, X(u + 0.009), cy + 116], fill=GAP)
 
-    # — золотое кольцо у торца —
-    rr(d, X(0.876), cy - 104, X(0.942), cy + 104, 16, GOLD)
-    d.rectangle([X(0.876), cy + 62, X(0.942), cy + 102], fill=GOLD_LO)
 
-    # — оранжевый торец —
-    rr(d, X(0.916), cy - 100, X(1.000), cy + 100, 52, CAP)
-    d.rectangle([X(0.916), cy + 46, X(0.982), cy + 98], fill=CAP_LO)
+def tool_layer():
+    layer = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    draw_chisel(layer)
+    return layer.rotate(-45, resample=Image.BICUBIC, center=(S / 2, S / 2))
+
+
+def tile():
+    """Плитка с вертикальным градиентом и песочной обводкой."""
+    gradient = Image.new("RGBA", (S, S))
+    pixels = gradient.load()
+    for y in range(S):
+        t = y / (S - 1)
+        color = tuple(int(FILL_TOP[i] + (FILL_BOTTOM[i] - FILL_TOP[i]) * t) for i in range(4))
+        for x in range(S):
+            pixels[x, y] = color
+
+    mask = Image.new("L", (S, S), 0)
+    ImageDraw.Draw(mask).rounded_rectangle([272, 272, 1776, 1776], radius=400, fill=255)
+
+    base = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    base.paste(gradient, mask=mask)
+    ImageDraw.Draw(base).rounded_rectangle([272, 272, 1776, 1776], radius=400,
+                                           outline=BORDER, width=48)
+    return base
 
 
 def build_master():
-    base = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-    d = ImageDraw.Draw(base)
-    d.rounded_rectangle([272, 272, 1776, 1776], radius=400,
-                        fill=FRAME_FILL, outline=FRAME_EDGE, width=48)
-
-    tool = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-    draw_chisel(tool)
-    tool = tool.rotate(-45, resample=Image.BICUBIC, center=(S / 2, S / 2))
-
-    base.alpha_composite(tool)
+    base = tile()
+    base.alpha_composite(tool_layer())
     return base.resize((OUT, OUT), Image.LANCZOS)
+
+
+def build_background():
+    """Для пустого окна — один силуэт, без плитки."""
+    tool = tool_layer()
+    return tool.crop(tool.getbbox()).resize((512, 512), Image.LANCZOS)
 
 
 # — сборка .icns: современные типы принимают PNG как есть —
@@ -112,7 +105,6 @@ ICNS_TYPES = [
 
 
 def build_icns(master, path):
-    import io
     chunks = b""
     for code, size in ICNS_TYPES:
         buf = io.BytesIO()
@@ -121,14 +113,6 @@ def build_icns(master, path):
         chunks += code + struct.pack(">I", len(data) + 8) + data
     with open(path, "wb") as f:
         f.write(b"icns" + struct.pack(">I", len(chunks) + 8) + chunks)
-
-
-def build_background():
-    """Крупная иконка для пустого окна — инструмент без плитки-рамки."""
-    tool = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-    draw_chisel(tool)
-    tool = tool.rotate(-45, resample=Image.BICUBIC, center=(S / 2, S / 2))
-    return tool.crop(tool.getbbox()).resize((512, 512), Image.LANCZOS)
 
 
 def main():

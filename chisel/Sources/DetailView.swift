@@ -152,8 +152,8 @@ struct CompareBlock: View {
     }
 
     private var afterDetail: String {
-        batch ? "H.264 · \(Int((item.scale * 100).rounded()))% кадра"
-              : "\(item.targetWidth)×\(item.targetHeight) · H.264"
+        batch ? "\(item.codec.title) · \(Int((item.scale * 100).rounded()))% кадра"
+              : "\(item.targetWidth)×\(item.targetHeight) · \(item.codec.title)"
     }
 
     private func column(caption: String, size: String, detail: String,
@@ -512,6 +512,7 @@ struct FooterBlock: View {
         if let folder = model.outputDirectory {
             return "Результат: \(folder.path)"
         }
-        return "Результат ляжет рядом с исходным файлом, в формате MP4 / H.264"
+        let codec = model.selected?.codec.title ?? "H.264"
+        return "Результат ляжет рядом с исходным файлом, в формате MP4 / \(codec)"
     }
 }

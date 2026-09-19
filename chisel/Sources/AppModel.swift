@@ -24,12 +24,67 @@ final class AppModel: ObservableObject {
     /// Пока он включён, отдельное видео из списка не выбирается — редактируется вся очередь целиком.
     @Published var shareSettings: Bool = true
 
+    @Published var background: NSImage?
+    @Published var backgroundIsCustom: Bool = false
+
     var outputDirectory: URL?
 
     private var engineAV: AVEngine?
     private var engineFF: FFmpegEngine?
     private var pending: [UUID] = []
     private var cancelRequested = false
+
+    init() {
+        reloadBackground()
+    }
+
+    // MARK: - Фоновая картинка пустого окна
+
+    func reloadBackground() {
+        if let custom = AppAssets.customBackground {
+            background = custom
+            backgroundIsCustom = true
+        } else {
+            background = AppAssets.bundledBackground
+            backgroundIsCustom = false
+        }
+    }
+
+    /// Выбор своей картинки: копия кладётся в папку поддержки и подхватывается сразу.
+    func chooseBackground() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.allowedContentTypes = [.image]
+        panel.prompt = "Выбрать"
+        panel.message = "Картинка для пустого окна"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        installBackground(from: url)
+    }
+
+    func installBackground(from url: URL) {
+        guard let image = NSImage(contentsOf: url) else {
+            loadError = "Не получилось прочитать картинку."
+            return
+        }
+        let destination = AppAssets.customBackgroundURL
+        try? FileManager.default.createDirectory(at: AppAssets.supportDirectory,
+                                                 withIntermediateDirectories: true)
+        try? FileManager.default.removeItem(at: destination)
+        if let tiff = image.tiffRepresentation,
+           let rep = NSBitmapImageRep(data: tiff),
+           let png = rep.representation(using: .png, properties: [:]) {
+            try? png.write(to: destination)
+        } else {
+            try? FileManager.default.copyItem(at: url, to: destination)
+        }
+        reloadBackground()
+    }
+
+    func resetBackground() {
+        try? FileManager.default.removeItem(at: AppAssets.customBackgroundURL)
+        reloadBackground()
+    }
 
     // MARK: - Доступ к выбранному файлу
 

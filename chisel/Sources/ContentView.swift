@@ -49,12 +49,13 @@ struct EmptyStateView: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            if let background = AppAssets.background {
+            if let background = model.background {
                 Image(nsImage: background)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .frame(width: 168, height: 168)
-                    .opacity(0.6)
+                    .frame(width: 176, height: 176)
+                    // Свою картинку показываем как есть, запасную приглушаем.
+                    .opacity(model.backgroundIsCustom ? 1.0 : 0.55)
                     .padding(.bottom, 6)
             }
             Text("Выберите видео или перетащите его сюда.")

@@ -21,6 +21,9 @@ struct ChiselApp: App {
                 Divider()
                 Button("Убрать все файлы") { AppModel.shared.clearAll() }
                     .keyboardShortcut(.delete, modifiers: [.command, .shift])
+                Divider()
+                Button("Фоновая картинка…") { AppModel.shared.chooseBackground() }
+                Button("Вернуть стандартную картинку") { AppModel.shared.resetBackground() }
             }
             CommandGroup(replacing: .pasteboard) {
                 Button("Вставить") { AppModel.shared.pasteFromClipboard() }

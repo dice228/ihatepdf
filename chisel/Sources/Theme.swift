@@ -18,14 +18,33 @@ enum Theme {
     static let nsBackground = NSColor(red: 0.145, green: 0.086, blue: 0.051, alpha: 1)
 }
 
-/// Картинки, лежащие в самом бандле (фоновая иконка пустого окна).
+/// Фоновая картинка пустого окна.
+/// Своя лежит в папке поддержки и ставится прямо из меню — пересборка не нужна.
+/// Если её нет, берётся запасная из бандла.
 enum AppAssets {
-    static let background: NSImage? = {
+    static var supportDirectory: URL {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory,
+                                            in: .userDomainMask).first
+            ?? FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent("Library/Application Support")
+        return base.appendingPathComponent("Chisel", isDirectory: true)
+    }
+
+    static var customBackgroundURL: URL {
+        supportDirectory.appendingPathComponent("background.png")
+    }
+
+    static var customBackground: NSImage? {
+        guard FileManager.default.fileExists(atPath: customBackgroundURL.path) else { return nil }
+        return NSImage(contentsOf: customBackgroundURL)
+    }
+
+    static var bundledBackground: NSImage? {
         guard let url = Bundle.main.url(forResource: "background", withExtension: "png") else {
             return nil
         }
         return NSImage(contentsOf: url)
-    }()
+    }
 }
 
 /// Маленькая кнопка-переключатель для настроек, у которых два-четыре значения.
