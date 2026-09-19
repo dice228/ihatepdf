@@ -71,8 +71,6 @@ final class AppModel: ObservableObject {
     }
 
     /// Ползунок битрейта ходит по логарифму, поэтому у него отдельная привязка.
-    /// В общем режиме на все файлы уходит плотность бит на пиксель, а не абсолютный битрейт:
-    /// каждый файл получает свой битрейт под собственное разрешение.
     var bitrateBinding: Binding<Double> {
         Binding(
             get: { self.selected?.bitratePosition ?? 0.5 },
@@ -80,9 +78,26 @@ final class AppModel: ObservableObject {
                 guard let i = self.selectedIndex, self.items.indices.contains(i) else { return }
                 self.items[i].setBitratePosition(value)
                 if self.shareSettings {
-                    let bpp = self.items[i].bpp
-                    for j in self.items.indices { self.items[j].bpp = bpp }
+                    let bitrate = self.items[i].videoBitrate
+                    for j in self.items.indices { self.items[j].videoBitrate = bitrate }
                 }
+            }
+        )
+    }
+
+    /// Звук тоже ползунком, но со ступенями: значений всего шесть.
+    var audioBinding: Binding<Double> {
+        Binding(
+            get: {
+                guard let item = self.selected,
+                      let index = AudioMode.allCases.firstIndex(of: item.audio) else { return 3 }
+                return Double(index)
+            },
+            set: { value in
+                let modes = AudioMode.allCases
+                let index = Int(value.rounded())
+                guard modes.indices.contains(index) else { return }
+                self.setAudio(modes[index])
             }
         )
     }
@@ -111,7 +126,7 @@ final class AppModel: ObservableObject {
                 let source = self.items[i]
                 for j in self.items.indices {
                     self.items[j].scale = source.scale
-                    self.items[j].bpp = source.bpp
+                    self.items[j].videoBitrate = source.videoBitrate
                     self.items[j].audio = self.items[j].info.hasAudio ? source.audio : .off
                 }
                 self.selection = self.items.first?.id
@@ -168,7 +183,7 @@ final class AppModel: ObservableObject {
                         // иначе в окне было бы одно, а кодировалось бы другое.
                         if self.shareSettings, let first = self.items.first {
                             item.scale = first.scale
-                            item.bpp = first.bpp
+                            item.videoBitrate = first.videoBitrate
                             item.audio = info.hasAudio ? first.audio : .off
                         }
                         self.items.append(item)

@@ -2,6 +2,9 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct ContentView: View {
+    static let paneWidth: CGFloat = 480
+    static let sidebarWidth: CGFloat = 236
+
     @ObservedObject var model: AppModel
 
     var body: some View {
@@ -15,7 +18,10 @@ struct ContentView: View {
                     .allowsHitTesting(false)
             }
         }
-        .frame(minWidth: model.items.count > 1 ? 800 : 560, minHeight: 600)
+        // Ширина фиксирована: окно компактное и не растягивается.
+        // Боковой список добавляет к ней свою полосу, когда файлов несколько.
+        .frame(width: model.items.count > 1 ? ContentView.paneWidth + ContentView.sidebarWidth
+                                            : ContentView.paneWidth)
         .onDrop(of: [UTType.fileURL], isTargeted: $model.isDropTargeted) { providers in
             model.handleDrop(providers)
         }
@@ -28,6 +34,7 @@ struct ContentView: View {
             HStack(spacing: 0) {
                 SidebarView(model: model)
                 DetailView(model: model)
+                    .frame(width: ContentView.paneWidth)
             }
         } else {
             DetailView(model: model)
@@ -40,6 +47,14 @@ struct EmptyStateView: View {
 
     var body: some View {
         VStack(spacing: 12) {
+            if let background = AppAssets.background {
+                Image(nsImage: background)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 168, height: 168)
+                    .opacity(0.6)
+                    .padding(.bottom, 6)
+            }
             Text("Выберите видео или перетащите его сюда.")
                 .font(.system(size: 15))
                 .foregroundColor(Theme.text)
@@ -61,7 +76,8 @@ struct EmptyStateView: View {
                     .padding(.top, 6)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity)
+        .frame(height: 420)
         .contentShape(Rectangle())
         .onTapGesture { model.pickFiles() }
     }

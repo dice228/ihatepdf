@@ -29,7 +29,7 @@ struct SidebarView: View {
             }
             .buttonStyle(.plain)
         }
-        .frame(width: 236)
+        .frame(width: ContentView.sidebarWidth)
         .background(Color.black.opacity(0.22))
     }
 }

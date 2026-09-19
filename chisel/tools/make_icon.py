@@ -123,12 +123,21 @@ def build_icns(master, path):
         f.write(b"icns" + struct.pack(">I", len(chunks) + 8) + chunks)
 
 
+def build_background():
+    """Крупная иконка для пустого окна — инструмент без плитки-рамки."""
+    tool = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    draw_chisel(tool)
+    tool = tool.rotate(-45, resample=Image.BICUBIC, center=(S / 2, S / 2))
+    return tool.crop(tool.getbbox()).resize((512, 512), Image.LANCZOS)
+
+
 def main():
     os.makedirs(RES, exist_ok=True)
     master = build_master()
     master.save(os.path.join(RES, "icon-1024.png"))
     master.resize((256, 256), Image.LANCZOS).save(os.path.join(RES, "icon-256.png"))
     build_icns(master, os.path.join(RES, "Chisel.icns"))
+    build_background().save(os.path.join(RES, "background.png"))
     print("ok:", RES)
 
 

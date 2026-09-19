@@ -54,6 +54,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             window.titleVisibility = .visible
             window.title = "Chisel"
             window.isMovableByWindowBackground = true
+            // Ширина и высота задаются содержимым — тянуть окно не за что.
+            window.styleMask.remove(.resizable)
         }
     }
 }

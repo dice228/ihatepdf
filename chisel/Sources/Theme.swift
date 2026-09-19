@@ -18,26 +18,14 @@ enum Theme {
     static let nsBackground = NSColor(red: 0.145, green: 0.086, blue: 0.051, alpha: 1)
 }
 
-/// Маленькая кнопка-переключатель (выбор битрейта звука).
-struct Pill: View {
-    var title: String
-    var active: Bool
-    var action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(.system(size: 11, weight: .semibold))
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
-                        .fill(active ? Theme.gold : Theme.panelHi)
-                )
-                .foregroundColor(active ? Color(red: 0.18, green: 0.10, blue: 0.04) : Theme.text)
+/// Картинки, лежащие в самом бандле (фоновая иконка пустого окна).
+enum AppAssets {
+    static let background: NSImage? = {
+        guard let url = Bundle.main.url(forResource: "background", withExtension: "png") else {
+            return nil
         }
-        .buttonStyle(.plain)
-    }
+        return NSImage(contentsOf: url)
+    }()
 }
 
 struct PrimaryButton: View {
@@ -91,9 +79,11 @@ struct SliderRow: View {
     var caption: String
     @Binding var position: Double
     var range: ClosedRange<Double> = 0...1
+    /// Ноль — плавный ползунок, иначе шаг (у звука значений всего шесть).
+    var step: Double = 0
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
+        VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline) {
                 Text(title)
                     .font(.system(size: 11, weight: .semibold))
@@ -103,11 +93,20 @@ struct SliderRow: View {
                     .font(.system(size: 13, weight: .semibold).monospacedDigit())
                     .foregroundColor(Theme.text)
             }
-            Slider(value: $position, in: range)
+            slider
                 .accentColor(Theme.gold)
             Text(caption)
                 .font(.system(size: 10))
                 .foregroundColor(Theme.textDim.opacity(0.8))
+                .lineLimit(1)
+        }
+    }
+
+    @ViewBuilder private var slider: some View {
+        if step > 0 {
+            Slider(value: $position, in: range, step: step)
+        } else {
+            Slider(value: $position, in: range)
         }
     }
 }

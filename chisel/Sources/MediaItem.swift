@@ -12,14 +12,14 @@ enum AudioMode: Int, CaseIterable, Identifiable {
 }
 
 /// Один файл в очереди со своими настройками.
-/// Плотность бит на пиксель (bpp) хранится вместо абсолютного битрейта:
-/// тогда при смене разрешения битрейт пересчитывается сам и качество остаётся прежним,
-/// а «размер после» меняется от обоих ползунков.
+/// Ползунки независимы: разрешение отвечает за чёткость кадра, битрейт — за вес файла.
+/// Разрешение на размер не влияет, поэтому рядом с битрейтом подсказано,
+/// сколько обычно нужно выбранному кадру.
 struct MediaItem: Identifiable {
     let id = UUID()
     var info: SourceInfo
     var scale: Double = 1.0
-    var bpp: Double = 0.08
+    var videoBitrate: Double = 5_000_000
     var audio: AudioMode = .k128
 
     var status: ItemStatus = .ready
@@ -28,20 +28,18 @@ struct MediaItem: Identifiable {
     var resultSize: Int64 = 0
     var error: String?
 
-    static let bppMin = 0.004
-    static let bppMax = 1.0
-
     init(info: SourceInfo) {
         self.info = info
-        self.bpp = MediaItem.initialBpp(info)
+        self.videoBitrate = MediaItem.initialBitrate(info)
         self.audio = info.hasAudio ? .k128 : .off
     }
 
-    /// Стартуем от плотности самого файла — «как есть», но уже в H.264.
-    private static func initialBpp(_ info: SourceInfo) -> Double {
-        let pixels = Double(info.width * info.height) * max(1, info.fps)
-        guard pixels > 0, info.videoBitrate > 100_000 else { return 0.08 }
-        return min(0.20, max(0.02, info.videoBitrate / pixels))
+    /// Стартуем от битрейта самого файла, но не выше разумного потолка для H.264:
+    /// для ProRes и другого тяжёлого исходника это сразу даёт заметное сжатие.
+    private static func initialBitrate(_ info: SourceInfo) -> Double {
+        let ceiling = 0.20 * Double(info.width * info.height) * max(1, min(info.fps, 120))
+        let source = info.videoBitrate > 100_000 ? info.videoBitrate : ceiling
+        return min(max(min(source, ceiling), 100_000), 80_000_000)
     }
 
     // MARK: - Производные величины
@@ -54,9 +52,9 @@ struct MediaItem: Identifiable {
         Estimator.targetSize(sourceWidth: info.width, sourceHeight: info.height, scale: scale).h
     }
 
-    var videoBitrate: Double {
-        let raw = bpp * Double(targetWidth) * Double(targetHeight) * max(1, min(info.fps, 120))
-        return min(max(raw, 60_000), 120_000_000)
+    /// Сколько битрейта обычно хватает выбранному кадру — подсказка, а не ограничение.
+    var recommendedBitrate: Double {
+        0.08 * Double(targetWidth) * Double(targetHeight) * max(1, min(info.fps, 120))
     }
 
     var audioBitrate: Double {
@@ -102,10 +100,7 @@ struct MediaItem: Identifiable {
 
     mutating func setBitratePosition(_ t: Double) {
         let clamped = min(max(t, 0), 1)
-        let bitrate = minBitrate * pow(maxBitrate / minBitrate, clamped)
-        let pixels = Double(targetWidth * targetHeight) * max(1, min(info.fps, 120))
-        guard pixels > 0 else { return }
-        bpp = min(MediaItem.bppMax, max(MediaItem.bppMin, bitrate / pixels))
+        videoBitrate = minBitrate * pow(maxBitrate / minBitrate, clamped)
     }
 
     func job(output: URL) -> Job {

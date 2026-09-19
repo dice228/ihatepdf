@@ -62,6 +62,9 @@ fi
 
 cp Resources/Info.plist "${BUNDLE}/Contents/Info.plist"
 cp Resources/Chisel.icns "${BUNDLE}/Contents/Resources/Chisel.icns"
+if [[ -f Resources/background.png ]]; then
+    cp Resources/background.png "${BUNDLE}/Contents/Resources/background.png"
+fi
 printf 'APPL????' > "${BUNDLE}/Contents/PkgInfo"
 
 # Подпись ad-hoc: без неё macOS на Apple Silicon не запустит свежесобранный бинарник.

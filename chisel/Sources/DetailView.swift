@@ -5,25 +5,18 @@ struct DetailView: View {
 
     var body: some View {
         if let item = model.displayItem {
-            VStack(spacing: 0) {
-                ScrollView {
-                    VStack(spacing: 16) {
-                        PreviewBlock(item: item)
-                        TitleBlock(model: model, item: item)
-                        CompareBlock(model: model, item: item)
-                        ShareBlock(model: model)
-                        SlidersBlock(model: model, item: item)
-                        AudioBlock(model: model, item: item)
-                        NotesBlock(item: item, error: model.loadError)
-                    }
-                    .frame(maxWidth: 540)
-                    .padding(.horizontal, 26)
-                    .padding(.top, 14)
-                    .padding(.bottom, 10)
-                    .frame(maxWidth: .infinity)
-                }
+            VStack(spacing: 14) {
+                PreviewBlock(item: item)
+                TitleBlock(model: model, item: item)
+                CompareBlock(model: model, item: item)
+                ShareBlock(model: model)
+                SlidersBlock(model: model, item: item)
+                NotesBlock(item: item, error: model.loadError)
                 FooterBlock(model: model)
             }
+            .padding(.horizontal, 22)
+            .padding(.top, 14)
+            .padding(.bottom, 14)
         } else {
             EmptyStateView(model: model)
         }
@@ -47,7 +40,7 @@ struct PreviewBlock: View {
                     .foregroundColor(Theme.textDim)
             }
         }
-        .frame(height: 186)
+        .frame(height: 158)
         .frame(maxWidth: .infinity)
         .background(Color.black.opacity(0.35))
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -200,14 +193,14 @@ struct ShareBlock: View {
     }
 }
 
-// MARK: - Два ползунка
+// MARK: - Ползунки
 
 struct SlidersBlock: View {
     @ObservedObject var model: AppModel
     var item: MediaItem
 
     var body: some View {
-        VStack(spacing: 15) {
+        VStack(spacing: 13) {
             SliderRow(title: "РАЗРЕШЕНИЕ",
                       value: "\(item.targetWidth)×\(item.targetHeight)",
                       caption: resolutionCaption,
@@ -218,6 +211,14 @@ struct SlidersBlock: View {
                       caption: bitrateCaption,
                       position: model.bitrateBinding,
                       range: 0...1)
+            SliderRow(title: "ЗВУК",
+                      value: audioValue,
+                      caption: audioCaption,
+                      position: model.audioBinding,
+                      range: 0...Double(AudioMode.allCases.count - 1),
+                      step: 1)
+                .disabled(!item.info.hasAudio)
+                .opacity(item.info.hasAudio ? 1 : 0.4)
         }
         .disabled(model.isConverting)
         .opacity(model.isConverting ? 0.5 : 1)
@@ -227,58 +228,24 @@ struct SlidersBlock: View {
 
     private var resolutionCaption: String {
         let percent = Int((item.scale * 100).rounded())
-        return batch ? "\(percent)% от оригинала — доля берётся от кадра каждого файла"
-                     : "\(percent)% от оригинала"
+        return batch ? "\(percent)% от кадра каждого файла" : "\(percent)% от оригинала"
     }
 
+    /// Разрешение и битрейт больше не связаны, поэтому вместо пересчёта — подсказка,
+    /// сколько битрейта обычно хватает выбранному кадру.
     private var bitrateCaption: String {
-        let base = String(format: "%.3f бит на пиксель · при смене разрешения битрейт идёт следом", item.bpp)
-        return batch ? base + " · каждому файлу свой битрейт под его кадр" : base
-    }
-}
-
-// MARK: - Звук
-
-struct AudioBlock: View {
-    @ObservedObject var model: AppModel
-    var item: MediaItem
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("ЗВУК")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(Theme.textDim)
-                Spacer()
-                Text(value)
-                    .font(.system(size: 13, weight: .semibold).monospacedDigit())
-                    .foregroundColor(Theme.text)
-            }
-            HStack(spacing: 6) {
-                ForEach(AudioMode.allCases) { mode in
-                    Pill(title: mode.title, active: item.audio == mode) {
-                        model.setAudio(mode)
-                    }
-                }
-                Spacer(minLength: 0)
-            }
-            Text(caption)
-                .font(.system(size: 10))
-                .foregroundColor(Theme.textDim.opacity(0.8))
-        }
-        .disabled(!item.info.hasAudio || model.isConverting)
-        .opacity(item.info.hasAudio ? (model.isConverting ? 0.5 : 1) : 0.4)
+        "для \(item.targetWidth)×\(item.targetHeight) обычно хватает \(Fmt.bitrate(item.recommendedBitrate))"
     }
 
-    private var value: String {
-        guard item.info.hasAudio else { return "в файле нет дорожки" }
+    private var audioValue: String {
+        guard item.info.hasAudio else { return "нет дорожки" }
         return item.audio == .off ? "выключен" : "AAC \(item.audio.rawValue / 1_000) кбит/с"
     }
 
-    private var caption: String {
-        guard item.info.hasAudio else { return "нечего кодировать" }
+    private var audioCaption: String {
+        guard item.info.hasAudio else { return "в файле нет звука" }
         if item.audio == .off { return "дорожка будет выброшена целиком" }
-        return "дорожка добавит ≈ \(Fmt.bytes(item.audioBytes)) · речь разборчива и на 64k"
+        return "добавит ≈ \(Fmt.bytes(item.audioBytes)) · речь разборчива и на 64k"
     }
 }
 
@@ -358,10 +325,7 @@ struct FooterBlock: View {
                 .lineLimit(1)
                 .truncationMode(.middle)
         }
-        .padding(.horizontal, 26)
-        .padding(.vertical, 14)
-        .frame(maxWidth: 592)
-        .frame(maxWidth: .infinity)
+        .padding(.top, 2)
     }
 
     private func progressText(_ running: MediaItem) -> String {
