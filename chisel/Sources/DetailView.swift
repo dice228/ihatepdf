@@ -223,8 +223,20 @@ struct SlidersBlock: View {
             SliderRow(title: "РАЗРЕШЕНИЕ",
                       value: "\(item.targetWidth)×\(item.targetHeight)",
                       caption: resolutionCaption,
-                      position: model.binding(\.scale, fallback: 1.0),
+                      position: model.scaleBinding,
                       range: 0.1...1.0)
+            HStack(spacing: 10) {
+                Toggle("Битрейт под разрешение", isOn: model.linkBitrateBinding)
+                    .toggleStyle(.checkbox)
+                    .font(.system(size: 11))
+                    .foregroundColor(Theme.text)
+                Text(item.linkBitrate ? "вес меняется вместе с кадром"
+                                      : "вес зависит только от битрейта")
+                    .font(.system(size: 10))
+                    .foregroundColor(Theme.textDim.opacity(0.8))
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+            }
             SliderRow(title: "БИТРЕЙТ ВИДЕО",
                       value: Fmt.bitrate(item.videoBitrate),
                       caption: bitrateCaption,

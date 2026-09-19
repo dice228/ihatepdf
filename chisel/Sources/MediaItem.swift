@@ -30,6 +30,9 @@ struct MediaItem: Identifiable {
     var info: SourceInfo
     var scale: Double = 1.0
     var videoBitrate: Double = 5_000_000
+    /// Тянуть битрейт за разрешением, сохраняя плотность бит на пиксель.
+    /// Выключено — ползунки независимы, и вес зависит только от битрейта.
+    var linkBitrate: Bool = false
     var audio: AudioMode = .k128
     /// Свести звук в один канал. Многоканальный источник (5.1) иначе сводится в стерео.
     var audioMono: Bool = false
@@ -141,6 +144,21 @@ struct MediaItem: Identifiable {
     var bitratePosition: Double {
         let v = min(max(videoBitrate, minBitrate), maxBitrate)
         return log(v / minBitrate) / log(maxBitrate / minBitrate)
+    }
+
+    /// Меняем долю кадра. При включённой связи битрейт пересчитывается
+    /// пропорционально числу пикселей — картинка сохраняет качество, а вес падает.
+    mutating func setScale(_ newValue: Double) {
+        let clamped = min(max(newValue, 0.1), 1.0)
+        guard linkBitrate else {
+            scale = clamped
+            return
+        }
+        let before = Double(targetWidth * targetHeight)
+        scale = clamped
+        let after = Double(targetWidth * targetHeight)
+        guard before > 0, after > 0 else { return }
+        videoBitrate = min(max(videoBitrate * after / before, 60_000), 120_000_000)
     }
 
     mutating func setBitratePosition(_ t: Double) {

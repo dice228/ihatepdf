@@ -108,23 +108,6 @@ final class AppModel: ObservableObject {
         items.first { $0.status == .running } ?? selected
     }
 
-    func binding<T>(_ keyPath: WritableKeyPath<MediaItem, T>, fallback: T) -> Binding<T> {
-        Binding(
-            get: {
-                guard let i = self.selectedIndex, self.items.indices.contains(i) else { return fallback }
-                return self.items[i][keyPath: keyPath]
-            },
-            set: { newValue in
-                guard let i = self.selectedIndex, self.items.indices.contains(i) else { return }
-                if self.shareSettings {
-                    for j in self.items.indices { self.items[j][keyPath: keyPath] = newValue }
-                } else {
-                    self.items[i][keyPath: keyPath] = newValue
-                }
-            }
-        )
-    }
-
     /// Ползунок битрейта ходит по логарифму, поэтому у него отдельная привязка.
     var bitrateBinding: Binding<Double> {
         Binding(
@@ -154,6 +137,20 @@ final class AppModel: ObservableObject {
                 guard modes.indices.contains(index) else { return }
                 self.setAudio(modes[index])
             }
+        )
+    }
+
+    var scaleBinding: Binding<Double> {
+        Binding(
+            get: { self.selected?.scale ?? 1.0 },
+            set: { value in self.apply { $0.setScale(value) } }
+        )
+    }
+
+    var linkBitrateBinding: Binding<Bool> {
+        Binding(
+            get: { self.selected?.linkBitrate ?? false },
+            set: { value in self.apply { $0.linkBitrate = value } }
         )
     }
 
@@ -238,6 +235,7 @@ final class AppModel: ObservableObject {
                 for j in self.items.indices {
                     self.items[j].scale = source.scale
                     self.items[j].videoBitrate = source.videoBitrate
+                    self.items[j].linkBitrate = source.linkBitrate
                     self.items[j].audio = self.items[j].info.hasAudio ? source.audio : .off
                     self.items[j].audioMono = source.audioMono
                     self.items[j].burnSubtitles = source.burnSubtitles && self.items[j].info.subtitleTracks > 0
@@ -300,6 +298,7 @@ final class AppModel: ObservableObject {
                         if self.shareSettings, let first = self.items.first {
                             item.scale = first.scale
                             item.videoBitrate = first.videoBitrate
+                            item.linkBitrate = first.linkBitrate
                             item.audio = info.hasAudio ? first.audio : .off
                             item.audioMono = first.audioMono
                             item.burnSubtitles = first.burnSubtitles && info.subtitleTracks > 0
