@@ -55,7 +55,7 @@ final class AppModel: ObservableObject {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
-        panel.allowedContentTypes = [.image]
+        panel.allowedContentTypes = [.image, .svg]
         panel.prompt = "Выбрать"
         panel.message = "Картинка для пустого окна"
         guard panel.runModal() == .OK, let url = panel.url else { return }
@@ -63,8 +63,8 @@ final class AppModel: ObservableObject {
     }
 
     func installBackground(from url: URL) {
-        guard let image = NSImage(contentsOf: url) else {
-            loadError = "Не получилось прочитать картинку."
+        guard let image = AppModel.loadImage(url) else {
+            loadError = "Не получилось прочитать картинку: \(url.lastPathComponent)"
             return
         }
         let destination = AppAssets.customBackgroundURL
@@ -79,6 +79,33 @@ final class AppModel: ObservableObject {
             try? FileManager.default.copyItem(at: url, to: destination)
         }
         reloadBackground()
+    }
+
+    /// NSImage сам открывает PNG, JPEG, TIFF и HEIC. SVG и прочую экзотику
+    /// отрисовывает Quick Look — тот же механизм, что рисует превью в Finder.
+    static func loadImage(_ url: URL) -> NSImage? {
+        if let image = NSImage(contentsOf: url), image.isValid, image.size.width > 1 {
+            return image
+        }
+        let folder = FileManager.default.temporaryDirectory
+            .appendingPathComponent("chisel-ql-\(UUID().uuidString)", isDirectory: true)
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/qlmanage")
+        process.arguments = ["-t", "-s", "1024", "-o", folder.path, url.path]
+        process.standardOutput = Pipe()
+        process.standardError = Pipe()
+        do { try process.run() } catch { return nil }
+        process.waitUntilExit()
+
+        let produced = (try? FileManager.default.contentsOfDirectory(
+            at: folder, includingPropertiesForKeys: nil)) ?? []
+        guard let png = produced.first(where: { $0.pathExtension.lowercased() == "png" }) else {
+            return nil
+        }
+        return NSImage(contentsOf: png)
     }
 
     func resetBackground() {

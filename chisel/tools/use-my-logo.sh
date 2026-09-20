@@ -16,6 +16,18 @@ if [[ ! -f "$SRC" ]]; then
     exit 1
 fi
 
+# sips не умеет SVG — такие файлы сначала отрисовывает Quick Look.
+if ! sips -g pixelWidth "$SRC" >/dev/null 2>&1; then
+    RENDER_DIR="$(mktemp -d)"
+    qlmanage -t -s 2048 -o "$RENDER_DIR" "$SRC" >/dev/null 2>&1 || true
+    RENDERED="$(find "$RENDER_DIR" -name '*.png' | head -1)"
+    if [[ -z "$RENDERED" ]]; then
+        echo "Не получилось отрисовать $SRC" >&2
+        exit 1
+    fi
+    SRC="$RENDERED"
+fi
+
 WORK="$(mktemp -d)/Chisel.iconset"
 mkdir -p "$WORK"
 
